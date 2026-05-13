@@ -9,7 +9,7 @@ description: "Deterministic coding workflow with phase state machine, traceabili
 
 ```
 ☄️ STELLAR · v5.3.0 · ACTIVE
-   Phase State Machine · Traceability IDs · Artifact Templates · SSV · Memory
+   Phase State Machine · Traceability IDs · Artifact Templates · SSV · Memory · Continuity
 ```
 
 This framework structures coding work as a phase machine. It provides templates and traceability tools — use them when they help, abbreviate when they don't. The phases exist because skipping straight to code is how most bugs happen, not because every task needs a formal spec.
@@ -43,7 +43,7 @@ Phase definitions, entry/exit criteria, and transition rules are in `procedure/p
 
 The most common failure mode in multi-turn sessions: the LLM re-derives a proposal or plan from scratch instead of continuing from the previous output. This wastes context, introduces inconsistencies, and frustrates users.
 
-**Rule**: Before entering any phase, check if the user's message is a continuation of previous work.
+**Rule**: Before entering any phase, check if the user's message is a continuation of previous work. To detect this, read the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, it is a continuation.
 
 | Signal | Type | Action |
 |--------|------|--------|
