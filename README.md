@@ -115,14 +115,14 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 ### Session Persistence
 
-The z.ai platform may wipe the `skills/` directory on session reset. `boot.sh` handles this with two self-heal layers:
+The z.ai platform may wipe the `skills/` directory on session reset. Recovery depends on whether this is a **fresh sandbox** (never ran boot.sh) or an **existing sandbox** (boot.sh ran before):
 
-| Layer | Trigger | What it does |
-|-------|---------|-------------|
-| **`.bashrc` hook** | Every shell open | Auto-runs `boot.sh --install-only` in background (non-blocking) |
-| **Manual one-liner** | First time in a fresh sandbox | `git clone` + `boot.sh` — also sets up `.bashrc` hook for future shells |
+| Scenario | Solution | What happens |
+|----------|----------|-------------|
+| **Fresh sandbox** (first time) | Run the Quick Start one-liner | Clones repo, installs skill, sets up `.bashrc` hook for future auto-heal |
+| **Existing sandbox** (boot.sh ran before) | `.bashrc` hook auto-triggers | Next shell command auto-runs `boot.sh --install-only` in background (non-blocking) |
 
-After running the one-liner once, the `.bashrc` hook persists — future session resets auto-heal without manual intervention.
+**Important**: The `.bashrc` hook is a secondary safety net for mid-session skill wipes. It does NOT solve the cold-start problem — in a truly fresh sandbox, you must run the one-liner at least once to set everything up. After that, the hook handles subsequent resets automatically.
 
 ---
 

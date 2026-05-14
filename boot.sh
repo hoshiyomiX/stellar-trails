@@ -158,8 +158,8 @@ fi
 
 # ── 2. Self-heal persistence ────────────────────────────────────
 # Ensures stellar-frameworks auto-recovers after sandbox resets.
-# Two layers: .bashrc (shell-open trigger) + cron (periodic trigger).
-# Both are non-blocking (background) so they never stall the session.
+# Writes a .bashrc hook that runs boot.sh --install-only on every shell open.
+# Non-blocking (background) so it never stalls the session.
 
 BASHRC="$PROJECT_ROOT/.bashrc"
 BASHRC_MARKER="# stellar-frameworks auto-heal"
