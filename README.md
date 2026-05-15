@@ -125,7 +125,8 @@ Recovery mechanism:
 | Scenario | Solution | What happens |
 |----------|----------|-------------|
 | **Fresh sandbox** (first time) | Run the Quick Start one-liner | Clones repo, installs skill files to `skills/`, writes auto-heal hook to `$HOME/.bashrc` |
-| **After install, same session** | **Restart the session** | Platform re-scans `skills/` at session start — skill becomes available |
+| **Mid-session** (just installed, no restart) | Read `skills/stellar-frameworks/SKILL.md` directly | `Skill()` caches at session start, but `Read()` accesses the same file. Content is identical — follow the instructions manually. |
+| **After install, same session** | **Restart the session** | Platform re-scans `skills/` at session start — `Skill()` works natively |
 | **Sandbox reset** (inactive hours) | `$HOME/.bashrc` hook auto-triggers (synchronous, `--fast` mode) | Every new shell opens → `boot.sh --fast --install-only` runs synchronously (~0.1s) → skill files restored BEFORE platform scans `skills/` |
 
 **Important**: After running the one-liner, you **must restart the session** for the skill to appear in `available_skills`. This is a platform constraint — skills are loaded once at session start and not refreshed mid-session. The `$HOME/.bashrc` auto-heal hook ensures subsequent sessions recover automatically even if the sandbox resets.
@@ -137,6 +138,7 @@ Recovery mechanism:
 ```
 stellar-frameworks/
 ├── boot.sh                           # Install + session bootstrap (single entry point)
+├── activate.sh                       # Mid-session activator (reads SKILL.md directly)
 ├── setup.sh                          # [Legacy] Standalone installer — boot.sh handles this now
 ├── README.md                         # This file
 ├── skill/stellar-frameworks/         # Git-tracked source (copied to skills/ on install)
