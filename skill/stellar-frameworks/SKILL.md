@@ -1,6 +1,6 @@
 ---
 name: stellar-frameworks
-version: 5.4.7
+version: 5.4.8
 description: "Core workflow — runs ALL tasks through a phase machine (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) without exception. Coding tasks: full phases with Traceability IDs and verification. Non-coding tasks (questions, explanations, recommendations): Minimal tier — all phases run internally, only IMPLEMENT produces output. Every task gets a Process Compliance Report. Covers building features, fixing bugs, refactoring, writing scripts, debugging, generating code, answering questions, explaining concepts, and providing recommendations. The phase machine always activates — complexity adapts, participation never skips."
 ---
 <!-- VERSION SYNC: on bump, update (1) frontmatter above, (2) activation banner below, (3) boot.sh header, (4) setup.sh header, (5) README.md badge + invoke line + version history, (6) CHANGELOG.md -->
@@ -8,7 +8,7 @@ description: "Core workflow — runs ALL tasks through a phase machine (SPECIFY 
 ## Activation
 
 ```
-☄️ STELLAR · v5.4.7 · ACTIVE
+☄️ STELLAR · v5.4.8 · ACTIVE
    Phase State Machine · Traceability IDs · Artifact Templates · SSV · SADC · Memory · Continuity · Universal
 ```
 

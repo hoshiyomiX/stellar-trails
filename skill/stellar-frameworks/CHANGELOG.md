@@ -1,5 +1,21 @@
 # Changelog
 
+## [5.4.8] — 2026-05-18
+
+### Changed
+
+- **dev.sh is now persistent (unkillable)** — Server wrapped in `while true; do ...; sleep N; done` loop. If the python3 process is killed (OOM, signal, crash), it auto-restarts after 1 second. Next.js projects restart after 2 seconds. The popup preview on :3000 is no longer dependent on process survival — it will always come back.
+
+- **Removed PID file mechanism** — The `.zscripts/.dev-server.pid` file and all PID tracking logic removed from both `boot.sh` and `setup.sh`. The PID file was overengineering: with the while-loop auto-restart, the PID changes on each restart cycle, making file-based tracking unreliable. Duplicate prevention now relies solely on the port guard (`ss -tlnp | grep :3000`) at the top of dev.sh — if port 3000 is occupied, dev.sh exits immediately.
+
+- **Dropped Caddy proxy dependency from boot.sh concern** — boot.sh no longer references Caddy's :81 → :3000 proxy chain in its logic. The popup preview serves directly on :3000. Whether Caddy proxies it or not is the platform's concern, not boot.sh's.
+
+### Technical Notes
+
+- **Why while-loop over process supervisor**: No systemd, no respawn config available in sandbox. The while-loop is the simplest self-restart mechanism available. `exec` was replaced with direct command (no `exec`) so the loop continues after the server process exits.
+- **Port guard window**: There is a ~1 second window between server death and restart where port 3000 is free. If boot.sh runs during this window, it would launch a second dev.sh instance. However, the port guard in dev.sh prevents the second instance from starting a server — it would just enter the while loop and wait. The first instance's loop would then bind to the port. Net effect: no duplicate servers.
+- **Next.js behavior**: `bun run dev` already has built-in hot-reload and crash recovery. The while-loop is a safety net for cases where the entire process is killed (not just a module crash).
+
 ## [5.4.7] — 2026-05-18
 
 ### Fixed

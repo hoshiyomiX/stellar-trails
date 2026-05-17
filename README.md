@@ -4,7 +4,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.4.7-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.4.8-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 
 Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases run internally (Minimal tier) but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
 
@@ -24,7 +24,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 cd ~/my-project && git clone https://github.com/hoshiyomiX/stellar-frameworks.git 2>/dev/null; bash stellar-frameworks/boot.sh
 ```
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.4.7 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.4.8 · ACTIVE`.
 
 ---
 
@@ -185,6 +185,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
+| [**v5.4.8**](skill/stellar-frameworks/CHANGELOG.md) | Persistent (unkillable) dev.sh with while-loop auto-restart. PID file removed, port guard only. |
 | [**v5.4.7**](skill/stellar-frameworks/CHANGELOG.md) | Bugfix: hook does `git pull` before boot.sh to guarantee latest version on stale snapshot restore. Single-phase replaces two-phase. |
 | [**v5.4.3**](skill/stellar-frameworks/CHANGELOG.md) | Critical fix: race condition in .bashrc hook (async + git ops). Now synchronous + `--fast` (no git, ~0.1s). Stale hook cleanup. |
 | [**v5.4.1**](skill/stellar-frameworks/CHANGELOG.md) | Source Availability & Documentation Check (SADC) — mandatory research before SPECIFY. Prevents building from assumptions. |

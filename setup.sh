@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  stellar-frameworks v5.4.7
+#  stellar-frameworks v5.4.8
 #
 #  Install:  cd /home/z/my-project/stellar-frameworks && bash setup.sh
 #  Invoke:   Skill(command="stellar-frameworks")
@@ -28,7 +28,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; }
 
 echo ""
 echo "============================================"
-echo "  ☄️ stellar-frameworks v5.4.7"
+echo "  ☄️ stellar-frameworks v5.4.8"
 echo "============================================"
 echo ""
 
@@ -70,8 +70,8 @@ if [ -f "${INSTALL_DIR}/SKILL.md" ]; then
         ERRORS=$((ERRORS + 1))
     fi
 
-    if grep -q "v5.4.7" "${INSTALL_DIR}/SKILL.md"; then
-        ok "Version 5.4.7 confirmed"
+    if grep -q "v5.4.8" "${INSTALL_DIR}/SKILL.md"; then
+        ok "Version 5.4.8 confirmed"
     else
         fail "Version mismatch"
         ERRORS=$((ERRORS + 1))
@@ -131,7 +131,6 @@ ok "Auto-heal hook written to $HOOKS_WRITTEN/3 init files (git-pull-then-boot)"
 # --- Popup preview: create + launch .zscripts/dev.sh ---
 ZSCRIPTS="${PROJECT_ROOT}/.zscripts"
 DEV_SCRIPT="${ZSCRIPTS}/dev.sh"
-DEV_PID_FILE="${ZSCRIPTS}/.dev-server.pid"
 DOWNLOAD_DIR="${PROJECT_ROOT}/download"
 DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
 
@@ -140,12 +139,11 @@ if [ ! -f "$DEV_SCRIPT" ]; then
     mkdir -p "$ZSCRIPTS"
     cat > "$DEV_SCRIPT" << 'DEVSH'
 #!/bin/bash
-# stellar-frameworks dev server — popup preview provider
-# Serves Caddy (:81) → reverse proxy → :3000
-# Smart mode: Next.js if available, static file server otherwise.
-# Created by boot.sh v5.4.6 — do not edit manually.
-# Guard: if :3000 is already occupied, exit gracefully.
+# stellar-frameworks dev server — persistent popup preview
+# Auto-restarts if killed (unkillable). Port :3000.
+# Created by boot.sh — do not edit manually.
 
+# Guard: if :3000 already occupied, exit gracefully
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   echo "[dev.sh] Port :3000 already in use — not starting" >&2
   exit 0
@@ -153,14 +151,18 @@ fi
 
 if [ -f /home/z/my-project/package.json ] \
    && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
-  # Next.js project detected — delegate to bun
-  cd /home/z/my-project
-  exec bun run dev
+  # Next.js project — delegate to bun
+  while true; do
+    cd /home/z/my-project && bun run dev
+    sleep 2
+  done
 else
-  # No Next.js — serve /download/ as static files
+  # Static file server — serve /download/ on :3000
   mkdir -p /home/z/my-project/download
-  cd /home/z/my-project/download
-  exec python3 -m http.server 3000
+  while true; do
+    cd /home/z/my-project/download && python3 -m http.server 3000
+    sleep 1
+  done
 fi
 DEVSH
     chmod +x "$DEV_SCRIPT"
@@ -169,27 +171,15 @@ else
     ok "dev.sh already exists"
 fi
 
-# Launch server if not already running
-MAYBE_LAUNCH=false
-if [ -f "$DEV_PID_FILE" ]; then
-  if kill -0 "$(cat "$DEV_PID_FILE")" 2>/dev/null; then
-    : # Already running
+# Launch server if not already running (port guard prevents duplicates)
+if [ -f "$DEV_SCRIPT" ]; then
+  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+    ok "Popup preview already running on :3000"
   else
-    rm -f "$DEV_PID_FILE"
-    MAYBE_LAUNCH=true
+    mkdir -p "$DOWNLOAD_DIR"
+    bash "$DEV_SCRIPT" >/dev/null 2>&1 &
+    ok "Popup preview launched on :3000 (persistent)"
   fi
-else
-  MAYBE_LAUNCH=true
-fi
-
-if $MAYBE_LAUNCH && [ -f "$DEV_SCRIPT" ]; then
-  mkdir -p "$DOWNLOAD_DIR"
-  bash "$DEV_SCRIPT" >/dev/null 2>&1 &
-  DEV_PID=$!
-  echo "$DEV_PID" > "$DEV_PID_FILE"
-  ok "Popup preview launched on :3000 (PID $DEV_PID)"
-else
-  ok "Popup preview already running"
 fi
 
 # Clean up stale hook from wrong path (v5.4.1 bug)
@@ -205,9 +195,9 @@ fi
 echo ""
 echo "============================================"
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}  ☄️ v5.4.7 installed and ACTIVE — no restart needed!${NC}"
+    echo -e "${GREEN}  ☄️ v5.4.8 installed and ACTIVE — no restart needed!${NC}"
     echo ""
-    echo "  Popup preview: LIVE on :3000 (immediate, no restart)."
+    echo "  Popup preview: LIVE on :3000 (persistent, unkillable)."
     echo "  Invoke: Skill(command=\"stellar-frameworks\")"
     echo ""
     echo "============================================"

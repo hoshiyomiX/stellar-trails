@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v5.4.7
+# stellar-frameworks — Install, self-heal (git-tracked) v5.4.8
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds two-phase hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
@@ -19,7 +19,7 @@ set -euo pipefail
 # --fast mode is overridden to force git pull. This prevents stale
 # snapshots (e.g. v5.3.0 baked into repo.tar) from persisting.
 # Bump this whenever a new version is released.
-MINIMUM_VERSION="5.4.7"
+MINIMUM_VERSION="5.4.8"
 
 # Semantic version comparison: returns 0 (true) if $1 < $2
 version_lt() {
@@ -187,10 +187,11 @@ fi
 
 # ── 3. Popup preview: ensure .zscripts/dev.sh exists ──────────────
 # The platform's start.sh auto-executes .zscripts/dev.sh if it exists.
-# This provides popup preview (Caddy :81 → proxy → :3000) without fullstack-dev.
+# This provides popup preview on :3000 without fullstack-dev.
 #
-# Smart dev.sh behavior:
-#   - If Next.js project exists (package.json with "next" dep) → bun run dev
+# Persistent (unkillable) dev.sh:
+#   - Wraps server in while-loop → auto-restarts if killed
+#   - Next.js project exists → bun run dev
 #   - Otherwise → python3 static server serving /download/ on :3000
 #
 # NOTE: fullstack-dev's init-fullstack.sh also checks for dev.sh existence.
@@ -199,7 +200,6 @@ fi
 # To force fullstack-dev setup: rm .zscripts/dev.sh && invoke fullstack-dev.
 
 DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
-DEV_PID_FILE="$ZSCRIPTS/.dev-server.pid"
 DEV_SH_CREATED=false
 
 if [ ! -f "$DEV_SCRIPT" ]; then
@@ -207,12 +207,11 @@ if [ ! -f "$DEV_SCRIPT" ]; then
   mkdir -p "$ZSCRIPTS"
   cat > "$DEV_SCRIPT" << 'DEVSH'
 #!/bin/bash
-# stellar-frameworks dev server — popup preview provider
-# Serves Caddy (:81) → reverse proxy → :3000
-# Smart mode: Next.js if available, static file server otherwise.
-# Created by boot.sh v5.4.6 — do not edit manually.
-# Guard: if :3000 is already occupied, exit gracefully.
+# stellar-frameworks dev server — persistent popup preview
+# Auto-restarts if killed (unkillable). Port :3000.
+# Created by boot.sh — do not edit manually.
 
+# Guard: if :3000 already occupied, exit gracefully
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   echo "[dev.sh] Port :3000 already in use — not starting" >&2
   exit 0
@@ -220,14 +219,18 @@ fi
 
 if [ -f /home/z/my-project/package.json ] \
    && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
-  # Next.js project detected — delegate to bun
-  cd /home/z/my-project
-  exec bun run dev
+  # Next.js project — delegate to bun
+  while true; do
+    cd /home/z/my-project && bun run dev
+    sleep 2
+  done
 else
-  # No Next.js — serve /download/ as static files
+  # Static file server — serve /download/ on :3000
   mkdir -p /home/z/my-project/download
-  cd /home/z/my-project/download
-  exec python3 -m http.server 3000
+  while true; do
+    cd /home/z/my-project/download && python3 -m http.server 3000
+    sleep 1
+  done
 fi
 DEVSH
   chmod +x "$DEV_SCRIPT"
@@ -244,28 +247,16 @@ fi
 # On fresh install, dev.sh doesn't exist yet when /start.sh runs →
 # server never starts → port :3000 empty → Caddy :81 shows 502.
 # Fix: boot.sh itself launches the server after creating dev.sh.
-# PID file prevents duplicate launches across Phase 1 / Phase 2 / /start.sh.
+# Port guard (inside dev.sh) prevents duplicate launches.
 
-MAYBE_LAUNCH=false
-if [ -f "$DEV_PID_FILE" ]; then
-  if kill -0 "$(cat "$DEV_PID_FILE")" 2>/dev/null; then
-    : # Server already running from a previous invocation
+if [ -f "$DEV_SCRIPT" ]; then
+  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+    echo "[boot] Popup preview already running on :3000"
   else
-    rm -f "$DEV_PID_FILE"
-    MAYBE_LAUNCH=true
+    mkdir -p "$DOWNLOAD_DIR"
+    bash "$DEV_SCRIPT" >/dev/null 2>&1 &
+    echo "[boot] Popup preview launched on :3000"
   fi
-else
-  MAYBE_LAUNCH=true
-fi
-
-if $MAYBE_LAUNCH && [ -f "$DEV_SCRIPT" ]; then
-  mkdir -p "$DOWNLOAD_DIR"
- bash "$DEV_SCRIPT" >/dev/null 2>&1 &
- DEV_PID=$!
- echo "$DEV_PID" > "$DEV_PID_FILE"
-  echo "[boot] Popup preview launched on :3000 (PID $DEV_PID)"
-else
-  echo "[boot] Popup preview already running"
 fi
 
 # ── 4. Self-heal persistence (hook) ─────────────────────────────
@@ -320,8 +311,8 @@ echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (git-pull-the
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v5.4.7 installed and ACTIVE — no restart needed!         ║"
-  echo "║  Popup preview: LIVE on :3000 (immediate, no restart).     ║"
+  echo "║  ☄️ v5.4.8 installed and ACTIVE — no restart needed!         ║"
+  echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Auto-heal: two-phase hook in 3 init files.                  ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
