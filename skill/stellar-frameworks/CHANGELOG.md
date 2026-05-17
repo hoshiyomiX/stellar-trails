@@ -4,20 +4,22 @@
 
 ### Fixed
 
-- **Version sync failure in boot.sh** — header comment and post-install banner still referenced v5.4.8 despite SKILL.md being v5.5.0. Both now correctly show v5.5.0.
-- **Version sync failure in setup.sh** — done banner still referenced v5.4.8. Now correctly shows v5.5.0.
+- **Version sync failure in boot.sh** — header comment and post-install banner still referenced v5.4.8 despite SKILL.md being v5.5.0. Both now correctly show v5.5.1.
+- **Version sync failure in setup.sh** — done banner still referenced v5.4.8. Now correctly shows v5.5.1.
 - **Incident report template missing Pivot Assessment section** — Field guidance referenced a "Pivot Assessment" section as REQUIRED for Approach Failure classifications, but the template markdown block had no such section. Agents following the template would never produce it. Added a formal Pivot Assessment section between Root Cause Analysis and Proposed Fix, with fields for classification, pivot signal, fallback availability, fallback viability, new approach, and user approval.
 - **setup.sh version check used fragile grep** — Replaced `grep -q "v5.5.0"` (string match, breaks if version format changes) with semantic version extraction via `grep -oP 'version:\s*\K...'` matching the YAML frontmatter field. Now reports the actual version found on mismatch.
+- **SKILL.md description over-trigger** — Description was 603 chars, keyword-stuffed, and explained HOW the framework works instead of WHEN to activate. Rewritten to 218 chars focusing on trigger conditions: "Activates on every task: coding (features, bugs, refactoring, scripts), documents, charts, data processing, or complex planning." Maintains trigger keyword coverage while reducing noise.
 
 ### Changed
 
 - **SKILL.md: Phase Gate Protocol condensed** — Reduced from 12 lines (full explanation + 3-column table + Simple/Complex paragraph) to 8 lines (summary + 2-column table + cross-reference to phases.md). Details remain in `procedure/phases.md` which already has the full gate definitions.
-- **SKILL.md: Adaptive Pivot Protocol condensed** — Already shortened in v5.5.0 from previous session. Confirmed no further changes needed.
-- **SKILL.md line count reduced** — 246 → 233 lines (~5% reduction). Well within the 500-line budget.
+- **SKILL.md: Adaptive Pivot Protocol condensed** — Reduced from 14 lines (intro paragraph + rule + 7-row signal table + pivot flow) to 4 lines (summary + cross-reference to error-resolution.md). Details remain in `procedure/decision-trees/error-resolution.md`.
+- **SKILL.md line count reduced** — 246 → 234 lines (~5% reduction). Well within the 500-line budget.
+- **Version bump to v5.5.1** — All files synchronized: SKILL.md frontmatter, boot.sh header/banner/MINIMUM_VERSION, setup.sh header/banner/version-check, README.md badge/invoke/version-history.
 
 ### Why
 
-Audit via skill-creator revealed: (1) version sync gaps between SKILL.md and shell scripts, (2) template/guidance mismatch where the incident report told agents to fill a Pivot Assessment but the template didn't have one, (3) ~12 lines of duplicated content in SKILL.md that already exists in full form in phases.md.
+Audit via skill-creator revealed: (1) version sync gaps between SKILL.md and shell scripts, (2) template/guidance mismatch where the incident report told agents to fill a Pivot Assessment but the template didn't have one, (3) ~12 lines of duplicated content in SKILL.md that already exists in full form in phases.md, (4) description was 603 chars explaining HOW instead of WHEN — causing over-trigger noise.
 
 ## [5.5.0] — 2026-05-18
 

@@ -1,14 +1,14 @@
 ---
 name: stellar-frameworks
-version: 5.5.0
-description: "Deterministic coding workflow with phase state machine, traceability IDs, artifact templates, and structured verification. Use this skill for any task involving code changes: building features, fixing bugs, refactoring, writing scripts, debugging, or generating code. Also activates for document creation, data visualization, data processing, and complex multi-step tasks where structured planning prevents scope drift. Non-coding questions and explanations use internal phases (no templates). Complexity adapts automatically — simple tasks abbreviate, complex tasks get full ceremony."
+version: 5.5.1
+description: "Activates on every task: coding (features, bugs, refactoring, scripts), documents, charts, data processing, or complex planning. Work runs through a phase machine with traceability IDs. Complexity adapts automatically."
 ---
 <!-- VERSION SYNC: on bump, update (1) frontmatter above, (2) activation banner below, (3) boot.sh header, (4) setup.sh header, (5) README.md badge + invoke line + version history, (6) CHANGELOG.md -->
 
 ## Activation
 
 ```
-☄️ STELLAR · v5.5.0 · ACTIVE
+☄️ STELLAR · v5.5.1 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope PCR · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
