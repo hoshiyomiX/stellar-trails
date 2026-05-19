@@ -18,10 +18,10 @@
 #   Hook lives in $HOME init files (survives project resets)
 #   If repo is missing, hook auto-clones from GitHub before booting.
 #
-# Resilience layers (v5.9.0):
+# Resilience layers (v5.9.1):
 #   Layer 1: Hook (shell init) — clone-if-missing + git pull + boot --fast
-#   Layer 2: Git staging — skill files staged so repo.tar bakes latest version
-#   Layer 3: Health check — if SKILL.md missing/empty after boot, force reinstall
+#   Layer 2: Health check — if SKILL.md missing/empty after boot, force reinstall
+#   Layer 3: repo.tar fallback — copy from git-tracked skill/ if repo clone fails
 #   Log: $HOME/.stellar-boot.log (rotated, last 500 lines)
 
 set -euo pipefail
@@ -169,9 +169,16 @@ if [ -d "$OBSOLETE_DIR" ]; then
 fi
 
 if $NEED_INSTALL; then
-  if [ ! -d "$SOURCE_DIR" ]; then
-    echo "[boot] ERROR: skill/ not found. Is this the repo root?"
-    exit 1
+  if [ ! -d "$SOURCE_DIR" ] || [ ! -f "$SOURCE_DIR/SKILL.md" ]; then
+    # Fallback: try repo.tar source (git-tracked skill/ in project root)
+    TARBALL_SOURCE="$PROJECT_ROOT/skill/stellar-frameworks"
+    if [ -d "$TARBALL_SOURCE" ] && [ -f "$TARBALL_SOURCE/SKILL.md" ]; then
+      echo "[boot] Repo source unavailable — falling back to repo.tar source (skill/)"
+      SOURCE_DIR="$TARBALL_SOURCE"
+    else
+      echo "[boot] ERROR: skill/ not found in repo or project dir"
+      exit 1
+    fi
   fi
   echo "[boot] Installing skill files → skills/"
   mkdir -p "$INSTALL_DIR"
@@ -205,11 +212,6 @@ if $NEED_INSTALL; then
 
   if [ $ERRORS -eq 0 ]; then
     echo "[boot] Installed successfully"
-    # Part B: Git stage skill files so they bake into next repo.tar snapshot.
-    if [ -d "$PROJECT_ROOT/.git" ]; then
-      git -C "$PROJECT_ROOT" add skills/stellar-frameworks/ 2>/dev/null || true
-      echo "[boot] Skill files staged in project git (bakes into next repo.tar)"
-    fi
   else
     echo "[boot] WARNING: installed with $ERRORS missing file(s)"
   fi
