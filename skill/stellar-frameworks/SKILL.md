@@ -80,7 +80,7 @@ Phase definitions, entry/exit criteria, and transition rules are in `procedure/p
 
 The most common failure mode in multi-turn sessions: the LLM re-derives a proposal or plan from scratch instead of continuing from the previous output. This wastes context, introduces inconsistencies, and frustrates users.
 
-**Rule**: Before entering any phase, check if the user's message is a continuation of previous work. To detect this, read the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, it is a continuation.
+**Rule**: Before entering any phase, check if the user's message is a continuation of previous work. To detect this, read the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, it is a continuation. **After context truncation**, read `worklog.md` — the last entry contains the exact task state snapshot needed to resume.
 
 | Signal | Type | Action |
 |--------|------|--------|
@@ -89,7 +89,7 @@ The most common failure mode in multi-turn sessions: the LLM re-derives a propos
 | User asks a follow-up question ("what about X?") | Continuation | Skip SPECIFY → answer within current phase context |
 | User provides new requirements mid-task | New task | Restart from SPECIFY with updated requirements |
 | User invokes Skill() with new instructions | New task | Full phase machine from IDLE |
-| Context compression boundary with ongoing task | Continuation | Check memory for last task state, resume from last active phase |
+| Context compression boundary with ongoing task | **Continuation** | **Read `worklog.md` last entry, resume from recorded phase** |
 
 **Continuation shortcuts**:
 
@@ -97,9 +97,30 @@ The most common failure mode in multi-turn sessions: the LLM re-derives a propos
 Continuation + user approves plan  → skip SPECIFY + PLAN → IMPLEMENT
 Continuation + user asks follow-up → skip SPECIFY → answer in current phase
 Continuation + user reports error  → skip SPECIFY + PLAN → Error Recovery → VERIFY
+Continuation + context truncation   → read worklog.md → resume from recorded phase
 ```
 
 This is not optional — regenerating proposals the user already approved is a correctness bug, not a style preference.
+
+### Worklog Continuity Protocol
+
+Every DELIVER phase appends a **Task State Snapshot** to `worklog.md`. This is the primary continuity mechanism — not the conversation history, not memory files. The worklog is the single source of truth for "what was I doing last."
+
+**On DELIVER (always, all tiers)**: Append to `/home/z/my-project/worklog.md`:
+
+```
+---
+last_phase: DELIVER
+task: <one-line description of what was accomplished>
+complexity: <Minimal|Simple|Standard|Complex>
+task_type: <Coding|Document|Visualization|Data Processing|Non-Coding>
+files_modified: <comma-separated list or "none">
+next_step: <what the user should do next, or "IDLE - awaiting input">
+```
+
+**On context truncation (IDLE)**: Read the last `---` block from `worklog.md`. If the task description matches what the user is asking about, skip SPECIFY+PLAN and resume from the recorded phase.
+
+Why this works: Context compression discards the middle of conversations but never touches files on disk. The worklog is always current because DELIVER writes it before the compression boundary is reached.
 
 ## Task Type Awareness
 
@@ -268,4 +289,4 @@ Self-graded. The evidence requirement makes fabrication harder but cannot guaran
 
 ## Completion Signal
 
-For web development tasks (Type 3), the DELIVER phase must call the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize the project. For non-coding tasks, DELIVER presents the output file path directly.
+For web development tasks (Type 3), the DELIVER phase must call the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize the project. For non-coding tasks, DELIVER presents the output file path directly. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.

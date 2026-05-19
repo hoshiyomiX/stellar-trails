@@ -36,7 +36,10 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Actions**:
 1. Receive and acknowledge the request.
-2. **Session continuity check** — determine if this is a NEW task or a CONTINUATION of previous work:
+2. **Session continuity check** — determine if this is a NEW task or a CONTINUATION of previous work. Check sources in this order:
+
+   a. **Worklog** (`/home/z/my-project/worklog.md`) — read the last `---` delimited block. If the task description matches the current request, resume from `last_phase`. This is the primary continuity source after context truncation.
+   b. **Preceding assistant message** — if the user's reply references, approves, corrects, or follows up on recent output, it is a continuation.
 
    | Continuation signal | Action |
    |---------------------|--------|
@@ -44,10 +47,10 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
    | User approves a proposal/plan ("yes", "go ahead", "do it") | Skip SPECIFY+PLAN, go to IMPLEMENT |
    | User asks a follow-up question ("what about X?") | Skip SPECIFY, answer in current phase context |
    | User provides new requirements mid-task | Restart from SPECIFY |
-   | Context compression boundary with ongoing task | Check memory, resume from last active phase |
+   | Context compression boundary with ongoing task | **Read worklog.md, resume from last recorded phase** |
    | Completely new topic, explicit new instructions, or `Skill()` invoked | Full phase machine (continue below) |
 
-   **Critical**: If continuation is detected, DO NOT re-derive proposals, plans, or specifications the user has already seen. Use the previous output as the plan. Regenerating from scratch is a correctness bug.
+   **Critical**: If continuation is detected, DO NOT re-derive proposals, plans, or specifications the user has already seen. Use the previous output (or worklog snapshot) as the plan. Regenerating from scratch is a correctness bug.
 
 3. Classify complexity:
    - **Minimal**: Knowledge question, explanation, or recommendation — no code or file output.
@@ -60,7 +63,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
    - **Visualization**: Charts, diagrams, mind maps, dashboards.
    - **Data Processing**: ETL, analysis, transform, Python scripts.
    - **Non-Coding**: Questions, explanations, recommendations — no code or file output.
-5. Check `memory/MEMORY.md` for user preferences, patterns, and key decisions. If the `memory/` directory does not exist, it will be created on first DELIVER — skip this step. For tasks requiring session continuity, also check the most recent dated file in `memory/`.
+5. Check `memory/MEMORY.md` for user preferences, patterns, and key decisions. If the `memory/` directory does not exist, it will be created on first DELIVER — skip this step. For tasks requiring session continuity, also check the most recent dated file in `memory/`. **Note**: For context-truncation recovery, the worklog (step 2a above) takes priority over memory files — it captures immediate task state, while memory captures long-term patterns.
 6. If the task involves a git repository and the session was continued from a previous conversation (context compression boundary), flag the repository as "state-uncertain" and require Source State Verification in SPECIFY.
 7. Transition to SPECIFY (or IMPLEMENT/VERIFY if continuation detected).
 
@@ -266,6 +269,34 @@ All phases use their full templates with extra detail. Traceability IDs required
 **Entry criteria**: Verification report shows all checks passing.
 
 **Actions**:
+0. **Append Task State Snapshot to worklog** — this is the FIRST action of DELIVER, before anything else. It fires while attention is still on the task. Append to `/home/z/my-project/worklog.md`:
+
+   For Minimal and Simple tasks:
+   ```
+   ---
+   last_phase: DELIVER
+   task: <one-line description of what was accomplished>
+   complexity: <Minimal|Simple>
+   task_type: <type>
+   files_modified: <comma-separated list or "none">
+   next_step: <what the user should do next, or "IDLE - awaiting input">
+   ```
+
+   For Standard and Complex tasks:
+   ```
+   ---
+   last_phase: DELIVER
+   task: <one-line description of what was accomplished>
+   complexity: <Standard|Complex>
+   task_type: <type>
+   files_modified: <comma-separated list>
+   traceability: <IMPL-XXX completed, e.g. "IMPL-001 to IMPL-004">
+   pivot: <NONE or brief description>
+   scope_drift: <NONE or brief description>
+   next_step: <specific next action or "IDLE - awaiting input">
+   ```
+
+   This snapshot is the primary continuity mechanism. On context truncation, IDLE reads the last snapshot to determine what was happening and resumes from there.
 1. **Write session digest** to `memory/YYYY-MM-DD.md` (create `memory/` directory and dated file if they do not exist). Append to the file — do not overwrite. Use the compact format for Simple tasks, rich format for Standard/Complex:
 
    Compact (Simple):
@@ -280,9 +311,7 @@ All phases use their full templates with extra detail. Traceability IDs required
      context: <what informed the approach>
      caveats: <things to watch for>
    ```
-
-   This is the first action of DELIVER, not an afterthought. It fires while attention is still on the task.
-2. **Check MEMORY.md budget** — if `memory/MEMORY.md` exceeds ~3,000 characters, note in the delivery: "Memory budget warning: MEMORY.md at ~X/3000 chars. Consider consolidating entries on next session."
+2. **Check MEMORY.md budget** — if `memory/MEMORY.md` exceeds ~3,000 characters, note in the delivery.
 3. Summarize what was implemented, referencing Traceability IDs.
 4. List files created or modified.
 5. Note any dependencies added.
@@ -291,7 +320,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 8. Output **Delivery Report** — use the compact format for Simple tasks, full format for Standard/Complex (see Delivery Reports in SKILL.md). Include Scope Drift (comparison against Scope Commitment) and Pivot (if approach changed) fields.
 9. **Completion signal**: For web development tasks (Type 3 / Coding), call `Complete(project_type="web_dev", summary="...")`. For non-coding tasks, present the output file path directly.
 
-**Artifacts**: None new. Consumes verification report. Writes to `memory/YYYY-MM-DD.md` Session Digest.
+**Artifacts**: None new. Consumes verification report. Writes to `worklog.md` (Task State Snapshot) and `memory/YYYY-MM-DD.md` (Session Digest).
 
 **Transition**: On acceptance → IDLE. On revision → return to appropriate phase.
 
