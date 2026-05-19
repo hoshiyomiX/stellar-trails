@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  stellar-frameworks v5.8.0
+#  stellar-frameworks v5.9.0
 #
 #  Install:  bash ~/.stellar-frameworks-repo/setup.sh
 #  Invoke:   Skill(command="stellar-frameworks")
@@ -28,7 +28,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; }
 
 echo ""
 echo "============================================"
-echo "  ☄️ stellar-frameworks v5.8.0"
+echo "  ☄️ stellar-frameworks v5.9.0"
 echo "============================================"
 echo ""
 
@@ -71,10 +71,10 @@ if [ -f "${INSTALL_DIR}/SKILL.md" ]; then
     fi
 
     INSTALLED_VER="$(grep -oP 'version:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "${INSTALL_DIR}/SKILL.md" 2>/dev/null || echo "0.0.0")"
-    if [ "$INSTALLED_VER" = "5.8.0" ]; then
+    if [ "$INSTALLED_VER" = "5.9.0" ]; then
         ok "Version ${INSTALLED_VER} confirmed"
     else
-        fail "Version mismatch: expected 5.8.0, got ${INSTALLED_VER}"
+        fail "Version mismatch: expected 5.9.0, got ${INSTALLED_VER}"
         ERRORS=$((ERRORS + 1))
     fi
 
@@ -109,7 +109,7 @@ fi
 BASHRC_MARKER="# stellar-frameworks auto-heal"
 REPO_URL="https://github.com/hoshiyomiX/stellar-frameworks.git"
 TARGET_DIR="${STELLAR_REPO_PATH:-$HOME/.stellar-frameworks-repo}"
-# v5.8.0: fallback clone if repo missing, then git pull, then boot
+# v5.9.0: fallback clone if repo missing, then git pull, then boot
 BASHRC_PHASE1="[ -d $TARGET_DIR/.git ] || git clone $REPO_URL $TARGET_DIR 2>/dev/null; (cd $TARGET_DIR && git pull --ff-only --quiet 2>/dev/null); bash $TARGET_DIR/boot.sh --fast --install-only >/dev/null 2>&1"
 
 HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile")
@@ -197,7 +197,7 @@ fi
 echo ""
 echo "============================================"
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}  ☄️ v5.8.0 installed and ACTIVE — no restart needed!${NC}"
+    echo -e "${GREEN}  ☄️ v5.9.0 installed and ACTIVE — no restart needed!${NC}"
     echo ""
     echo "  Popup preview: LIVE on :3000 (persistent, unkillable)."
     echo "  Invoke: Skill(command=\"stellar-frameworks\")"

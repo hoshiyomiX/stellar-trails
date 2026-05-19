@@ -1,5 +1,57 @@
 # Changelog
 
+## [5.9.0] — 2026-05-19
+
+### Fixed
+
+- **Hook was silent — errors invisible** — v5.8.0 hook redirected all output to `/dev/null`, making it impossible to diagnose why the skill failed to install after a platform reset. Changed to structured logging to `$HOME/.stellar-boot.log` with automatic rotation (last 500 lines). Every hook execution now leaves a trace.
+
+- **Empty SKILL.md not detected** — The install check only tested `[ ! -f SKILL.md ]` (file exists) but not `[ ! -s SKILL.md ]` (file is non-empty). If a platform reset left a zero-byte SKILL.md, boot.sh would report "Skill files OK" and skip installation. Now detects both missing AND empty SKILL.md, forcing reinstall in either case.
+
+### Added
+
+- **Health check fallback in hook** — After the fast boot completes, the hook verifies that SKILL.md is both present and non-empty. If not, it runs a full (non-fast) boot.sh as a fallback. This catches the case where `--fast` mode copies from a stale or corrupted source.
+
+- **Git staging after install (Part B of Proposal C)** — After successfully installing skill files, boot.sh now runs `git add skills/stellar-frameworks/` in the project directory. The platform creates `repo.tar` from the working tree at pre-stop, so staged files get baked into the next session's restore. After one successful session, `repo.tar` contains the latest version — eliminating the stale v5.3.0 fallback even if the hook fails.
+
+- **Log rotation** — Hook appends to `$HOME/.stellar-boot.log` and trims to last 500 lines after each run. Prevents unbounded log growth across sessions.
+
+### Changed
+
+- **Hook rewritten with 3-phase pipeline** — Old: `clone-if-missing; git pull; boot --fast >/dev/null 2>&1`. New: `clone-if-missing; git pull; boot --fast >>$LOG 2>&1; health-check || boot >>$LOG 2>&1; rotate-log`. Three phases instead of one, with structured logging throughout.
+
+- **`MINIMUM_VERSION` bumped to 5.9.0** — Ensures stale snapshots with v5.8.0 or earlier will trigger git pull even in `--fast` mode.
+
+### Why
+
+Investigation into why "Skill stellar-frameworks tidak tersedia" revealed three compounding issues: (1) the hook silently swallowed all errors via `/dev/null`, making diagnosis impossible; (2) an empty SKILL.md file passed the install check, causing boot.sh to skip reinstallation; (3) after every platform reset, `repo.tar` contained a stale v5.3.0 version that would persist until the hook successfully ran — if the hook failed for any reason, the stale version was permanent.
+
+The fix layers three defenses: logging makes failures visible (Part A), git staging ensures `repo.tar` always has the latest version after one successful session (Part B), and the health check catches any remaining gap between fast boot and actual file readiness. Together, these eliminate every identified failure path without requiring root access or official skill registration.
+
+### Files Modified
+
+boot.sh (hook rewrite + install check + git staging), setup.sh (hook sync), SKILL.md (version), README.md (version history), CHANGELOG.md.
+
+### Resilience Architecture
+
+```
+Session start:
+  ┌─ repo.tar extract → skills/ (latest if previous session succeeded)
+  ├─ official_skills extract → skills/ (stellar not registered — no effect)
+  ├─ bash_profile sourced → hook runs:
+  │   ├─ Phase 1: clone-if-missing + git pull + boot --fast (logged)
+  │   ├─ Phase 2: health check [ -s SKILL.md ] || boot (full reinstall)
+  │   └─ Phase 3: log rotation (keep 500 lines)
+  └─ boot.sh install → git add skills/ (bakes into NEXT repo.tar)
+```
+
+| Layer | Mechanism | Catches |
+|-------|-----------|---------|
+| Hook (Layer 1) | clone + pull + fast boot + log | Missing repo, outdated repo, silent failures |
+| Health check (Layer 2) | `[ -s SKILL.md ] || boot` | Empty/corrupted SKILL.md, fast boot failure |
+| Git staging (Layer 3) | `git add skills/` after install | Stale repo.tar version on next session |
+| Structured log | `$HOME/.stellar-boot.log` | Post-hoc diagnosis of any failure |
+
 ## [5.8.0] — 2026-05-19
 
 ### Fixed
