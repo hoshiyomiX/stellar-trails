@@ -53,10 +53,11 @@ if [ -d "${OBSOLETE_DIR}" ]; then
     ok "Removed predecessor skill: stellar-coding-agent"
 fi
 
-# --- Fresh install ---
-mkdir -p "${INSTALL_DIR}"
-cp -R "${SOURCE_DIR}" "${INSTALL_DIR}"
-ok "Files deployed to ${INSTALL_DIR}"
+# --- Fresh install (symlink: skills/ → skill/) ---
+mkdir -p "$(dirname "${INSTALL_DIR}")"
+rm -rf "${INSTALL_DIR}"
+ln -s "${SOURCE_DIR}" "${INSTALL_DIR}"
+ok "Symlinked ${INSTALL_DIR} → ${SOURCE_DIR}"
 
 # --- Verify ---
 echo ""
