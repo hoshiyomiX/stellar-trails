@@ -21,7 +21,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/hoshiyomiX/stellar-frameworks/main/boot.sh)
+bash <(curl -sL https://raw.githubusercontent.com/hoshiyomiX/stellar-frameworks/main/boot.sh) --force
 ```
 
 Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.9.0 · ACTIVE`.

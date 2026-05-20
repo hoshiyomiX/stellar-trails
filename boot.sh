@@ -10,6 +10,7 @@
 # Flags:
 #   --fast         Skip git operations (pure local copy ~50ms). Used by hook.
 #                   OVERridden if local repo version < MINIMUM_VERSION (stale snapshot).
+#   --force        Force reinstall (replace symlink/directory even if valid).
 #   --install-only Accepted for compatibility; no-op since v5.4.4.
 #
 # Path architecture (v5.9.0):
@@ -44,9 +45,11 @@ version_lt() {
 
 # Parse flags
 FAST_MODE=false
+FORCE_INSTALL=false
 for arg in "$@"; do
   case "$arg" in
     --fast) FAST_MODE=true ;;
+    --force) FORCE_INSTALL=true ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
   esac
 done
@@ -150,7 +153,10 @@ fi
 # Detects: missing, empty, stale user_skills extract, broken symlink.
 NEED_INSTALL=false
 INSTALL_IS_SYMLINK=false
-if [ -L "$INSTALL_DIR" ]; then
+if $FORCE_INSTALL; then
+  NEED_INSTALL=true
+  echo "[boot] Force reinstall requested"
+elif [ -L "$INSTALL_DIR" ]; then
   # Already a symlink — check if it points to the correct target
   CURRENT_TARGET="$(readlink -f "$INSTALL_DIR" 2>/dev/null || echo "")"
   EXPECTED_TARGET="$(readlink -f "$SOURCE_DIR" 2>/dev/null || echo "")"
