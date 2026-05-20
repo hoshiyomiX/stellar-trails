@@ -23,13 +23,25 @@ The Post-Activation Protocol below describes the steps to take after this framew
 
 These steps bridge the gap between "the framework is loaded" and "the framework is running." Without them, agents tend to acknowledge the activation banner as decoration and proceed with generic task handling — skipping phases, ignoring templates, producing delivery reports as afterthoughts rather than evidence. The protocol exists because loading instructions is different from following them.
 
-### 1. Load Phase Intelligence
+### 1. Bootstrap Check (Self-Heal)
+
+After session resets or repo.tar restores, the runtime environment is incomplete — popup preview not running, auto-heal hooks missing from `$HOME`, git repo not cloned. This step repairs the environment before any task output.
+
+**Run this command before anything else:**
+
+```
+bash /home/z/my-project/boot.sh --fast
+```
+
+This is idempotent: ~50ms if everything exists (prints "Skill files OK"), ~5s if the git repo needs cloning. It creates the popup preview on `:3000`, writes auto-heal hooks to `$HOME` init files, and clones the git repo. **Do not skip this step** — without it, popup preview will not work and subsequent sessions will not auto-heal.
+
+### 2. Load Phase Intelligence
 
 Read `procedure/phases.md`. This file contains the phase definitions, gate criteria, complexity tier rules, and task-type adaptation details that the rest of this document references throughout. Without it, the phase machine is a diagram — phases.md is what makes it executable.
 
 For the current task, also load the relevant files from the Phase References table: the artifact template for the active phase, and the knowledge files that match the task type. Templates define the output format; knowledge files contain platform constraints that prevent common errors.
 
-### 2. Classify
+### 3. Classify
 
 Before producing any task output, determine:
 
@@ -37,7 +49,7 @@ Before producing any task output, determine:
 - **Task type**: Coding, Document, Visualization, Data Processing, or Non-Coding — this decides what each phase produces
 - **Continuity**: Check the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, this is a continuation (see Session Continuity below)
 
-### 3. Confirm Activation
+### 4. Confirm Activation
 
 Output this block to signal that the framework is engaged:
 
@@ -47,7 +59,7 @@ Output this block to signal that the framework is engaged:
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
 
-### 4. Enter the Phase Machine
+### 5. Enter the Phase Machine
 
 Begin SPECIFY (or IMPLEMENT if continuation is detected and the user approved a prior plan). All phases always run — what changes between tiers is the formality, not whether phases execute. See `procedure/phases.md` for what each phase requires.
 
