@@ -3,14 +3,13 @@
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Usage: bash <(curl -sL https://raw.githubusercontent.com/hoshiyomiX/stellar-frameworks/main/boot.sh)
-#    or: bash ~/.stellar-frameworks-repo/boot.sh
-#    or: bash stellar-frameworks/boot.sh [--install-only] [--fast]
+# Install:  git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
+#           && bash ~/.stellar-frameworks-repo/boot.sh
+# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast]
 #
 # Flags:
 #   --fast         Skip git operations (pure local copy ~50ms). Used by hook.
 #                   OVERridden if local repo version < MINIMUM_VERSION (stale snapshot).
-#   --force        Force reinstall (replace symlink/directory even if valid).
 #   --install-only Accepted for compatibility; no-op since v5.4.4.
 #
 # Path architecture (v5.9.0):
@@ -45,12 +44,11 @@ version_lt() {
 
 # Parse flags
 FAST_MODE=false
-FORCE_INSTALL=false
 for arg in "$@"; do
   case "$arg" in
     --fast) FAST_MODE=true ;;
-    --force) FORCE_INSTALL=true ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
+    *) echo "[boot] Unknown flag: $arg — ignoring" ;;
   esac
 done
 
@@ -153,11 +151,8 @@ fi
 # Detects: missing, empty, stale user_skills extract, broken symlink.
 NEED_INSTALL=false
 INSTALL_IS_SYMLINK=false
-if $FORCE_INSTALL; then
-  NEED_INSTALL=true
-  echo "[boot] Force reinstall requested"
-elif [ -L "$INSTALL_DIR" ]; then
-  # Already a symlink — check if it points to the correct target
+if [ -L "$INSTALL_DIR" ]; then
+  # Symlink — verify it points to the correct target
   CURRENT_TARGET="$(readlink -f "$INSTALL_DIR" 2>/dev/null || echo "")"
   EXPECTED_TARGET="$(readlink -f "$SOURCE_DIR" 2>/dev/null || echo "")"
   if [ "$CURRENT_TARGET" = "$EXPECTED_TARGET" ]; then

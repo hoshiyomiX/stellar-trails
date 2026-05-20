@@ -21,7 +21,8 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/hoshiyomiX/stellar-frameworks/main/boot.sh) --force
+git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo \
+  && bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
 Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.9.0 · ACTIVE`.
@@ -121,7 +122,7 @@ Recovery mechanism:
 
 | Scenario | Solution | What happens |
 |----------|----------|-------------|
-| **Fresh sandbox** (first time) | Run the Quick Start one-liner | Clones repo to `$HOME/.stellar-frameworks-repo`, installs skill files to `skills/`, writes auto-heal hook to `$HOME/.bashrc` |
+| **Fresh sandbox** (first time) | Run the Quick Start commands | Clones repo to `$HOME/.stellar-frameworks-repo`, installs skill files to `skills/`, writes auto-heal hook to `$HOME/.bashrc` |
 | **Sandbox reset** (project dir wiped) | Hook auto-triggers on next shell open | Hook clones repo from GitHub (if missing), pulls latest, runs `boot.sh --fast`. Skill files restored to `skills/`. Next `Skill()` call works. |
 
 The `$HOME/.bashrc` auto-heal hook ensures recovery happens automatically even after sandbox resets. The git repo lives at `$HOME/.stellar-frameworks-repo/` (outside the project directory) to survive project resets. A fallback path copies from the git-tracked `skill/` directory if the repo itself is unavailable.
