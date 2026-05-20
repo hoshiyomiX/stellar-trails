@@ -113,6 +113,7 @@ if $FAST_MODE && [ -f "$SOURCE_DIR/SKILL.md" ]; then
 fi
 
 # ── 1. Auto-update: pull if remote has newer skill files ──────────
+SELF_UPDATED=false
 if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
   BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "")"
   REMOTE="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
@@ -129,9 +130,16 @@ if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
         if [ "$AHEAD" = "0" ] && [ "$BEHIND" -gt 0 ]; then
           if [ -z "$(git -C "$SCRIPT_DIR" status --porcelain -- skill/ setup.sh boot.sh README.md 2>/dev/null)" ]; then
             OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+            # Snapshot boot.sh before pull to detect self-update
+            BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
             if git -C "$SCRIPT_DIR" pull --ff-only --quiet origin "$BRANCH" 2>/dev/null; then
+              BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
               NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
               echo "[boot] Updated ${OLD_VER} → ${NEW_VER} ($BEHIND commits)"
+              # If boot.sh itself changed, re-exec to pick up new code
+              if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
+                SELF_UPDATED=true
+              fi
             else
               echo "[boot] WARNING: git pull failed — skipping update"
             fi
@@ -144,6 +152,16 @@ if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
       fi
     fi
   fi
+fi
+
+# Self-re-exec: if boot.sh was updated by git pull above, re-run with
+# the new version so all subsequent sections use the latest code.
+# Prevents the scenario where boot.sh pulls a fix but runs old code.
+if $SELF_UPDATED; then
+  # Re-source paths (SCRIPT_DIR may have changed if boot.sh was relocated)
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_DIR/boot.sh")" && pwd)"
+  echo "[boot] Re-executing with updated boot.sh..."
+  exec bash "$SCRIPT_DIR/boot.sh" "$@"
 fi
 
 # ── 2. Install / self-heal: symlink skill/ → skills/ ──
