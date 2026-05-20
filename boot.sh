@@ -3,8 +3,8 @@
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Install:  git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-#           && bash ~/.stellar-frameworks-repo/boot.sh
+# Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
+#           bash ~/.stellar-frameworks-repo/boot.sh
 # Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast]
 #
 # Flags:
@@ -19,8 +19,9 @@
 #   If repo is missing, hook auto-clones from GitHub before booting.
 #
 # Resilience layers (v5.9.1):
+#   Layer 0: Install command — conditional clone (skip if exists) + always boot
 #   Layer 1: Hook (shell init) — clone-if-missing + git pull + boot --fast
-#   Layer 2: Health check — if SKILL.md missing/empty after boot, force reinstall
+#   Layer 2: Health check — if SKILL.md missing/empty after boot, reinstall
 #   Layer 3: repo.tar fallback — copy from git-tracked skill/ if repo clone fails
 #   Log: $HOME/.stellar-boot.log (rotated, last 500 lines)
 
