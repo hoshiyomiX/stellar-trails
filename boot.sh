@@ -233,35 +233,14 @@ else
   echo "[boot] Skill files OK"
 fi
 
-# ── 3. Popup preview: ensure .zscripts/dev.sh exists ──────────────
-DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
-DEV_SH_CREATED=false
+# ── 3. Popup preview: ensure landing page + dev server ──────────────
+mkdir -p "$DOWNLOAD_DIR"
 
-if [ ! -f "$DEV_SCRIPT" ]; then
-  echo "[boot] Creating dev.sh for popup preview..."
-  mkdir -p "$ZSCRIPTS"
-  cat > "$DEV_SCRIPT" << 'DEVSH'
-#!/bin/bash
-# stellar-frameworks dev server — persistent popup preview
-# Auto-restarts if killed (unkillable). Port :3000.
-# Created by boot.sh — do not edit manually.
-
-if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  echo "[dev.sh] Port :3000 already in use — not starting" >&2
-  exit 0
-fi
-
-if [ -f /home/z/my-project/package.json ] \
-   && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
-  while true; do
-    cd /home/z/my-project && bun run dev
-    sleep 2
-  done
-else
-  mkdir -p /home/z/my-project/download
-  # Ensure landing page exists (auto-healed each boot)
-  if [ ! -f /home/z/my-project/download/index.html ]; then
-    cat > /home/z/my-project/download/index.html << 'SPLASH'
+# Always ensure index.html exists — even if dev.sh is already running
+# on :3000 from a previous session. The port guard in dev.sh prevents
+# re-launch, but the file may have been lost (e.g. download/ wiped).
+if [ ! -f "$DOWNLOAD_DIR/index.html" ]; then
+  cat > "$DOWNLOAD_DIR/index.html" << 'SPLASH'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -292,7 +271,36 @@ p{font-size:0.875rem;color:#71717a;line-height:1.6;margin-bottom:1.5rem}
 </body>
 </html>
 SPLASH
-  fi
+  echo "[boot] Landing page created"
+else
+  echo "[boot] Landing page OK"
+fi
+
+# Ensure .zscripts/dev.sh exists
+DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
+
+if [ ! -f "$DEV_SCRIPT" ]; then
+  echo "[boot] Creating dev.sh for popup preview..."
+  mkdir -p "$ZSCRIPTS"
+  cat > "$DEV_SCRIPT" << 'DEVSH'
+#!/bin/bash
+# stellar-frameworks dev server — persistent popup preview
+# Auto-restarts if killed (unkillable). Port :3000.
+# Created by boot.sh — do not edit manually.
+
+if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+  echo "[dev.sh] Port :3000 already in use — not starting" >&2
+  exit 0
+fi
+
+if [ -f /home/z/my-project/package.json ] \
+   && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
+  while true; do
+    cd /home/z/my-project && bun run dev
+    sleep 2
+  done
+else
+  mkdir -p /home/z/my-project/download
   while true; do
     cd /home/z/my-project/download && python3 -m http.server 3000
     sleep 1
@@ -300,7 +308,6 @@ SPLASH
 fi
 DEVSH
   chmod +x "$DEV_SCRIPT"
-  DEV_SH_CREATED=true
   echo "[boot] dev.sh created"
 elif ! grep -qF "$DEV_SCRIPT_MARKER" "$DEV_SCRIPT" 2>/dev/null; then
   echo "[boot] dev.sh already exists (external) — keeping it"
@@ -312,7 +319,6 @@ if [ -f "$DEV_SCRIPT" ]; then
   if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
     echo "[boot] Popup preview already running on :3000"
   else
-    mkdir -p "$DOWNLOAD_DIR"
     bash "$DEV_SCRIPT" >/dev/null 2>&1 &
     echo "[boot] Popup preview launched on :3000"
   fi
