@@ -15,53 +15,33 @@ description: "Activates on every task: coding (features, bugs, refactoring, scri
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
-This framework structures ALL work as a phase machine. It activates for every task — coding or not — without exception. What changes between tasks is the complexity tier, not whether the framework participates. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks (questions, explanations, recommendations) get Minimal tier — all phases still run, but SPECIFY, PLAN, and VERIFY happen internally (the agent thinks through them without outputting formal artifacts). Only IMPLEMENT produces visible work. Every task, regardless of type, gets a delivery report recording that the framework was followed.
+**Before any task output, complete these steps in order:**
 
-The Post-Activation Protocol below describes the steps to take after this framework loads. Follow it before producing any task output — it takes only a few seconds and ensures the phase machine runs correctly.
-
-## Post-Activation Protocol
-
-These steps bridge the gap between "the framework is loaded" and "the framework is running." Without them, agents tend to acknowledge the activation banner as decoration and proceed with generic task handling — skipping phases, ignoring templates, producing delivery reports as afterthoughts rather than evidence. The protocol exists because loading instructions is different from following them.
-
-### 1. Bootstrap Check (Self-Heal)
-
-After session resets or repo.tar restores, the runtime environment is incomplete — popup preview not running, auto-heal hooks missing from `$HOME`, git repo not cloned. This step repairs the environment before any task output.
-
-**Run this command before anything else:**
-
+**Step 1 — Bootstrap (~50ms, self-heal):**
 ```
 bash /home/z/my-project/boot.sh --fast
 ```
+Idempotent — prints "Skill files OK" if everything exists, clones repo if missing.
 
-This is idempotent: ~50ms if everything exists (prints "Skill files OK"), ~5s if the git repo needs cloning. It creates the popup preview on `:3000`, writes auto-heal hooks to `$HOME` init files, and clones the git repo. **Do not skip this step** — without it, popup preview will not work and subsequent sessions will not auto-heal.
+**Step 2 — Load phase intelligence:**
+Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
 
-### 2. Load Phase Intelligence
+**Step 3 — Classify:**
+Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (check preceding assistant message — if user references, approves, or follows up, this is a continuation; see Session Continuity below).
 
-Read `procedure/phases.md`. This file contains the phase definitions, gate criteria, complexity tier rules, and task-type adaptation details that the rest of this document references throughout. Without it, the phase machine is a diagram — phases.md is what makes it executable.
-
-For the current task, also load the relevant files from the Phase References table: the artifact template for the active phase, and the knowledge files that match the task type. Templates define the output format; knowledge files contain platform constraints that prevent common errors.
-
-### 3. Classify
-
-Before producing any task output, determine:
-
-- **Complexity tier**: Minimal, Simple, Standard, or Complex — this decides the ceremony level for each phase
-- **Task type**: Coding, Document, Visualization, Data Processing, or Non-Coding — this decides what each phase produces
-- **Continuity**: Check the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, this is a continuation (see Session Continuity below)
-
-### 4. Confirm Activation
-
-Output this block to signal that the framework is engaged:
-
+**Step 4 — Confirm activation:**
 ```
 ☄️ STELLAR · v5.9.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
 
-### 5. Enter the Phase Machine
+**Step 5 — Enter phase machine:**
+Begin SPECIFY (or IMPLEMENT if continuation detected). All phases always run.
 
-Begin SPECIFY (or IMPLEMENT if continuation is detected and the user approved a prior plan). All phases always run — what changes between tiers is the formality, not whether phases execute. See `procedure/phases.md` for what each phase requires.
+---
+
+This framework structures ALL work as a phase machine. It activates for every task — coding or not — without exception. What changes between tasks is the complexity tier, not whether the framework participates. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks (questions, explanations, recommendations) get Minimal tier — all phases still run, but SPECIFY, PLAN, and VERIFY happen internally (the agent thinks through them without outputting formal artifacts). Only IMPLEMENT produces visible work. Every task, regardless of type, gets a delivery report recording that the framework was followed.
 
 ## Limitations
 
