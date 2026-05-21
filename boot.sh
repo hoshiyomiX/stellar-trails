@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v5.9.0
+# stellar-frameworks — Install, self-heal (git-tracked) v5.10.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
@@ -32,7 +32,7 @@ set -euo pipefail
 # --fast mode is overridden to force git pull. This prevents stale
 # snapshots (e.g. v5.3.0 baked into repo.tar) from persisting.
 # Bump this whenever a new version is released.
-MINIMUM_VERSION="5.9.0"
+MINIMUM_VERSION="5.10.0"
 
 # Semantic version comparison: returns 0 (true) if $1 < $2
 version_lt() {
@@ -128,7 +128,7 @@ if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
         AHEAD="$(git -C "$SCRIPT_DIR" rev-list --count "origin/$BRANCH"..HEAD 2>/dev/null || echo "0")"
 
         if [ "$AHEAD" = "0" ] && [ "$BEHIND" -gt 0 ]; then
-          if [ -z "$(git -C "$SCRIPT_DIR" status --porcelain -- skill/ setup.sh boot.sh README.md 2>/dev/null)" ]; then
+          if [ -z "$(git -C "$SCRIPT_DIR" status --porcelain -- skill/ boot.sh README.md 2>/dev/null)" ]; then
             OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
             # Snapshot boot.sh before pull to detect self-update
             BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
@@ -377,7 +377,7 @@ echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + pull
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v5.9.0 installed and ACTIVE — no restart needed!         ║"
+  echo "║  ☄️ v5.10.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"

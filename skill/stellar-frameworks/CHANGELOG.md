@@ -1,5 +1,32 @@
 # Changelog
 
+## [5.10.0] — 2026-05-21
+
+### Fixed
+
+- **Dead references to non-existent files** — Version sync comment in SKILL.md referenced `setup.sh` and `README.md` (neither exists in the repo). Updated to only reference files that actually exist: SKILL.md, boot.sh, CHANGELOG.md.
+- **boot.sh git status check referenced non-existent `setup.sh`** — Line 131 checked `git status --porcelain -- skill/ setup.sh boot.sh README.md` but `setup.sh` was never committed to the repo. Removed from the check.
+
+### Removed
+
+- **Dead asset `assets/page.tsx`** — A Next.js splash page component that was never deployed or referenced by any mechanism. boot.sh generates its own inline HTML for the popup preview (`download/index.html`), making this asset completely unused. Removed `assets/` directory entirely.
+
+### Added
+
+- **README.md** — Created missing README with Quick Start (git clone + bash), Invoke instructions, version history table, and architecture diagram. Previously referenced in version sync comment and CHANGELOG entries but never existed.
+
+### Changed
+
+- **SKILL.md description optimized for triggering** — Per skill-creator guidelines, description rewritten to be more "pushy" with explicit trigger scenarios. Added "without exception" emphasis, explicit file format mentions (DOCX, PDF), and action verbs (build, fix, analyze, create, plan, process). Previous description was 218 chars focused on categories; new description is ~450 chars with concrete trigger phrases.
+
+### Why
+
+Audit via skill-creator revealed accumulated technical debt from 25+ versions of iterative development: (1) `setup.sh` was referenced 30+ times across CHANGELOG.md and SKILL.md but was never committed to the git repository — likely lost in a rebase or never pushed; (2) `assets/page.tsx` was a leftover from the v5.4.4 era when boot.sh managed a Next.js project directly — after the fullstack-dev handoff, this asset became dead code; (3) the skill description had drifted from the skill-creator's triggering guidelines, becoming too category-focused instead of action-focused.
+
+### Files Modified
+
+SKILL.md (description + version sync comment), boot.sh (git status check), CHANGELOG.md. Added: README.md. Removed: assets/page.tsx.
+
 ## [5.9.0] — 2026-05-19
 
 ### Fixed
