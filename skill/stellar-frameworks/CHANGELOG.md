@@ -1,5 +1,31 @@
 # Changelog
 
+## [5.11.0] — 2026-05-21
+
+### Fixed
+
+- **CRITICAL: setup.sh stuck at v5.9.0** — setup.sh header, banner, version check, and done banner all referenced v5.9.0 despite SKILL.md being at v5.10.0. The version check at line 75 used a hardcoded `5.9.0` comparison, causing a FALSE FAIL every time setup.sh was run after the v5.10.0 upgrade. Root cause: both previous audits (44673ea, b21a50c) operated file-by-file and never performed a repo-wide version consistency sweep. Fixed by syncing all version references to v5.11.0.
+
+- **CRITICAL: root README.md stuck at v5.9.0** — The repository root README.md (the first thing users see on GitHub) was never updated in any previous audit. Version badge showed 5.9.0, invoke text referenced v5.9.0, and file structure still listed `assets/page.tsx` which was deleted in v5.10.0. This was the primary user-visible complaint. Fixed by updating badge, invoke text, removing dead asset from file tree, and adding v5.10.0/v5.11.0 to version history.
+
+- **setup.sh version check used hardcoded value** — The version comparison `if [ "$INSTALLED_VER" = "5.9.0" ]` broke on every version bump because it required manual updating of a magic string. Replaced with single-source extraction: `EXPECTED_VER` is now read from `SKILL.md` using the same `grep -oP` pattern that boot.sh uses. This eliminates the class of version-desync bugs that caused this release.
+
+- **setup.sh hook out of sync with boot.sh** — setup.sh wrote a v5.9.0-era hook (clone + pull + boot, output to `/dev/null`) while boot.sh wrote a v5.9.0+ hook (clone + pull + boot + health check + log rotation). Running setup.sh after boot.sh would silently downgrade the hook. Synced setup.sh hook to match boot.sh's 3-phase pipeline format.
+
+### Changed
+
+- **boot.sh git status check scoped to relevant files** — Line 131 `git status --porcelain -- skill/ boot.sh README.md` included root `README.md` which boot.sh never reads or writes. Removed to limit dirty-check to files directly managed by boot.sh: `skill/` and `boot.sh`.
+
+- **SKILL.md VERSION SYNC comment expanded** — Now lists all 7 files that must be updated on version bump: (1) SKILL.md metadata + banners, (2) boot.sh header/banner/MINIMUM_VERSION, (3) setup.sh header/banner/version-check, (4) root README.md badge/invoke/file-structure/version-history, (5) skill/README.md version-history, (6) CHANGELOG.md. Previous comment only listed 4 files — the missing references are what caused the desync.
+
+### Why
+
+The root cause was not any individual bug but a **methodological failure**: previous audits operated file-by-file, checking each file in isolation for correctness within itself. This approach cannot catch cross-file consistency issues — the exact class of problem that caused both the setup.sh and root README.md desyncs. A repo-wide consistency sweep (check that all version references across all files agree) would have caught every issue in this release in a single pass. The expanded VERSION SYNC comment and single-source version extraction in setup.sh are structural defenses against future occurrences — they make the correct behavior the path of least resistance rather than requiring perfect manual discipline on every version bump.
+
+### Files Modified
+
+SKILL.md (version + VERSION SYNC comment), boot.sh (version + MINIMUM_VERSION + banner + dirty-check scope), setup.sh (version + banner + single-source version check + hook sync + done banner), README.md root (badge + invoke + file structure + version history), skill/stellar-frameworks/README.md (version history), CHANGELOG.md (v5.11.0 entry).
+
 ## [5.10.0] — 2026-05-21
 
 ### Fixed

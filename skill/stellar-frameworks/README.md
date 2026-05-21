@@ -23,6 +23,7 @@ Skill(command="stellar-frameworks")
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 5.11.0 | 2026-05-21 | Major refactor: repo-wide version sync (setup.sh desync fixed, root README updated, single-source version extraction, hook sync) |
 | 5.10.0 | 2026-05-21 | Skill-creator audit: dead refs, dead asset, description optimization, README created |
 | 5.9.0 | 2026-05-19 | Hook silent error fix, empty SKILL.md detection, health check fallback, git staging for repo.tar |
 | 5.8.0 | 2026-05-19 | Fatal: platform reset wipes project dir; git repo migrated to $HOME, auto-heal hook gains clone-if-missing |

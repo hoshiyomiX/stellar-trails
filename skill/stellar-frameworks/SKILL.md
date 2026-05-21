@@ -2,16 +2,16 @@
 name: stellar-frameworks
 description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts, web development), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones."
 ---
-<!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) boot.sh header/banner/MINIMUM_VERSION, (4) CHANGELOG.md -->
+<!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) boot.sh header/banner/MINIMUM_VERSION, (4) setup.sh header/banner/version-check, (5) root README.md badge/invoke/file-structure/version-history, (6) skill/README.md version-history, (7) CHANGELOG.md -->
 
 ## Metadata
 
-- **version**: 5.10.0
+- **version**: 5.11.0
 
 ## Activation
 
 ```
-☄️ STELLAR · v5.10.0 · ACTIVE
+☄️ STELLAR · v5.11.0 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
@@ -31,7 +31,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR · v5.10.0 · ACTIVE
+☄️ STELLAR · v5.11.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

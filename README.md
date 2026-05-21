@@ -4,7 +4,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.9.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.11.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 
 Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases run internally (Minimal tier) but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
 
@@ -25,7 +25,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.9.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.11.0 · ACTIVE`.
 
 ---
 
@@ -159,8 +159,6 @@ stellar-frameworks/
 │   │   │   └── error-patterns.md     # Common errors with cause → fix mapping
 │   │   └── platform/                 # Platform-specific constraints
 │   │       └── zai-sandbox.md        # z.ai sandbox limitations (gateway, routes, SDK)
-│   └── assets/
-│       └── page.tsx                  # Custom splash page (closeable + minimizable)
 └── skills/stellar-frameworks/        # Platform-managed (auto-healed by boot.sh)
 ```
 
@@ -180,6 +178,9 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
+| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | Major refactor: repo-wide version sync (setup.sh v5.9.0 desync fixed, root README.md updated, dead asset removed from file tree, single-source version extraction, hook sync). |
+| [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization, README created. |
+| [**v5.9.0**](skill/stellar-frameworks/CHANGELOG.md) | Hook silent error fix, empty SKILL.md detection, health check fallback, git staging for repo.tar. |
 | [**v5.8.0**](skill/stellar-frameworks/CHANGELOG.md) | Fatal bugfix: repo migrated to `$HOME/.stellar-frameworks-repo/` (survives project resets). Hook gains clone-if-missing fallback. Old repo path auto-migrated. |
 | [**v5.7.0**](skill/stellar-frameworks/CHANGELOG.md) | Post-Activation Protocol: 4-step execution sequence ensuring framework is followed, not just loaded. Phase References gains "When to Read" column. |
 | [**v5.6.0**](skill/stellar-frameworks/CHANGELOG.md) | Terminology overhaul: PCR → Delivery Reports (Scope Commitment, Delivery Report). PIVOT → Pivot, DELTA Scope → Scope Drift. Zero acronyms. |
