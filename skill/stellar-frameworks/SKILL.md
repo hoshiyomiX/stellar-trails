@@ -66,7 +66,7 @@ On error: assess (code bug or approach failure?), fix or pivot, return to VERIFY
 | VERIFY | Run checks, trace edge cases, confirm Traceability IDs satisfied |
 | DELIVER | Present results with attestation |
 
-Phase definitions, entry/exit criteria, and transition rules are in `procedure/phases.md` — the same file the Post-Activation Protocol asks you to read first.
+Phase definitions, entry/exit criteria, and transition rules are in `procedure/phases.md` — the same file Step 2 of Activation asks you to read first.
 
 ## Session Continuity
 
@@ -281,4 +281,4 @@ Self-graded. The evidence requirement makes fabrication harder but cannot guaran
 
 ## Completion Signal
 
-For web development tasks (Type 3), the DELIVER phase must call the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize the project. For non-coding tasks, DELIVER presents the output file path directly. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.
+For web development tasks (Coding), the DELIVER phase must call the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize the project. For non-coding tasks, DELIVER presents the output file path directly. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.

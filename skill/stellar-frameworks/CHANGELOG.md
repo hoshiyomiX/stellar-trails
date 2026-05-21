@@ -4,8 +4,8 @@
 
 ### Fixed
 
-- **Dead references to non-existent files** — Version sync comment in SKILL.md referenced `setup.sh` and `README.md` (neither exists in the repo). Updated to only reference files that actually exist: SKILL.md, boot.sh, CHANGELOG.md.
-- **boot.sh git status check referenced non-existent `setup.sh`** — Line 131 checked `git status --porcelain -- skill/ setup.sh boot.sh README.md` but `setup.sh` was never committed to the repo. Removed from the check.
+- **Dead references in version sync comment** — SKILL.md VERSION SYNC comment referenced `setup.sh` (a legacy repo-root script no longer relevant to the skill's install flow) and `README.md` (didn't exist inside the skill directory). Updated to only reference the files boot.sh actually touches during install: SKILL.md, boot.sh, CHANGELOG.md.
+- **boot.sh git status check scoped to relevant files** — Line 131 checked `git status --porcelain -- skill/ setup.sh boot.sh README.md`. `setup.sh` is a repo-root utility script that boot.sh never reads or writes — including it in the dirty-check was scope creep. Removed to limit the check to files directly managed by boot.sh.
 
 ### Removed
 
@@ -13,7 +13,7 @@
 
 ### Added
 
-- **README.md** — Created missing README with Quick Start (git clone + bash), Invoke instructions, version history table, and architecture diagram. Previously referenced in version sync comment and CHANGELOG entries but never existed.
+- **README.md** — Created inside `skill/stellar-frameworks/` with Quick Start, Invoke, Version History, and Architecture diagram.
 
 ### Changed
 
@@ -21,11 +21,11 @@
 
 ### Why
 
-Audit via skill-creator revealed accumulated technical debt from 25+ versions of iterative development: (1) `setup.sh` was referenced 30+ times across CHANGELOG.md and SKILL.md but was never committed to the git repository — likely lost in a rebase or never pushed; (2) `assets/page.tsx` was a leftover from the v5.4.4 era when boot.sh managed a Next.js project directly — after the fullstack-dev handoff, this asset became dead code; (3) the skill description had drifted from the skill-creator's triggering guidelines, becoming too category-focused instead of action-focused.
+Audit via skill-creator revealed accumulated technical debt from 25+ versions of iterative development: (1) SKILL.md VERSION SYNC comment referenced `setup.sh` — a repo-root script that exists but is no longer part of the skill's install/update flow (boot.sh manages its own version, not setup.sh); (2) `assets/page.tsx` was a leftover from the v5.4.4 era when boot.sh managed a Next.js project directly — after the fullstack-dev handoff, this asset became dead code; (3) the skill description had drifted from the skill-creator's triggering guidelines, becoming too category-focused instead of action-focused.
 
 ### Files Modified
 
-SKILL.md (description + version sync comment), boot.sh (git status check), CHANGELOG.md. Added: README.md. Removed: assets/page.tsx.
+SKILL.md (description + version sync comment + cross-refs), boot.sh (git status check), procedure/phases.md (memory ref + Type 3 label), knowledge/platform/zai-sandbox.md (stale repo path), CHANGELOG.md (factual accuracy). Added: README.md. Removed: assets/page.tsx.
 
 ## [5.9.0] — 2026-05-19
 

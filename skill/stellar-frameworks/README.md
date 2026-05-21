@@ -36,18 +36,20 @@ See CHANGELOG.md for full history.
 ## Architecture
 
 ```
-skill/stellar-frameworks/
-├── SKILL.md                  # Skill definition (activation + framework reference)
-├── boot.sh                   # Self-heal installer (clone, symlink, hook, index.html)
-├── procedure/
-│   ├── phases.md             # 6-phase state machine definitions + gates
-│   ├── templates/            # Output templates (problem-spec, implementation-plan, incident-report, verification-report)
-│   └── decision-trees/       # Error resolution + pivot assessment
-├── knowledge/
-│   ├── platform/             # Z.ai sandbox constraints
-│   └── universal/            # Architecture, conventions, error patterns
-├── constraints/              # Code standards + type safety rules
-└── CHANGELOG.md              # Detailed version history
+stellar-frameworks/               (repo root)
+├── boot.sh                        # Self-heal installer (clone, symlink, hook, index.html)
+└── skill/stellar-frameworks/
+    ├── SKILL.md                   # Skill definition (activation + framework reference)
+    ├── memory-template.md         # Memory system templates & storage rules
+    ├── procedure/
+    │   ├── phases.md              # 6-phase state machine definitions + gates
+    │   ├── templates/             # Output templates (problem-spec, implementation-plan, incident-report, verification-report)
+    │   └── decision-trees/        # Error resolution + pivot assessment
+    ├── knowledge/
+    │   ├── platform/              # Z.ai sandbox constraints
+    │   └── universal/             # Architecture, conventions, error patterns
+    ├── constraints/               # Code standards + type safety rules
+    └── CHANGELOG.md               # Detailed version history
 ```
 
 ## Phase Machine
