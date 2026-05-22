@@ -164,34 +164,32 @@ if $SELF_UPDATED; then
   exec bash "$SCRIPT_DIR/boot.sh" "$@"
 fi
 
-# ── 2. Install / self-heal: symlink skill/ → skills/ ──
-# Uses symlink instead of copy. This means skills/ always reflects the
-# git-tracked source (skill/) — including after git push updates.
-# Detects: missing, empty, stale user_skills extract, broken symlink.
+# ── 2. Install / self-heal: copy skill/ → skills/ ──
+# Uses cp -a instead of symlink. Symlinks break on restore because:
+#   (1) repo.tar stores symlink but target may not exist after restore
+#   (2) git add fails on symlinks ("pathspec beyond symbolic link")
+#   (3) .gitignore excludes skills/ — git tracking is impossible
+# With real files in skills/, the platform's repo.tar captures them on pre-stop.
+# On restore, files exist immediately — no hook timing dependency.
+# Update detection: compare SKILL.md version strings (source vs installed).
 NEED_INSTALL=false
-INSTALL_IS_SYMLINK=false
-if [ -L "$INSTALL_DIR" ]; then
-  # Symlink — verify it points to the correct target
-  CURRENT_TARGET="$(readlink -f "$INSTALL_DIR" 2>/dev/null || echo "")"
-  EXPECTED_TARGET="$(readlink -f "$SOURCE_DIR" 2>/dev/null || echo "")"
-  if [ "$CURRENT_TARGET" = "$EXPECTED_TARGET" ]; then
-    INSTALL_IS_SYMLINK=true
+if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+  INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
+  SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
+  if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
     NEED_INSTALL=false
+    echo "[boot] Skill files OK (v$INSTALLED_VER)"
   else
     NEED_INSTALL=true
-    echo "[boot] Symlink points to wrong target ($CURRENT_TARGET) — reinstalling"
+    echo "[boot] Version update: $INSTALLED_VER → $SOURCE_VER"
   fi
-elif [ -d "$INSTALL_DIR" ]; then
-  # Regular directory (stale user_skills extract or old cp-based install)
-  if [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
-    echo "[boot] Replacing stale directory with symlink"
-  else
-    echo "[boot] Corrupt install directory — replacing with symlink"
-  fi
+elif [ -L "$INSTALL_DIR" ]; then
+  # Legacy symlink from v5.4.4–v5.11.1 — replace with real copy
   NEED_INSTALL=true
+  echo "[boot] Legacy symlink detected — replacing with real copy"
 else
   NEED_INSTALL=true
-  echo "[boot] skills/ not found — creating symlink"
+  echo "[boot] skills/ not found — installing"
 fi
 
 # Clean up predecessor skill (stellar-coding-agent v5.0.0)
@@ -212,10 +210,10 @@ if $NEED_INSTALL; then
       exit 1
     fi
   fi
-  echo "[boot] Installing skill files → skills/ (symlink)"
+  echo "[boot] Installing skill files → skills/ (copy)"
   mkdir -p "$(dirname "$INSTALL_DIR")"
   rm -rf "${INSTALL_DIR:?}"
-  ln -s "$SOURCE_DIR" "$INSTALL_DIR"
+  cp -a "$SOURCE_DIR" "$INSTALL_DIR"
 
   # Verify critical files
   ERRORS=0
@@ -243,7 +241,8 @@ if $NEED_INSTALL; then
   done
 
   if [ $ERRORS -eq 0 ]; then
-    echo "[boot] Installed successfully (symlink: skills/ → skill/)"
+    INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "?")"
+    echo "[boot] Installed successfully (copy: v$INSTALLED_VER)"
   else
     echo "[boot] WARNING: installed with $ERRORS missing file(s)"
   fi
