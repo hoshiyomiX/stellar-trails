@@ -1,6 +1,6 @@
 ---
 name: stellar-frameworks
-description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts, web development), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones."
+description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones. Web development (Next.js, UI) is delegated to fullstack-dev; this framework wraps the phase machine around it."
 ---
 <!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) boot.sh header/banner/MINIMUM_VERSION, (4) setup.sh header/banner/version-check, (5) root README.md badge/invoke/file-structure/version-history, (6) skill/README.md version-history, (7) CHANGELOG.md -->
 
@@ -120,7 +120,7 @@ This framework is not limited to coding tasks. The phase machine adapts to the t
 
 | Task Type | SPECIFY | PLAN | IMPLEMENT | VERIFY |
 |-----------|---------|------|------------|--------|
-| **Coding** (web dev, bug fix, refactor) | Problem spec | Code steps + Traceability IDs | Write code | Lint, type check, tests |
+| **Coding** (bug fix, refactor, scripts) | Problem spec | Code steps + Traceability IDs | Write code | Lint, type check, tests |
 | **Document** (report, proposal, DOCX, PDF) | Content outline | Section plan + structure | Generate document | Format check, completeness |
 | **Visualization** (charts, diagrams, dashboards) | Visual requirements | Data mapping + layout | Generate chart | Visual accuracy, data integrity |
 | **Data Processing** (ETL, analysis, transform) | Data spec | Transform pipeline | Write script | Output validation |
@@ -281,4 +281,4 @@ Self-graded. The evidence requirement makes fabrication harder but cannot guaran
 
 ## Completion Signal
 
-For web development tasks (Coding), the DELIVER phase must call the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize the project. For non-coding tasks, DELIVER presents the output file path directly. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.
+For interactive web development tasks (Next.js, UI components, dashboards), implementation is delegated to fullstack-dev — the DELIVER phase calls the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize. For non-web coding tasks, DELIVER presents output file paths. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.
