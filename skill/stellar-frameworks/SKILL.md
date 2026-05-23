@@ -19,9 +19,9 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 **Step 1 — Bootstrap (~50ms, self-heal):**
 ```
-bash /home/z/my-project/boot.sh --fast
+[ -f /home/z/my-project/boot.sh ] && bash /home/z/my-project/boot.sh --fast || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh --fast; }
 ```
-Idempotent — prints "Skill files OK" if everything exists, clones repo if missing.
+Three-layer fallback: (1) project-local boot.sh → (2) home repo clone → (3) fresh clone from GitHub. Idempotent — prints "Skill files OK" if everything exists, clones repo if missing.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
