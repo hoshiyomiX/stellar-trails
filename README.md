@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="skill/stellar-frameworks/chibi.png" alt="Stellar Frameworks mascot" width="180">
+
 # ☄️ stellar-frameworks
 
 **Universal task workflow for LLM agents**

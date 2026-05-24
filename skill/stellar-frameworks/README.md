@@ -1,6 +1,12 @@
+<div align="center">
+
+<img src="chibi.png" alt="Stellar Frameworks mascot" width="180">
+
 # Stellar Frameworks
 
 Structured development framework for GLM — a phase state machine with traceability IDs, phase gates, scope commitment, and adaptive complexity.
+
+</div>
 
 ## Quick Start
 
