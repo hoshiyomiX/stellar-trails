@@ -282,17 +282,15 @@ fi
 # ── 3. Popup preview: ensure landing page + dev server ──────────────
 mkdir -p "$DOWNLOAD_DIR"
 
-# Copy chibi mascot image to download/ (survives via repo.tar from skill/)
-if [ -f "$SOURCE_DIR/chibi.png" ] && [ ! -f "$DOWNLOAD_DIR/chibi.png" ]; then
+# Copy chibi mascot image to download/ (always overwrite — these are generated artifacts)
+if [ -f "$SOURCE_DIR/chibi.png" ]; then
   cp -- "$SOURCE_DIR/chibi.png" "$DOWNLOAD_DIR/chibi.png"
   echo "[boot] Chibi mascot copied"
 fi
 
-# Always ensure index.html exists — even if dev.sh is already running
-# on :3000 from a previous session. The port guard in dev.sh prevents
-# re-launch, but the file may have been lost (e.g. download/ wiped).
-if [ ! -f "$DOWNLOAD_DIR/index.html" ]; then
-  cat > "$DOWNLOAD_DIR/index.html" << 'SPLASH'
+# Always overwrite index.html — it's a generated artifact, not user content.
+# This ensures the popup preview always matches the current boot.sh version.
+cat > "$DOWNLOAD_DIR/index.html" << 'SPLASH'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -334,10 +332,7 @@ p span{color:#a78bfa}
 </body>
 </html>
 SPLASH
-  echo "[boot] Landing page created"
-else
-  echo "[boot] Landing page OK"
-fi
+echo "[boot] Landing page created"
 
 # Ensure .zscripts/dev.sh exists
 DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
