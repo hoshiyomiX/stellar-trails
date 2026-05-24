@@ -215,6 +215,11 @@ if $NEED_INSTALL; then
   rm -rf "${INSTALL_DIR:?}"
   cp -a "$SOURCE_DIR" "$INSTALL_DIR"
 
+  # Copy boot.sh into skills/ so it's co-located with SKILL.md.
+  # This makes boot.sh discoverable in ALL sandboxes where skills/ exists,
+  # even when the project root is a different repo (not stellar-frameworks).
+  cp -- "$SCRIPT_DIR/boot.sh" "$INSTALL_DIR/boot.sh"
+
   # Verify critical files
   ERRORS=0
   for f in \
@@ -231,6 +236,7 @@ if $NEED_INSTALL; then
     knowledge/universal/error-patterns.md \
     knowledge/platform/zai-sandbox.md \
     memory-template.md \
+    boot.sh \
     CHANGELOG.md; do
     if [ -f "$INSTALL_DIR/$f" ]; then
       : # OK
