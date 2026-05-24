@@ -258,6 +258,7 @@ if $NEED_INSTALL; then
     knowledge/universal/error-patterns.md \
     knowledge/platform/zai-sandbox.md \
     memory-template.md \
+    chibi.png \
     boot.sh \
     CHANGELOG.md; do
     if [ -f "$INSTALL_DIR/$f" ]; then
@@ -281,6 +282,12 @@ fi
 # ── 3. Popup preview: ensure landing page + dev server ──────────────
 mkdir -p "$DOWNLOAD_DIR"
 
+# Copy chibi mascot image to download/ (survives via repo.tar from skill/)
+if [ -f "$SOURCE_DIR/chibi.png" ] && [ ! -f "$DOWNLOAD_DIR/chibi.png" ]; then
+  cp -- "$SOURCE_DIR/chibi.png" "$DOWNLOAD_DIR/chibi.png"
+  echo "[boot] Chibi mascot copied"
+fi
+
 # Always ensure index.html exists — even if dev.sh is already running
 # on :3000 from a previous session. The port guard in dev.sh prevents
 # re-launch, but the file may have been lost (e.g. download/ wiped).
@@ -297,9 +304,19 @@ if [ ! -f "$DOWNLOAD_DIR/index.html" ]; then
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:#0a0a0f;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .container{text-align:center;padding:2rem;max-width:420px}
-.emoji{font-size:3.5rem;margin-bottom:1.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))}
-h1{font-size:1.35rem;font-weight:600;color:#f4f4f5;margin-bottom:0.5rem;letter-spacing:-0.01em}
+.chibi-wrap{position:relative;display:inline-block;margin-bottom:1.5rem}
+.chibi-img{width:140px;height:140px;border-radius:50%;object-fit:cover;
+  border:2px solid rgba(139,92,246,0.35);
+  box-shadow:0 0 30px rgba(139,92,246,0.18),0 0 60px rgba(139,92,246,0.08);
+  animation:float 4s ease-in-out infinite}
+.chibi-wrap::after{content:'';position:absolute;inset:-8px;border-radius:50%;
+  border:1px dashed rgba(139,92,246,0.15);animation:spin 20s linear infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+h1{font-size:1.35rem;font-weight:600;color:#f4f4f5;margin-bottom:0.35rem;letter-spacing:-0.01em}
+.version{font-size:0.7rem;color:#71717a;margin-bottom:1rem;letter-spacing:0.04em}
 p{font-size:0.875rem;color:#71717a;line-height:1.6;margin-bottom:1.5rem}
+p span{color:#a78bfa}
 .badge{display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.7rem;
   border:1px solid #27272a;border-radius:9999px;font-size:0.75rem;color:#a1a1aa}
 .badge .dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulse 2s infinite}
@@ -308,9 +325,14 @@ p{font-size:0.875rem;color:#71717a;line-height:1.6;margin-bottom:1.5rem}
 </head>
 <body>
 <div class="container">
-  <div class="emoji">☄️</div>
+  <div class="chibi-wrap">
+    <img class="chibi-img" src="chibi.png" alt="Stellar Frameworks mascot"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
+  </div>
   <h1>Welcome to Stellar Frameworks</h1>
-  <p>Phase State Machine &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
+  <div class="version">v5.11.0</div>
+  <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
   <div class="badge"><span class="dot"></span> Dev server running</div>
 </div>
 </body>
