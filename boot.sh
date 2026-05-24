@@ -304,15 +304,11 @@ if [ ! -f "$DOWNLOAD_DIR/index.html" ]; then
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:#0a0a0f;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .container{text-align:center;padding:2rem;max-width:420px}
-.chibi-wrap{position:relative;display:inline-block;margin-bottom:1.5rem}
-.chibi-img{width:140px;height:140px;border-radius:50%;object-fit:cover;
-  border:2px solid rgba(139,92,246,0.35);
-  box-shadow:0 0 30px rgba(139,92,246,0.18),0 0 60px rgba(139,92,246,0.08);
+.chibi-wrap{display:inline-block;margin-bottom:1.5rem}
+.chibi-img{height:180px;width:auto;
+  filter:drop-shadow(0 0 24px rgba(139,92,246,0.25)) drop-shadow(0 4px 16px rgba(0,0,0,0.4));
   animation:float 4s ease-in-out infinite}
-.chibi-wrap::after{content:'';position:absolute;inset:-8px;border-radius:50%;
-  border:1px dashed rgba(139,92,246,0.15);animation:spin 20s linear infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@keyframes spin{to{transform:rotate(360deg)}}
 h1{font-size:1.35rem;font-weight:600;color:#f4f4f5;margin-bottom:0.35rem;letter-spacing:-0.01em}
 .version{font-size:0.7rem;color:#71717a;margin-bottom:1rem;letter-spacing:0.04em}
 p{font-size:0.875rem;color:#71717a;line-height:1.6;margin-bottom:1.5rem}
