@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v5.11.0
+# stellar-frameworks — Install, self-heal (git-tracked) v6.0.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
@@ -32,7 +32,7 @@ set -euo pipefail
 # --fast mode is overridden to force git pull. This prevents stale
 # snapshots (e.g. v5.3.0 baked into repo.tar) from persisting.
 # Bump this whenever a new version is released.
-MINIMUM_VERSION="5.11.0"
+MINIMUM_VERSION="6.0.0"
 
 # Semantic version comparison: returns 0 (true) if $1 < $2
 version_lt() {
@@ -119,7 +119,7 @@ fi
 #   (2) Platform resets can leave stale files (contamination) or diverged HEAD
 #   (3) Old cautious-pull approach blocked updates on dirty state, making
 #       contamination permanent until manual intervention
-# Replaces v5.11.0's dirty-check + cautious pull (which caused contamination).
+# Replaces v6.0.0's dirty-check + cautious pull (which caused contamination).
 SELF_UPDATED=false
 if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
   BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
@@ -327,7 +327,7 @@ p span{color:#a78bfa}
     <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
   </div>
   <h1>Welcome to Stellar Frameworks</h1>
-  <div class="version">v5.11.0</div>
+  <div class="version">v6.0.0</div>
   <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
   <div class="badge"><span class="dot"></span> Dev server running</div>
 </div>
@@ -422,7 +422,7 @@ echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + pull
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v5.11.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.0.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"

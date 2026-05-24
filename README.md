@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.11.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-6.0.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 [![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
@@ -29,7 +29,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.11.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.0.0 · ACTIVE`.
 
 ---
 
@@ -194,8 +194,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
-| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | Major refactor: repo-wide version sync, dead asset removal, single-source version extraction |
-| **v5.11.x patches** | Force-sync (contamination fix), boot.sh co-location, 3-layer activation fallback, cp-a persistence, cross-trigger guard |
+| [**v6.0.0**](skill/stellar-frameworks/CHANGELOG.md) | Version reset, chibi mascot, transparent background, force-sync, co-location, activation fallback, README overhaul |
 | [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization |
 
 > Full changelog with all 25+ versions: [`skill/stellar-frameworks/CHANGELOG.md`](skill/stellar-frameworks/CHANGELOG.md)

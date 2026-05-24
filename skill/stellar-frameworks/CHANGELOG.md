@@ -1,5 +1,19 @@
 # Changelog
 
+## [6.0.0] — 2026-05-25
+
+### Changed
+
+- **Version reset to 6.0.0** — Previous versioning (5.4.x–5.11.x) had grown unwieldy with 25+ micro-versions. Reset to v6.0.0 to mark a clean break. All prior fixes (force-sync, cp-a persistence, co-located boot.sh, activation fallback, cross-trigger guard) are bundled into this release.
+
+- **Chibi mascot added to popup preview and README** — Transparent-background chibi image (AI-processed via rembg/U2-Net) added as the visual identity. Displayed in popup preview (index.html), root README.md header, and skill/README.md header. Background removed with alpha matting; circular crop removed to show full character shape.
+
+- **README overhaul** — Root README rewritten: Persistence & Recovery section now accurately describes recovery mechanism (repo.tar + SKILL.md fallback, not volatile hooks). Version history shortened to 3 rows + CHANGELOG link. File structure clarified with gitignored notes and boot.sh co-location documentation.
+
+### Files Modified
+
+SKILL.md (version + banners), boot.sh (version + MINIMUM_VERSION + banner + inline HTML), setup.sh (version + banner), README.md (badge + chibi + version history + persistence section), skill/README.md (chibi + version history), CHANGELOG.md (v6.0.0 entry), skill/chibi.png (added, transparent).
+
 ## [5.11.0] — 2026-05-21
 
 ### Fixed

@@ -25,8 +25,7 @@ Skill(command="stellar-frameworks")
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 5.11.0 | 2026-05-21 | Major refactor: repo-wide version sync, dead asset removal, single-source version extraction |
-| 5.11.x patches | 2026-05-24 | Force-sync (contamination fix), boot.sh co-location, 3-layer activation fallback, cp-a persistence, cross-trigger guard |
+| 6.0.0 | 2026-05-25 | Version reset, chibi mascot, transparent background, force-sync, co-location, activation fallback, README overhaul |
 | 5.10.0 | 2026-05-21 | Skill-creator audit: dead refs, dead asset, description optimization, README created |
 | 5.9.0 | 2026-05-19 | Hook silent error fix, empty SKILL.md detection, health check fallback, git staging for repo.tar |
 
