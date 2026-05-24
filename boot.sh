@@ -112,43 +112,65 @@ if $FAST_MODE && [ -f "$SOURCE_DIR/SKILL.md" ]; then
   fi
 fi
 
-# ── 1. Auto-update: pull if remote has newer skill files ──────────
+# ── 1. Force-sync: align repo with remote origin ─────────────────
+# This repo is a managed deployment clone — NEVER has intentional local commits.
+# Force-sync is safe because:
+#   (1) All development happens on GitHub, clone is read-only artifact
+#   (2) Platform resets can leave stale files (contamination) or diverged HEAD
+#   (3) Old cautious-pull approach blocked updates on dirty state, making
+#       contamination permanent until manual intervention
+# Replaces v5.11.0's dirty-check + cautious pull (which caused contamination).
 SELF_UPDATED=false
 if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
-  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "")"
+  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
   REMOTE="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
 
   if [ -n "$BRANCH" ] && [ -n "$REMOTE" ]; then
+    # Snapshot boot.sh before sync to detect self-update
+    BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+    OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+
     if git -C "$SCRIPT_DIR" fetch origin "$BRANCH" --quiet 2>/dev/null; then
       LOCAL="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)"
       REMOTE_SHA="$(git -C "$SCRIPT_DIR" rev-parse "origin/$BRANCH" 2>/dev/null)"
 
-      if [ "$LOCAL" != "$REMOTE_SHA" ]; then
-        BEHIND="$(git -C "$SCRIPT_DIR" rev-list --count HEAD.."origin/$BRANCH" 2>/dev/null || echo "0")"
-        AHEAD="$(git -C "$SCRIPT_DIR" rev-list --count "origin/$BRANCH"..HEAD 2>/dev/null || echo "0")"
-
-        if [ "$AHEAD" = "0" ] && [ "$BEHIND" -gt 0 ]; then
-          if [ -z "$(git -C "$SCRIPT_DIR" status --porcelain -- skill/ boot.sh 2>/dev/null)" ]; then
-            OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-            # Snapshot boot.sh before pull to detect self-update
-            BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-            if git -C "$SCRIPT_DIR" pull --ff-only --quiet origin "$BRANCH" 2>/dev/null; then
-              BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-              NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-              echo "[boot] Updated ${OLD_VER} → ${NEW_VER} ($BEHIND commits)"
-              # If boot.sh itself changed, re-exec to pick up new code
-              if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
-                SELF_UPDATED=true
-              fi
-            else
-              echo "[boot] WARNING: git pull failed — skipping update"
-            fi
-          else
-            echo "[boot] Skipping update — local changes detected in tracked files"
-          fi
-        elif [ "$AHEAD" -gt 0 ]; then
-          echo "[boot] Skipping update — local commits ahead of remote (diverged)"
+      if [ "$LOCAL" = "$REMOTE_SHA" ]; then
+        echo "[boot] Repo already at latest ($OLD_VER)"
+      else
+        # Force-sync: discard any local state, align to remote exactly
+        git -C "$SCRIPT_DIR" reset --hard "origin/$BRANCH" 2>/dev/null
+        NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+        BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+        echo "[boot] Force-synced ${OLD_VER} → ${NEW_VER} (aligned to origin/$BRANCH)"
+        if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
+          SELF_UPDATED=true
         fi
+      fi
+    else
+      echo "[boot] WARNING: git fetch failed — repo may be stale"
+    fi
+  fi
+
+  # ── 1b. Force-sync project dir if it IS the stellar-frameworks repo ─
+  # Prevents contamination in sandboxes where /home/z/my-project/ is this repo.
+  # Only acts if remote URL matches — never touches unrelated project repos.
+  if [ -d "$PROJECT_ROOT/.git" ]; then
+    PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
+    # Match by GitHub repo path (strip token for comparison)
+    PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
+    EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+    if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
+      PROJECT_BRANCH="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
+      P_LOCAL="$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)"
+      P_REMOTE="$(git -C "$PROJECT_ROOT" rev-parse "origin/$PROJECT_BRANCH" 2>/dev/null)"
+      if [ "$P_LOCAL" != "$P_REMOTE" ] && [ -n "$P_REMOTE" ]; then
+        git -C "$PROJECT_ROOT" fetch origin "$PROJECT_BRANCH" --quiet 2>/dev/null
+        git -C "$PROJECT_ROOT" reset --hard "origin/$PROJECT_BRANCH" 2>/dev/null
+        git -C "$PROJECT_ROOT" checkout -- . 2>/dev/null
+        # Re-sync skills/ from updated project source
+        cp -a "$PROJECT_ROOT/skill/stellar-frameworks" "$PROJECT_ROOT/skills/stellar-frameworks"
+        cp -- "$PROJECT_ROOT/boot.sh" "$PROJECT_ROOT/skills/stellar-frameworks/boot.sh" 2>/dev/null
+        echo "[boot] Project dir force-synced (was contaminated/diverged)"
       fi
     fi
   fi
