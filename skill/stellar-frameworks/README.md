@@ -9,10 +9,6 @@ Structured development framework for GLM — a phase state machine with traceabi
 bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
-Subsequent sessions auto-heal via shell hook — no manual steps needed.
-
-## Invoke
-
 After install, the skill triggers automatically on every task. Manual activation:
 
 ```
@@ -23,24 +19,21 @@ Skill(command="stellar-frameworks")
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 5.11.0 | 2026-05-21 | Major refactor: repo-wide version sync (setup.sh desync fixed, root README updated, single-source version extraction, hook sync) |
+| 5.11.0 | 2026-05-21 | Major refactor: repo-wide version sync, dead asset removal, single-source version extraction |
+| 5.11.x patches | 2026-05-24 | Force-sync (contamination fix), boot.sh co-location, 3-layer activation fallback, cp-a persistence, cross-trigger guard |
 | 5.10.0 | 2026-05-21 | Skill-creator audit: dead refs, dead asset, description optimization, README created |
 | 5.9.0 | 2026-05-19 | Hook silent error fix, empty SKILL.md detection, health check fallback, git staging for repo.tar |
-| 5.8.0 | 2026-05-19 | Fatal: platform reset wipes project dir; git repo migrated to $HOME, auto-heal hook gains clone-if-missing |
-| 5.7.0 | 2026-05-18 | Post-Activation Protocol, Phase References table |
-| 5.6.0 | 2026-05-18 | Terminology: PCR -> Delivery Reports / Scope Commitment |
-| 5.5.0 | 2026-05-18 | Scope Commitment, Fallback Approach, Phase Gate Protocol, Adaptive Pivot Protocol |
-| 5.4.0 | 2026-05-13 | No SKIP phases; Minimal tier for trivial tasks |
 
-See CHANGELOG.md for full history.
+See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 ## Architecture
 
 ```
 stellar-frameworks/               (repo root)
-├── boot.sh                        # Self-heal installer (clone, symlink, hook, index.html)
+├── boot.sh                        # Self-heal installer (clone, cp-a, hook, force-sync)
 └── skill/stellar-frameworks/
     ├── SKILL.md                   # Skill definition (activation + framework reference)
+    ├── boot.sh                    # Co-located copy — ensures boot.sh is always discoverable
     ├── memory-template.md         # Memory system templates & storage rules
     ├── procedure/
     │   ├── phases.md              # 6-phase state machine definitions + gates

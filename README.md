@@ -5,6 +5,8 @@
 **Universal task workflow for LLM agents**
 
 [![Version](https://img.shields.io/badge/version-5.11.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
+[![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
 Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases run internally (Minimal tier) but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
 
@@ -114,18 +116,31 @@ memory/
 
 Structured 5-step decision tree: **capture → classify → identify actions → fix → re-verify**. Covers Compilation, Type, Runtime, Network/Gateway, Database, Git, AI/SDK errors. Git operations have explicit safety rules — `git fetch` before `git pull`, no force push without user instruction, stop all git ops if infrastructure blocks.
 
-### Session Persistence
+---
 
-The platform reads `SKILL.md` from disk on every `Skill()` call — updates are effective immediately without restart. The main risk is the sandbox resetting and wiping the `skills/` directory.
+## Persistence & Recovery
 
-Recovery mechanism:
+The platform reads `SKILL.md` from disk on every `Skill()` call — updates are effective immediately without restart. The challenge is that the z.ai platform periodically **resets the sandbox**, wiping both the project directory (`/home/z/my-project/`) and the home directory (`$HOME/`).
 
-| Scenario | Solution | What happens |
-|----------|----------|-------------|
-| **Fresh sandbox** (first time) | Run the Quick Start commands | Clones repo to `$HOME/.stellar-frameworks-repo`, installs skill files to `skills/`, writes auto-heal hook to `$HOME/.bashrc` |
-| **Sandbox reset** (project dir wiped) | Hook auto-triggers on next shell open | Hook clones repo from GitHub (if missing), pulls latest, runs `boot.sh --fast`. Skill files restored to `skills/`. Next `Skill()` call works. |
+The framework survives resets through a layered recovery chain:
 
-The `$HOME/.bashrc` auto-heal hook ensures recovery happens automatically even after sandbox resets. The git repo lives at `$HOME/.stellar-frameworks-repo/` (outside the project directory) to survive project resets. A fallback path copies from the git-tracked `skill/` directory if the repo itself is unavailable.
+| Layer | Mechanism | Survives reset? |
+|-------|-----------|-----------------|
+| **skill/** (git-tracked source) | Platform creates `repo.tar` from working tree before reset, extracts after | Yes |
+| **skills/** (platform load path) | `cp -a` from `skill/` — real files, baked into `repo.tar` | Yes |
+| **boot.sh** (co-located in `skills/`) | Copied alongside SKILL.md, survives via `repo.tar` | Yes |
+| **SKILL.md activation fallback** | 4-layer bootstrap: co-located boot.sh → project boot.sh → home repo → GitHub clone | Yes |
+| **$HOME/ repo & hooks** | Auto-heal hook in `.bashrc` clones repo, runs boot.sh | No (volatile) |
+
+**Recovery in practice:**
+
+| Scenario | What happens |
+|----------|-------------|
+| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned, skill files installed. |
+| **Sandbox reset** | `skill/` and `skills/` restored from `repo.tar` automatically. Platform discovers `skills/*/SKILL.md` and registers the skill. On next `Skill()` call, activation fallback runs `boot.sh --fast` (~50ms) to verify and sync files. If files are missing entirely, falls back to GitHub clone. |
+| **Stale snapshot contamination** | `boot.sh` force-syncs the home repo with `git reset --hard origin/main`, eliminating diverged branches and uncommitted artifacts from previous sessions. |
+
+The key insight: **the framework is self-healing without relying on persistent hooks**. The git-tracked `skill/` directory and the SKILL.md activation fallback together guarantee recovery even when all volatile state is wiped.
 
 ---
 
@@ -133,33 +148,32 @@ The `$HOME/.bashrc` auto-heal hook ensures recovery happens automatically even a
 
 ```
 stellar-frameworks/
-├── boot.sh                           # Install + session bootstrap (single entry point)
+├── boot.sh                           # Install + self-heal + force-sync (single entry point)
 ├── setup.sh                          # [Legacy] Standalone installer — boot.sh handles this now
 ├── README.md                         # This file
-├── skill/stellar-frameworks/         # Git-tracked source (copied to skills/ on install)
-│   ├── SKILL.md                      # Core framework (phases, SSV, error recovery, Delivery Reports)
-│   ├── CHANGELOG.md                  # Version history
+├── .gitignore                        # Excludes skills/ (platform-managed), platform scaffolding
+│
+├── skill/stellar-frameworks/         # Git-tracked source of truth (survives repo.tar)
+│   ├── SKILL.md                      # Core framework (activation, phases, SSV, error recovery)
+│   ├── boot.sh                       # Co-located copy — ensures boot.sh is always discoverable
+│   ├── CHANGELOG.md                  # Version history (all 25+ versions)
+│   ├── README.md                     # Quick-reference README
 │   ├── memory-template.md            # Memory system docs & file templates
 │   ├── procedure/
 │   │   ├── phases.md                 # Phase definitions with entry/exit criteria
-│   │   ├── templates/
-│   │   │   ├── problem-spec.md       # SPECIFY artifact
-│   │   │   ├── implementation-plan.md # PLAN artifact (Traceability IDs)
-│   │   │   ├── verification-report.md # VERIFY artifact (evidence capture)
-│   │   │   └── incident-report.md    # Error documentation
+│   │   ├── templates/                # Artifact templates (SPECIFY, PLAN, VERIFY, incidents)
 │   │   └── decision-trees/
-│   │       └── error-resolution.md   # 5-step structured decision tree
-│   ├── constraints/
-│   │   ├── code-standards.md         # Function, file, import, quality standards
-│   │   └── type-safety.md            # Type system constraints with examples
+│   │       └── error-resolution.md   # 5-step structured error decision tree
+│   ├── constraints/                  # Code quality & type safety standards
 │   ├── knowledge/
-│   │   ├── universal/                # Platform-agnostic coding knowledge
-│   │   │   ├── architecture.md       # Runtime environment, directory layout, service topology
-│   │   │   ├── conventions.md        # Coding conventions, state management, import order
-│   │   │   └── error-patterns.md     # Common errors with cause → fix mapping
-│   │   └── platform/                 # Platform-specific constraints
-│   │       └── zai-sandbox.md        # z.ai sandbox limitations (gateway, routes, SDK)
-└── skills/stellar-frameworks/        # Platform-managed (auto-healed by boot.sh)
+│   │   ├── universal/                # Platform-agnostic patterns & error catalog
+│   │   └── platform/                 # z.ai sandbox constraints
+│   └── ...
+│
+└── skills/stellar-frameworks/        # ⚠️ Gitignored — platform load path
+                                    # Populated by boot.sh (cp -a from skill/)
+                                    # Survives repo.tar as real files
+                                    # This is what the platform scans for SKILL.md
 ```
 
 ---
@@ -178,25 +192,8 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
-| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | Major refactor: repo-wide version sync (setup.sh v5.9.0 desync fixed, root README.md updated, dead asset removed from file tree, single-source version extraction, hook sync). |
-| [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization, README created. |
-| [**v5.9.0**](skill/stellar-frameworks/CHANGELOG.md) | Hook silent error fix, empty SKILL.md detection, health check fallback, git staging for repo.tar. |
-| [**v5.8.0**](skill/stellar-frameworks/CHANGELOG.md) | Fatal bugfix: repo migrated to `$HOME/.stellar-frameworks-repo/` (survives project resets). Hook gains clone-if-missing fallback. Old repo path auto-migrated. |
-| [**v5.7.0**](skill/stellar-frameworks/CHANGELOG.md) | Post-Activation Protocol: 4-step execution sequence ensuring framework is followed, not just loaded. Phase References gains "When to Read" column. |
-| [**v5.6.0**](skill/stellar-frameworks/CHANGELOG.md) | Terminology overhaul: PCR → Delivery Reports (Scope Commitment, Delivery Report). PIVOT → Pivot, DELTA Scope → Scope Drift. Zero acronyms. |
-| [**v5.5.1**](skill/stellar-frameworks/CHANGELOG.md) | Audit fix: version sync, incident-report Pivot Assessment, SKILL.md description rewrite, dedup. |
-| [**v5.5.0**](skill/stellar-frameworks/CHANGELOG.md) | PCR v2: Scope PCR, Phase Gates, Adaptive Pivot, Fallback Approach, DELTA tracking. Professional implementation quality. |
-| [**v5.4.8**](skill/stellar-frameworks/CHANGELOG.md) | Persistent (unkillable) dev.sh with while-loop auto-restart. PID file removed, port guard only. |
-| [**v5.4.7**](skill/stellar-frameworks/CHANGELOG.md) | Bugfix: hook does `git pull` before boot.sh to guarantee latest version on stale snapshot restore. Single-phase replaces two-phase. |
-| [**v5.4.3**](skill/stellar-frameworks/CHANGELOG.md) | Critical fix: race condition in .bashrc hook (async + git ops). Now synchronous + `--fast` (no git, ~0.1s). Stale hook cleanup. |
-| [**v5.4.1**](skill/stellar-frameworks/CHANGELOG.md) | Source Availability & Documentation Check (SADC) — mandatory research before SPECIFY. Prevents building from assumptions. |
-| [**v5.4.0**](skill/stellar-frameworks/CHANGELOG.md) | Adaptive complexity tiers — Minimal/Simple/Standard/Complex. All phases always run, no SKIP. Non-coding tasks use Minimal tier (phases internal, only IMPLEMENT visible). |
-| [**v5.3.1**](skill/stellar-frameworks/CHANGELOG.md) | Skill description optimized for aggressive triggering (eval 5/20 → 20/20). setup.sh version confirmation fix. |
-| [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal, boot.sh auto-bootstrap, session continuity. |
-| [**v5.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |
-| [**v5.1.0**](skill/stellar-frameworks/CHANGELOG.md) | Completion signal moved to high-attention zone, abbreviation floor added. |
-| [v5.0.0](skill/stellar-frameworks/CHANGELOG.md) | Philosophical reset. Removed compliance theater, kept useful tools. Added `boot.sh` self-heal. |
-| [v4.6.0](skill/stellar-frameworks/CHANGELOG.md) | Source State Verification (SSV). Evidence tiers in attestation. |
-| [v4.5.0](skill/stellar-frameworks/CHANGELOG.md) | Coexistence mode with fullstack-dev. *(Removed in v5.0.0)* |
-| [v4.4.2](skill/stellar-frameworks/CHANGELOG.md) | QA Attestation required for all tasks (not just coding). |
-| [v4.0.0](skill/stellar-frameworks/CHANGELOG.md) | Complete redesign: phase state machine, artifact templates, traceability IDs. |
+| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | Major refactor: repo-wide version sync, dead asset removal, single-source version extraction |
+| **v5.11.x patches** | Force-sync (contamination fix), boot.sh co-location, 3-layer activation fallback, cp-a persistence, cross-trigger guard |
+| [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization |
+
+> Full changelog with all 25+ versions: [`skill/stellar-frameworks/CHANGELOG.md`](skill/stellar-frameworks/CHANGELOG.md)
