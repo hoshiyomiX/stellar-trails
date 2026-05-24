@@ -193,25 +193,29 @@ fi
 #   (3) .gitignore excludes skills/ — git tracking is impossible
 # With real files in skills/, the platform's repo.tar captures them on pre-stop.
 # On restore, files exist immediately — no hook timing dependency.
-# Update detection: compare SKILL.md version strings (source vs installed).
+# Override logic:
+#   --fast mode: version-comparison (skip if same, for speed)
+#   Normal mode:  ALWAYS force-copy (ensures non-version content fixes propagate)
 NEED_INSTALL=false
-if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+if $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
   INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
     NEED_INSTALL=false
-    echo "[boot] Skill files OK (v$INSTALLED_VER)"
+    echo "[boot] Skill files OK (v$INSTALLED_VER, --fast skip)"
   else
     NEED_INSTALL=true
     echo "[boot] Version update: $INSTALLED_VER → $SOURCE_VER"
   fi
-elif [ -L "$INSTALL_DIR" ]; then
-  # Legacy symlink from v5.4.4–v5.11.1 — replace with real copy
-  NEED_INSTALL=true
-  echo "[boot] Legacy symlink detected — replacing with real copy"
 else
   NEED_INSTALL=true
-  echo "[boot] skills/ not found — installing"
+  if [ -L "$INSTALL_DIR" ]; then
+    echo "[boot] Legacy symlink detected — replacing with real copy"
+  elif [ -d "$INSTALL_DIR" ]; then
+    echo "[boot] Force-copying skill files (normal mode — ensures content freshness)"
+  else
+    echo "[boot] skills/ not found — installing"
+  fi
 fi
 
 # Clean up predecessor skill (stellar-coding-agent v5.0.0)
@@ -334,7 +338,7 @@ p span{color:#a78bfa}
 SPLASH
 echo "[boot] Landing page created"
 
-# Ensure .zscripts/dev.sh exists
+# Ensure .zscripts/dev.sh exists and is up-to-date
 DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
 
 if [ ! -f "$DEV_SCRIPT" ]; then
@@ -370,7 +374,39 @@ DEVSH
 elif ! grep -qF "$DEV_SCRIPT_MARKER" "$DEV_SCRIPT" 2>/dev/null; then
   echo "[boot] dev.sh already exists (external) — keeping it"
 else
-  echo "[boot] dev.sh OK (managed by stellar-frameworks)"
+  # Managed dev.sh exists but may be outdated — always overwrite in normal mode
+  if $FAST_MODE; then
+    echo "[boot] dev.sh OK (managed by stellar-frameworks, --fast skip)"
+  else
+    echo "[boot] Overwriting dev.sh (managed, normal mode — ensures content freshness)"
+    mkdir -p "$ZSCRIPTS"
+    cat > "$DEV_SCRIPT" << 'DEVSH'
+#!/bin/bash
+# stellar-frameworks dev server — persistent popup preview
+# Auto-restarts if killed (unkillable). Port :3000.
+# Created by boot.sh — do not edit manually.
+
+if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+  echo "[dev.sh] Port :3000 already in use — not starting" >&2
+  exit 0
+fi
+
+if [ -f /home/z/my-project/package.json ] \
+   && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
+  while true; do
+    cd /home/z/my-project && bun run dev
+    sleep 2
+  done
+else
+  mkdir -p /home/z/my-project/download
+  while true; do
+    cd /home/z/my-project/download && python3 -m http.server 3000
+    sleep 1
+  done
+fi
+DEVSH
+    chmod +x "$DEV_SCRIPT"
+  fi
 fi
 
 if [ -f "$DEV_SCRIPT" ]; then
