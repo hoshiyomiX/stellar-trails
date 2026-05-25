@@ -19,9 +19,9 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 **Step 1 — Bootstrap (~50ms, self-heal):**
 ```
-[ -f /home/z/my-project/skills/stellar-frameworks/boot.sh ] && bash /home/z/my-project/skills/stellar-frameworks/boot.sh --fast || { [ -f /home/z/my-project/boot.sh ] && bash /home/z/my-project/boot.sh --fast || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh --fast; }; }
+bash /home/z/my-project/skills/stellar-frameworks/boot.sh 2>/dev/null || bash /home/z/my-project/boot.sh 2>/dev/null || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh; }
 ```
-Four-layer fallback: (1) skills/ co-located boot.sh (always survives repo.tar) → (2) project-local boot.sh → (3) home repo clone → (4) fresh clone from GitHub. Idempotent — prints "Skill files OK" if everything exists, clones repo if missing.
+Three-layer fallback: (1) skills/ co-located boot.sh (always survives repo.tar) → (2) project-local boot.sh → (3) home repo clone (or fresh clone from GitHub). No --fast on first call — ensures full install (force-copy skill files, overwrite index.html/chibi.png/dev.sh). Idempotent — prints "Skill files OK" if everything is current.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.

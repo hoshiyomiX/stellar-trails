@@ -3,8 +3,7 @@
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-#           bash ~/.stellar-frameworks-repo/boot.sh
+# Install:  bash /home/z/my-project/skills/stellar-frameworks/boot.sh 2>/dev/null || bash /home/z/my-project/boot.sh 2>/dev/null || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh; }
 # Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast]
 #
 # Flags:
@@ -69,6 +68,11 @@ if [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ] && \
 fi
 
 SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
+# When boot.sh is co-located in skills/ (not the repo), it IS the source.
+# skills/stellar-frameworks/ is a copy of skill/stellar-frameworks/ — no /skill/ sub-dir.
+if [ ! -d "$SOURCE_DIR" ] && [ -f "$SCRIPT_DIR/SKILL.md" ]; then
+  SOURCE_DIR="$SCRIPT_DIR"
+fi
 INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
 OBSOLETE_DIR="$PROJECT_ROOT/skills/stellar-coding-agent"
 ZSCRIPTS="$PROJECT_ROOT/.zscripts"

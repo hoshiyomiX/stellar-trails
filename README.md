@@ -25,9 +25,10 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-bash ~/.stellar-frameworks-repo/boot.sh
+bash /home/z/my-project/skills/stellar-frameworks/boot.sh 2>/dev/null || bash /home/z/my-project/boot.sh 2>/dev/null || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh; }
 ```
+
+Fallback chain: skills/ → project-local → home repo (or fresh clone). Self-healing — re-run anytime to verify/repair.
 
 Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.0.0 · ACTIVE`.
 
