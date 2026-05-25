@@ -9,6 +9,8 @@
 # Flags:
 #   --fast         Skip git operations (pure local copy ~50ms). Used by hook.
 #                   OVERridden if local repo version < MINIMUM_VERSION (stale snapshot).
+#   --clean        Nuke ALL generated files before install (skills/, index.html,
+#                   chibi.png, dev.sh, hooks). Full uninstall + reinstall.
 #   --install-only Accepted for compatibility; no-op since v5.4.4.
 #
 # Path architecture (v5.9.0):
@@ -44,9 +46,11 @@ version_lt() {
 
 # Parse flags
 FAST_MODE=false
+CLEAN_MODE=false
 for arg in "$@"; do
   case "$arg" in
     --fast) FAST_MODE=true ;;
+    --clean) CLEAN_MODE=true ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
     *) echo "[boot] Unknown flag: $arg — ignoring" ;;
   esac
@@ -79,6 +83,43 @@ ZSCRIPTS="$PROJECT_ROOT/.zscripts"
 DEV_SCRIPT="$ZSCRIPTS/dev.sh"
 DOWNLOAD_DIR="$PROJECT_ROOT/download"
 BOOT_LOG="$HOME/.stellar-boot.log"
+
+# ── 0-pre. Clean mode: nuke ALL generated files ───────────────────
+# --clean removes everything boot.sh has ever created, then reinstall.
+# Use when contamination is suspected or a fresh start is needed.
+if $CLEAN_MODE; then
+  echo "[boot] CLEAN MODE — nuking all generated files"
+  # Kill dev server if running
+  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+    fuser -k 3000/tcp 2>/dev/null || true
+  fi
+  # Remove skill install
+  rm -rf "${INSTALL_DIR:?}" 2>/dev/null
+  echo "[boot] Removed skills/stellar-frameworks/"
+  # Remove popup preview files
+  rm -f "$DOWNLOAD_DIR/index.html" "$DOWNLOAD_DIR/chibi.png" 2>/dev/null
+  echo "[boot] Removed download/index.html + chibi.png"
+  # Remove managed dev.sh (only if it has our marker)
+  if [ -f "$DEV_SCRIPT" ] && grep -qF "# stellar-frameworks dev server" "$DEV_SCRIPT" 2>/dev/null; then
+    rm -f "$DEV_SCRIPT"
+    echo "[boot] Removed .zscripts/dev.sh"
+  fi
+  # Remove hooks from init files
+  for HOOK_FILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+    if [ -f "$HOOK_FILE" ] && grep -qF "stellar-frameworks" "$HOOK_FILE" 2>/dev/null; then
+      sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
+      sed -i '/boot.sh/d' "$HOOK_FILE"
+      sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
+      [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE"
+    fi
+  done
+  echo "[boot] Removed hooks from init files"
+  # Remove predecessor
+  rm -rf "${OBSOLETE_DIR:?}" 2>/dev/null
+  # Remove boot log
+  rm -f "$BOOT_LOG" 2>/dev/null
+  echo "[boot] Nuke complete — proceeding with fresh install"
+fi
 
 # ── 0a. Auto-clone: ensure repo exists ─────────────────────────────
 OLD_REPO_DIR="$PROJECT_ROOT/stellar-frameworks"

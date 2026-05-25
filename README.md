@@ -25,10 +25,10 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo; bash ~/.stellar-frameworks-repo/boot.sh
+[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo; bash ~/.stellar-frameworks-repo/boot.sh --clean
 ```
 
-Self-healing — re-run anytime to verify/repair.
+Add `--clean` for fresh install (nuke all files first). Omit for update-only.
 
 Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.0.0 · ACTIVE`.
 
