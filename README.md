@@ -25,7 +25,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo && bash ~/.stellar-frameworks-repo/boot.sh
+[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo; bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
 Self-healing — re-run anytime to verify/repair.
