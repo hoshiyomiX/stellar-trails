@@ -52,7 +52,7 @@ for arg in "$@"; do
     --fast) FAST_MODE=true ;;
     --clean) CLEAN_MODE=true ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
-    *) echo "[boot] Unknown flag: $arg — ignoring" ;;
+    *) ;; # ignore unknown flags (forwarded via self-re-exec if boot.sh was stale)
   esac
 done
 
