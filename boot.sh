@@ -89,9 +89,16 @@ BOOT_LOG="$HOME/.stellar-boot.log"
 # Use when contamination is suspected or a fresh start is needed.
 if $CLEAN_MODE; then
   echo "[boot] CLEAN MODE — nuking all generated files"
-  # Kill dev server if running
+  # Kill dev server if running (aggressive — -9 to ensure death)
   if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-    fuser -k 3000/tcp 2>/dev/null || true
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
+      kill -9 "$pid" 2>/dev/null || true
+    done
+    sleep 0.5
+    # Second pass — kill anything that survived
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
+      kill -9 "$pid" 2>/dev/null || true
+    done
   fi
   # Remove skill install
   rm -rf "${INSTALL_DIR:?}" 2>/dev/null
@@ -487,7 +494,15 @@ DEVSH
 fi
 
 if [ -f "$DEV_SCRIPT" ]; then
-  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+  if $CLEAN_MODE; then
+    # After --clean: always kill + relaunch fresh (old server may serve stale files)
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\\K[0-9]+' | while read -r pid; do
+      kill -9 "$pid" 2>/dev/null || true
+    done
+    sleep 0.3
+    bash "$DEV_SCRIPT" >/dev/null 2>&1 &
+    echo "[boot] Popup preview force-relaunched on :3000"
+  elif ss -tlnp 2>/dev/null | grep -q ':3000 '; then
     echo "[boot] Popup preview already running on :3000"
   else
     bash "$DEV_SCRIPT" >/dev/null 2>&1 &
