@@ -439,8 +439,9 @@ if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; the
   exit 0
 fi
 
-if [ -f /home/z/my-project/package.json ] \
-   && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
+# Detect actual Next.js project (next.config.js/mjs must exist — just having
+# 'next' in package.json is not enough, e.g. Android apps with NextAuth dep)
+if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.config.mjs ] || [ -f /home/z/my-project/next.config.ts ]; then
   while true; do
     cd /home/z/my-project && bun run dev
     sleep 2
@@ -475,8 +476,8 @@ if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; the
   exit 0
 fi
 
-if [ -f /home/z/my-project/package.json ] \
-   && grep -q '"next"' /home/z/my-project/package.json 2>/dev/null; then
+# Detect actual Next.js project (next.config.js/mjs must exist)
+if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.config.mjs ] || [ -f /home/z/my-project/next.config.ts ]; then
   while true; do
     cd /home/z/my-project && bun run dev
     sleep 2
