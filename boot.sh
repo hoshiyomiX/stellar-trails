@@ -166,33 +166,74 @@ fi
 
 # ── 0c. Submodule purge: prevent git submodule contamination ──────
 # Submodules in the project repo break Stellar Frameworks commit protocol
-# (VERIFY/DELIVER phases) with "staged but uncommitted" errors.
+# (VERIFY/DELIVER phases) with "staged but uncommitted" errors, and can
+# cause non-fast-forward push failures when parent and submodule share the
+# same remote (double-push problem).
 # In z.ai sandboxes, submodules are NEVER intentional — they are artifacts
-# from platform resets or tool contamination. Force-remove them.
+# from platform resets, tool contamination, or misconfigured clones.
 # Safety: only acts on PROJECT_ROOT, never touches TARGET_DIR (stellar repo).
-if [ -d "$PROJECT_ROOT/.git" ] && [ -f "$PROJECT_ROOT/.gitmodules" ]; then
-  # Verify this is NOT the stellar-frameworks repo itself
-  PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
-  PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
-  EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+if [ -d "$PROJECT_ROOT/.git" ]; then
+  # Check for submodule contamination (tracked or untracked)
+  HAS_GITMODULES=false
+  HAS_STAGE_160000=false
 
-  if [ "$PROJECT_REPO" != "$EXPECTED_REPO" ]; then
-    echo "[boot] Submodule detected in project repo — purging (breaks commit protocol)"
-    # Deinit all submodules (clean worktrees)
-    git -C "$PROJECT_ROOT" submodule deinit --all --force 2>/dev/null || true
-    # Remove .gitmodules tracking
-    git -C "$PROJECT_ROOT" rm -f --cached '.gitmodules' 2>/dev/null || true
-    rm -f "$PROJECT_ROOT/.gitmodules"
-    # Clean up .git/modules/ cache
-    rm -rf "$PROJECT_ROOT/.git/modules/" 2>/dev/null || true
-    # Remove any leftover submodule directories (those that had .git files)
-    if [ -f "$PROJECT_ROOT/.git/modules" ] || git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep -q '^160000 '; then
-      # Stage-160000 entries are submodule references — remove from index
-      git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep '^160000 ' | awk '{print $4}' | while read -r mod; do
-        rm -rf "$PROJECT_ROOT/$mod" 2>/dev/null || true
-      done
+  if [ -f "$PROJECT_ROOT/.gitmodules" ]; then
+    HAS_GITMODULES=true
+  fi
+  if git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep -q '^160000 '; then
+    HAS_STAGE_160000=true
+  fi
+
+  if $HAS_GITMODULES || $HAS_STAGE_160000; then
+    # Verify this is NOT the stellar-frameworks repo itself
+    PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
+    PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
+    EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+
+    if [ "$PROJECT_REPO" != "$EXPECTED_REPO" ]; then
+      echo "[boot] Submodule contamination detected in project repo — purging"
+      # Log what we found
+      SUB_COUNT=0
+      if $HAS_STAGE_160000; then
+        SUB_COUNT="$(git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep '^160000 ' | wc -l)"
+      fi
+      echo "[boot] Found ${SUB_COUNT} submodule(s) + .gitmodules file"
+
+      # Detect submodules sharing parent's remote (critical bug)
+      if [ -f "$PROJECT_ROOT/.gitmodules" ] && [ -n "$PROJECT_REMOTE" ]; then
+        while IFS= read -r line; do
+          if echo "$line" | grep -qP '^\s*url\s*='; then
+            SUB_URL="$(echo "$line" | grep -oP '=\s*\K.*' | tr -d ' "')"
+            SUB_REPO="$(echo "$SUB_URL" | sed 's|https://[^@]*@||;s|\.git$||')"
+            if [ "$SUB_REPO" = "$PROJECT_REPO" ]; then
+              echo "[boot] WARNING: submodule shares parent remote (${SUB_REPO}) — double-push bug"
+            fi
+          fi
+        done < "$PROJECT_ROOT/.gitmodules"
+      fi
+
+      # Deinit all submodules (clean worktrees)
+      git -C "$PROJECT_ROOT" submodule deinit --all --force 2>/dev/null || true
+      # Remove .gitmodules tracking
+      git -C "$PROJECT_ROOT" rm -f --cached '.gitmodules' 2>/dev/null || true
+      rm -f "$PROJECT_ROOT/.gitmodules"
+      # Clean up .git/modules/ cache
+      rm -rf "$PROJECT_ROOT/.git/modules/" 2>/dev/null || true
+      # Remove submodule directories from working tree AND git index
+      if $HAS_STAGE_160000; then
+        git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep '^160000 ' | awk '{print $4}' | while read -r mod; do
+          # Remove from git index
+          git -C "$PROJECT_ROOT" rm -f --cached "$mod" 2>/dev/null || true
+          # Remove directory (only if it looks like a submodule, not user code)
+          if [ -d "$PROJECT_ROOT/$mod/.git" ] || [ -f "$PROJECT_ROOT/$mod/.git" ]; then
+            rm -rf "$PROJECT_ROOT/$mod" 2>/dev/null || true
+          fi
+        done
+      fi
+      # Remove any empty .git file left behind (gitlink marker)
+      find "$PROJECT_ROOT" -maxdepth 3 -name '.git' -type f -exec rm -f {} \; 2>/dev/null || true
+      echo "[boot] Submodules purged — project repo is clean"
     fi
-    echo "[boot] Submodules purged — project repo is clean"
   fi
 fi
 
