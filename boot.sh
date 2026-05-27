@@ -126,7 +126,7 @@ if $CLEAN_MODE; then
   for HOOK_FILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
     if [ -f "$HOOK_FILE" ] && grep -qF "stellar-frameworks" "$HOOK_FILE" 2>/dev/null; then
       sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
-      sed -i '/boot.sh/d' "$HOOK_FILE"
+      sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
       sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
       [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE"
     fi
@@ -579,7 +579,7 @@ fi
 if [ -f "$DEV_SCRIPT" ]; then
   if $CLEAN_MODE; then
     # After --clean: always kill + relaunch fresh (old server may serve stale files)
-    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\\K[0-9]+' | while read -r pid; do
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
       kill -9 "$pid" 2>/dev/null || true
     done
     sleep 0.3
@@ -602,7 +602,7 @@ BASHRC_PHASE1="BOOT_LOG=$HOME/.stellar-boot.log; mkdir -p $HOME; [ -d $TARGET_DI
 STALE_BASHRC="$PROJECT_ROOT/.bashrc"
 if [ -f "$STALE_BASHRC" ] && grep -qF "$BASHRC_MARKER" "$STALE_BASHRC" 2>/dev/null; then
   sed -i '/# stellar-frameworks auto-heal/d' "$STALE_BASHRC"
-  sed -i '/boot.sh/d' "$STALE_BASHRC"
+  sed -i '/stellar-frameworks.*boot\.sh/d' "$STALE_BASHRC"
   [ ! -s "$STALE_BASHRC" ] && rm -f "$STALE_BASHRC"
   echo "[boot] Cleaned stale hook from $STALE_BASHRC"
 fi
@@ -614,7 +614,7 @@ for HOOK_FILE in "${HOOK_TARGETS[@]}"; do
   if [ -f "$HOOK_FILE" ]; then
     if grep -qF "boot.sh" "$HOOK_FILE" 2>/dev/null; then
       sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
-      sed -i '/boot.sh/d' "$HOOK_FILE"
+      sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
     fi
     printf '\n%s\n%s\n' "$BASHRC_MARKER" "$BASHRC_PHASE1" >> "$HOOK_FILE"
   else
