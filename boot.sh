@@ -1,17 +1,26 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v6.0.0
+# stellar-frameworks — Install, self-heal (git-tracked) v6.1.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Install:  bash /home/z/my-project/skills/stellar-frameworks/boot.sh 2>/dev/null || bash /home/z/my-project/boot.sh 2>/dev/null || { [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo 2>/dev/null && bash ~/.stellar-frameworks-repo/boot.sh; }
-# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast]
+# Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
+#           bash ~/.stellar-frameworks-repo/boot.sh
+# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast] [--offline] [--clean]
 #
 # Flags:
-#   --fast         Skip git operations (pure local copy ~50ms). Used by hook.
-#                   OVERridden if local repo version < MINIMUM_VERSION (stale snapshot).
+#   --fast         Skip file copy if already installed and version matches.
+#                   Does NOT skip upstream check — upstream is ALWAYS probed.
+#   --offline      Skip upstream check entirely (no git fetch). For air-gapped
+#                   environments. Overrides --fast behavior to pure local.
 #   --clean        Nuke ALL generated files before install (skills/, index.html,
 #                   chibi.png, dev.sh, hooks). Full uninstall + reinstall.
 #   --install-only Accepted for compatibility; no-op since v5.4.4.
+#
+# Upstream guarantee (v6.1.0):
+#   Every invocation checks remote for updates via git fetch (~200ms).
+#   If remote has new commits, force-sync + reinstall happens regardless of --fast.
+#   --fast only skips file copy when already at latest version.
+#   Use --offline to truly skip all network operations.
 #
 # Path architecture (v5.9.0):
 #   GIT_REPO   = $HOME/.stellar-frameworks-repo   (survives project resets)
@@ -19,9 +28,9 @@
 #   Hook lives in $HOME init files (survives project resets)
 #   If repo is missing, hook auto-clones from GitHub before booting.
 #
-# Resilience layers (v5.9.1):
+# Resilience layers (v6.1.0):
 #   Layer 0: Install command — conditional clone (skip if exists) + always boot
-#   Layer 1: Hook (shell init) — clone-if-missing + git pull + boot --fast
+#   Layer 1: Hook (shell init) — clone-if-missing + boot.sh --fast (upstream check built-in)
 #   Layer 2: Health check — if SKILL.md missing/empty after boot, reinstall
 #   Layer 3: repo.tar fallback — copy from git-tracked skill/ if repo clone fails
 #   Log: $HOME/.stellar-boot.log (rotated, last 500 lines)
@@ -33,7 +42,7 @@ set -euo pipefail
 # --fast mode is overridden to force git pull. This prevents stale
 # snapshots (e.g. v5.3.0 baked into repo.tar) from persisting.
 # Bump this whenever a new version is released.
-MINIMUM_VERSION="6.0.0"
+MINIMUM_VERSION="6.1.0"
 
 # Semantic version comparison: returns 0 (true) if $1 < $2
 version_lt() {
@@ -47,10 +56,12 @@ version_lt() {
 # Parse flags
 FAST_MODE=false
 CLEAN_MODE=false
+OFFLINE_MODE=false
 for arg in "$@"; do
   case "$arg" in
     --fast) FAST_MODE=true ;;
     --clean) CLEAN_MODE=true ;;
+    --offline) OFFLINE_MODE=true ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
     *) ;; # ignore unknown flags (forwarded via self-re-exec if boot.sh was stale)
   esac
@@ -156,11 +167,69 @@ elif [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ]; then
 fi
 
 # ── 0b. Stale snapshot override ───────────────────────────────────
-if $FAST_MODE && [ -f "$SOURCE_DIR/SKILL.md" ]; then
-  LOCAL_REPO_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
-  if version_lt "$LOCAL_REPO_VER" "$MINIMUM_VERSION"; then
-    echo "[boot] Local repo $LOCAL_REPO_VER < minimum $MINIMUM_VERSION — overriding --fast"
-    FAST_MODE=false
+# (handled by 0d upstream probe — versions below MINIMUM_VERSION will
+#  trigger force-sync when remote is checked)
+
+# ── 0d. Upstream probe: ALWAYS check for remote updates ─────────
+# v6.1.0: This is the core upstream guarantee. Every boot.sh invocation
+# probes the remote for new commits (~200ms). If behind, force-sync and
+# reinstall regardless of --fast. --offline skips this entirely.
+#
+# Why unconditional: --fast used to skip git fetch entirely, meaning
+# new skill versions would never arrive until manual intervention.
+# The fix: always fetch, only skip file-copy when already current.
+#
+# CRITICAL: Before force-sync, check for unpushed local commits.
+# This prevents the self-destruction bug where boot.sh running from
+# its own repo would reset --hard and lose unpushed work.
+#
+# Result flags:
+#   UPSTREAM_CURRENT=true  → local matches remote, no sync needed
+#   UPSTREAM_CURRENT=false → remote has new commits, force-sync required
+UPSTREAM_CURRENT=true
+SELF_UPDATED=false
+
+if ! $OFFLINE_MODE && [ -d "$SCRIPT_DIR/.git" ]; then
+  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
+  REMOTE_URL="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
+
+  if [ -n "$BRANCH" ] && [ -n "$REMOTE_URL" ]; then
+    if git -C "$SCRIPT_DIR" fetch origin "$BRANCH" --quiet 2>/dev/null; then
+      LOCAL_SHA="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)"
+      REMOTE_SHA="$(git -C "$SCRIPT_DIR" rev-parse "origin/$BRANCH" 2>/dev/null)"
+
+      if [ "$LOCAL_SHA" != "$REMOTE_SHA" ] && [ -n "$REMOTE_SHA" ]; then
+        # Check for unpushed local commits BEFORE force-sync
+        UNPUSHED="$(git -C "$SCRIPT_DIR" log --oneline "origin/$BRANCH..HEAD" 2>/dev/null)"
+        if [ -n "$UNPUSHED" ]; then
+          echo "[boot] WARNING: ${LOCAL_SHA:0:7} has unpushed commits — skipping force-sync to prevent data loss"
+          echo "[boot]   (push your commits first, or use --offline to suppress this check)"
+          echo "[boot]   Unpushed:"
+          echo "$UNPUSHED" | head -3 | while read -r line; do echo "[boot]     $line"; done
+          UPSTREAM_CURRENT=false
+        else
+          UPSTREAM_CURRENT=false
+          OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+          BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+
+          # Force-sync: discard any local state, align to remote exactly
+          git -C "$SCRIPT_DIR" reset --hard "origin/$BRANCH" 2>/dev/null
+
+          NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+          BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+          echo "[boot] Upstream update: ${OLD_VER} → ${NEW_VER} (force-synced)"
+
+          if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
+            SELF_UPDATED=true
+          fi
+        fi
+      else
+        OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+        echo "[boot] Upstream current ($OLD_VER)"
+      fi
+    else
+      echo "[boot] WARNING: git fetch failed — skipping upstream check"
+    fi
   fi
 fi
 
@@ -237,58 +306,23 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
   fi
 fi
 
-# ── 1. Force-sync: align repo with remote origin ─────────────────
-# This repo is a managed deployment clone — NEVER has intentional local commits.
-# Force-sync is safe because:
-#   (1) All development happens on GitHub, clone is read-only artifact
-#   (2) Platform resets can leave stale files (contamination) or diverged HEAD
-#   (3) Old cautious-pull approach blocked updates on dirty state, making
-#       contamination permanent until manual intervention
-# Replaces v6.0.0's dirty-check + cautious pull (which caused contamination).
-SELF_UPDATED=false
-if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
-  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
-  REMOTE="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
-
-  if [ -n "$BRANCH" ] && [ -n "$REMOTE" ]; then
-    # Snapshot boot.sh before sync to detect self-update
-    BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-    OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-
-    if git -C "$SCRIPT_DIR" fetch origin "$BRANCH" --quiet 2>/dev/null; then
-      LOCAL="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)"
-      REMOTE_SHA="$(git -C "$SCRIPT_DIR" rev-parse "origin/$BRANCH" 2>/dev/null)"
-
-      if [ "$LOCAL" = "$REMOTE_SHA" ]; then
-        echo "[boot] Repo already at latest ($OLD_VER)"
-      else
-        # Force-sync: discard any local state, align to remote exactly
-        git -C "$SCRIPT_DIR" reset --hard "origin/$BRANCH" 2>/dev/null
-        NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-        BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-        echo "[boot] Force-synced ${OLD_VER} → ${NEW_VER} (aligned to origin/$BRANCH)"
-        if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
-          SELF_UPDATED=true
-        fi
-      fi
-    else
-      echo "[boot] WARNING: git fetch failed — repo may be stale"
-    fi
-  fi
-
-  # ── 1b. Force-sync project dir if it IS the stellar-frameworks repo ─
-  # Prevents contamination in sandboxes where /home/z/my-project/ is this repo.
-  # Only acts if remote URL matches — never touches unrelated project repos.
-  if [ -d "$PROJECT_ROOT/.git" ]; then
-    PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
-    # Match by GitHub repo path (strip token for comparison)
-    PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
-    EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
-    if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
-      PROJECT_BRANCH="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
-      P_LOCAL="$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)"
-      P_REMOTE="$(git -C "$PROJECT_ROOT" rev-parse "origin/$PROJECT_BRANCH" 2>/dev/null)"
-      if [ "$P_LOCAL" != "$P_REMOTE" ] && [ -n "$P_REMOTE" ]; then
+# ── 1. Force-sync project dir if it IS the stellar-frameworks repo ──
+# Prevents contamination in sandboxes where /home/z/my-project/ is this repo.
+# Only acts if remote URL matches — never touches unrelated project repos.
+# Note: The stellar-frameworks repo itself was already synced in Section 0d.
+if [ -d "$PROJECT_ROOT/.git" ]; then
+  PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
+  # Match by GitHub repo path (strip token for comparison)
+  PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
+  EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+  if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
+    PROJECT_BRANCH="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
+    P_LOCAL="$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)"
+    P_REMOTE="$(git -C "$PROJECT_ROOT" rev-parse "origin/$PROJECT_BRANCH" 2>/dev/null)"
+    if [ "$P_LOCAL" != "$P_REMOTE" ] && [ -n "$P_REMOTE" ]; then
+      # Check for unpushed commits before force-sync
+      P_UNPUSHED="$(git -C "$PROJECT_ROOT" log --oneline "origin/$PROJECT_BRANCH..HEAD" 2>/dev/null)"
+      if [ -z "$P_UNPUSHED" ]; then
         git -C "$PROJECT_ROOT" fetch origin "$PROJECT_BRANCH" --quiet 2>/dev/null
         git -C "$PROJECT_ROOT" reset --hard "origin/$PROJECT_BRANCH" 2>/dev/null
         git -C "$PROJECT_ROOT" checkout -- . 2>/dev/null
@@ -296,14 +330,15 @@ if [ -d "$SCRIPT_DIR/.git" ] && ! $FAST_MODE; then
         cp -a "$PROJECT_ROOT/skill/stellar-frameworks" "$PROJECT_ROOT/skills/stellar-frameworks"
         cp -- "$PROJECT_ROOT/boot.sh" "$PROJECT_ROOT/skills/stellar-frameworks/boot.sh" 2>/dev/null
         echo "[boot] Project dir force-synced (was contaminated/diverged)"
+      else
+        echo "[boot] WARNING: project dir has unpushed commits — skipping force-sync"
       fi
     fi
   fi
 fi
 
-# Self-re-exec: if boot.sh was updated by git pull above, re-run with
-# the new version so all subsequent sections use the latest code.
-# Prevents the scenario where boot.sh pulls a fix but runs old code.
+# Self-re-exec: if boot.sh was updated by upstream sync in Section 0d,
+# re-run with the new version so all subsequent sections use latest code.
 if $SELF_UPDATED; then
   # Re-source paths (SCRIPT_DIR may have changed if boot.sh was relocated)
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_DIR/boot.sh")" && pwd)"
@@ -318,23 +353,29 @@ fi
 #   (3) .gitignore excludes skills/ — git tracking is impossible
 # With real files in skills/, the platform's repo.tar captures them on pre-stop.
 # On restore, files exist immediately — no hook timing dependency.
-# Override logic:
-#   --fast mode: version-comparison (skip if same, for speed)
-#   Normal mode:  ALWAYS force-copy (ensures non-version content fixes propagate)
+#
+# v6.1.0 install logic:
+#   If upstream had updates (UPSTREAM_CURRENT=false): ALWAYS force-copy
+#   If --fast AND upstream current AND installed: version-comparison (skip if same)
+#   Otherwise (normal mode or not installed): ALWAYS force-copy
 NEED_INSTALL=false
-if $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+
+if $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+  # Fast path: upstream is current, --fast requested, and skills/ exists
   INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
     NEED_INSTALL=false
-    echo "[boot] Skill files OK (v$INSTALLED_VER, --fast skip)"
+    echo "[boot] Skill files OK (v$INSTALLED_VER, upstream current, --fast skip)"
   else
     NEED_INSTALL=true
     echo "[boot] Version update: $INSTALLED_VER → $SOURCE_VER"
   fi
 else
   NEED_INSTALL=true
-  if [ -L "$INSTALL_DIR" ]; then
+  if ! $UPSTREAM_CURRENT; then
+    echo "[boot] Force-reinstalling skill files (upstream update detected)"
+  elif [ -L "$INSTALL_DIR" ]; then
     echo "[boot] Legacy symlink detected — replacing with real copy"
   elif [ -d "$INSTALL_DIR" ]; then
     echo "[boot] Force-copying skill files (normal mode — ensures content freshness)"
@@ -454,7 +495,7 @@ p span{color:#a78bfa}
     <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
   </div>
   <h1>Welcome to Stellar Frameworks</h1>
-  <div class="version">v6.0.0</div>
+  <div class="version">v6.1.0</div>
   <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
   <div class="badge"><span class="dot"></span> Dev server running</div>
 </div>
@@ -555,7 +596,7 @@ fi
 # ── 4. Self-heal persistence (hook) ─────────────────────────────
 BASHRC_MARKER="# stellar-frameworks auto-heal"
 BOOT_LOG="$HOME/.stellar-boot.log"
-BASHRC_PHASE1="BOOT_LOG=$HOME/.stellar-boot.log; mkdir -p $HOME; [ -d $TARGET_DIR/.git ] || git clone $REPO_URL $TARGET_DIR 2>/dev/null; (cd $TARGET_DIR && git pull --ff-only --quiet 2>/dev/null); bash $TARGET_DIR/boot.sh --fast --install-only >>$BOOT_LOG 2>&1; [ -s $PROJECT_ROOT/skills/stellar-frameworks/SKILL.md ] || bash $TARGET_DIR/boot.sh >>$BOOT_LOG 2>&1; tail -500 $BOOT_LOG > $BOOT_LOG.tmp && mv $BOOT_LOG.tmp $BOOT_LOG 2>/dev/null || true"
+BASHRC_PHASE1="BOOT_LOG=$HOME/.stellar-boot.log; mkdir -p $HOME; [ -d $TARGET_DIR/.git ] || git clone $REPO_URL $TARGET_DIR 2>/dev/null; bash $TARGET_DIR/boot.sh --fast >>$BOOT_LOG 2>&1; [ -s $PROJECT_ROOT/skills/stellar-frameworks/SKILL.md ] || bash $TARGET_DIR/boot.sh >>$BOOT_LOG 2>&1; tail -500 $BOOT_LOG > $BOOT_LOG.tmp && mv $BOOT_LOG.tmp $BOOT_LOG 2>/dev/null || true"
 
 # Clean up stale hook from wrong path (v5.4.1 bug)
 STALE_BASHRC="$PROJECT_ROOT/.bashrc"
@@ -582,12 +623,12 @@ for HOOK_FILE in "${HOOK_TARGETS[@]}"; do
   HOOKS_WRITTEN=$((HOOKS_WRITTEN + 1))
 done
 
-echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + pull + boot + health-check + log)"
+echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + upstream-check + boot + health-check + log)"
 
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.0.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.1.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
