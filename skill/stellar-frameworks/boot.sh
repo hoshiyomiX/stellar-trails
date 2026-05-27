@@ -256,7 +256,7 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
   if $HAS_GITMODULES || $HAS_STAGE_160000; then
     # Verify this is NOT the stellar-frameworks repo itself
     PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
-    PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
+    PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
     EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
 
     if [ "$PROJECT_REPO" != "$EXPECTED_REPO" ]; then
@@ -273,7 +273,7 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
         while IFS= read -r line; do
           if echo "$line" | grep -qP '^\s*url\s*='; then
             SUB_URL="$(echo "$line" | grep -oP '=\s*\K.*' | tr -d ' "')"
-            SUB_REPO="$(echo "$SUB_URL" | sed 's|https://[^@]*@||;s|\.git$||')"
+            SUB_REPO="$(echo "$SUB_URL" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
             if [ "$SUB_REPO" = "$PROJECT_REPO" ]; then
               echo "[boot] WARNING: submodule shares parent remote (${SUB_REPO}) — double-push bug"
             fi
@@ -313,7 +313,7 @@ fi
 if [ -d "$PROJECT_ROOT/.git" ]; then
   PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
   # Match by GitHub repo path (strip token for comparison)
-  PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed 's|https://[^@]*@||;s|\.git$||')"
+  PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
   EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
   if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
     PROJECT_BRANCH="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
