@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v6.1.0
+# stellar-frameworks — Install, self-heal (git-tracked) v6.2.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
@@ -12,8 +12,8 @@
 #                   Does NOT skip upstream check — upstream is ALWAYS probed.
 #   --offline      Skip upstream check entirely (no git fetch). For air-gapped
 #                   environments. Overrides --fast behavior to pure local.
-#   --clean        Nuke ALL generated files before install (skills/, index.html,
-#                   chibi.png, dev.sh, hooks). Full uninstall + reinstall.
+#   --clean        Nuke ALL generated files before install (skills/, .zscripts/,
+#                   dev.sh, hooks). Full uninstall + reinstall.
 #   --install-only Accepted for compatibility; no-op since v5.4.4.
 #
 # Upstream guarantee (v6.1.0):
@@ -114,9 +114,11 @@ if $CLEAN_MODE; then
   # Remove skill install
   rm -rf "${INSTALL_DIR:?}" 2>/dev/null
   echo "[boot] Removed skills/stellar-frameworks/"
-  # Remove popup preview files
+  # Remove popup preview files from old location (download/)
   rm -f "$DOWNLOAD_DIR/index.html" "$DOWNLOAD_DIR/chibi.png" 2>/dev/null
-  echo "[boot] Removed download/index.html + chibi.png"
+  # Remove popup preview files from current location (.zscripts/)
+  rm -f "$ZSCRIPTS/index.html" "$ZSCRIPTS/chibi.png" 2>/dev/null
+  echo "[boot] Removed popup preview files (download/ + .zscripts/)"
   # Remove managed dev.sh (only if it has our marker)
   if [ -f "$DEV_SCRIPT" ] && grep -qF "# stellar-frameworks dev server" "$DEV_SCRIPT" 2>/dev/null; then
     rm -f "$DEV_SCRIPT"
@@ -134,6 +136,8 @@ if $CLEAN_MODE; then
   echo "[boot] Removed hooks from init files"
   # Remove predecessor
   rm -rf "${OBSOLETE_DIR:?}" 2>/dev/null
+  # Remove stale skill/ (singular) from pre-v5.8.0 installs
+  rm -rf "${PROJECT_ROOT:?}/skill" 2>/dev/null
   # Remove boot log
   rm -f "$BOOT_LOG" 2>/dev/null
   echo "[boot] Nuke complete — proceeding with fresh install"
@@ -166,7 +170,24 @@ elif [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ]; then
   SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
 fi
 
-# ── 0b. Stale snapshot override ───────────────────────────────────
+# ── 0b. Stale install cleanup ──────────────────────────────────
+# v6.2.0: Remove legacy skill/ (singular) dir from pre-v5.8.0 installs.
+# Also remove chibi.png from skills/ (moved to .zscripts/ in v6.2.0).
+# Also clean up download/ popup artifacts from v6.0.0–v6.1.0.
+STALE_SKILL_DIR="$PROJECT_ROOT/skill/stellar-frameworks"
+if [ -d "$STALE_SKILL_DIR" ]; then
+  rm -rf "${STALE_SKILL_DIR:?}"
+  # Remove empty parent if nothing else in it
+  rmdir "$PROJECT_ROOT/skill" 2>/dev/null || true
+  echo "[boot] Removed stale skill/ (singular) install"
+fi
+# Remove chibi.png from skills/ if present (no longer needed there)
+if [ -f "$INSTALL_DIR/chibi.png" ]; then
+  rm -f "$INSTALL_DIR/chibi.png"
+fi
+# Remove old popup files from download/ (now live in .zscripts/)
+rm -f "$DOWNLOAD_DIR/index.html" "$DOWNLOAD_DIR/chibi.png" 2>/dev/null
+
 # (handled by 0d upstream probe — versions below MINIMUM_VERSION will
 #  trigger force-sync when remote is checked)
 
@@ -428,7 +449,6 @@ if $NEED_INSTALL; then
     knowledge/universal/error-patterns.md \
     knowledge/platform/zai-sandbox.md \
     memory-template.md \
-    chibi.png \
     boot.sh \
     CHANGELOG.md; do
     if [ -f "$INSTALL_DIR/$f" ]; then
@@ -441,6 +461,8 @@ if $NEED_INSTALL; then
 
   if [ $ERRORS -eq 0 ]; then
     INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "?")"
+    # Remove popup assets from skills/ — they live in .zscripts/ (v6.2.0)
+    rm -f "$INSTALL_DIR/chibi.png"
     echo "[boot] Installed successfully (copy: v$INSTALLED_VER)"
   else
     echo "[boot] WARNING: installed with $ERRORS missing file(s)"
@@ -450,17 +472,20 @@ else
 fi
 
 # ── 3. Popup preview: ensure landing page + dev server ──────────────
-mkdir -p "$DOWNLOAD_DIR"
+# v6.2.0: Popup assets live in .zscripts/ (hidden from platform file scanner),
+# NOT in download/ (user output dir) or skills/ (LLM context dir).
+# This prevents chibi.png (1.2 MB) and index.html from polluting
+# "All files in task" and wasting context tokens.
+mkdir -p "$ZSCRIPTS"
 
-# Copy chibi mascot image to download/ (always overwrite — these are generated artifacts)
+# Copy chibi mascot image to .zscripts/ (popup-only artifact)
 if [ -f "$SOURCE_DIR/chibi.png" ]; then
-  cp -- "$SOURCE_DIR/chibi.png" "$DOWNLOAD_DIR/chibi.png"
+  cp -- "$SOURCE_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
   echo "[boot] Chibi mascot copied"
 fi
 
-# Always overwrite index.html — it's a generated artifact, not user content.
-# This ensures the popup preview always matches the current boot.sh version.
-cat > "$DOWNLOAD_DIR/index.html" << 'SPLASH'
+# Always overwrite index.html in .zscripts/ — popup-only artifact.
+cat > "$ZSCRIPTS/index.html" << 'SPLASH'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -491,11 +516,12 @@ p span{color:#a78bfa}
 <div class="container">
   <div class="chibi-wrap">
     <img class="chibi-img" src="chibi.png" alt="Stellar Frameworks mascot"
+         loading="eager"
          onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
     <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
   </div>
   <h1>Welcome to Stellar Frameworks</h1>
-  <div class="version">v6.1.0</div>
+  <div class="version">v6.2.0</div>
   <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
   <div class="badge"><span class="dot"></span> Dev server running</div>
 </div>
@@ -529,11 +555,11 @@ if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.conf
     sleep 2
   done
 else
-  mkdir -p /home/z/my-project/download
-  while true; do
-    cd /home/z/my-project/download && python3 -m http.server 3000
-    sleep 1
-  done
+    mkdir -p /home/z/my-project/.zscripts
+    while true; do
+      cd /home/z/my-project/.zscripts && python3 -m http.server 3000
+      sleep 1
+    done
 fi
 DEVSH
   chmod +x "$DEV_SCRIPT"
@@ -565,11 +591,11 @@ if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.conf
     sleep 2
   done
 else
-  mkdir -p /home/z/my-project/download
-  while true; do
-    cd /home/z/my-project/download && python3 -m http.server 3000
-    sleep 1
-  done
+    mkdir -p /home/z/my-project/.zscripts
+    while true; do
+      cd /home/z/my-project/.zscripts && python3 -m http.server 3000
+      sleep 1
+    done
 fi
 DEVSH
     chmod +x "$DEV_SCRIPT"
@@ -628,7 +654,7 @@ echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + upst
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.1.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.2.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
