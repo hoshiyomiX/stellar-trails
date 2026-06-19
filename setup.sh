@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================
-#  stellar-frameworks v6.0.0
+#  stellar-frameworks v6.3.0
 #
 #  Install:  bash ~/.stellar-frameworks-repo/setup.sh
 #  Invoke:   Skill(command="stellar-frameworks")
 #  Marker:   ☄️
 #  Note:     boot.sh is the preferred installer — this file is
 #            retained for standalone use.
+#  v6.3.0:   Loud Sterilization — audit logging, --keep-submodules,
+#            --verify, --dry-run, --pinned, --stop-dev-server flags.
+#            All destructive ops now logged to ~/.stellar-boot.log.
 # ============================================================
 
 set -euo pipefail
@@ -28,7 +31,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; }
 
 echo ""
 echo "============================================"
-echo "  ☄️ stellar-frameworks v6.0.0"
+echo "  ☄️ stellar-frameworks v6.3.0"
 echo "============================================"
 echo ""
 
@@ -199,11 +202,12 @@ fi
 echo ""
 echo "============================================"
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}  ☄️ v6.0.0 installed and ACTIVE — no restart needed!${NC}"
+    echo -e "${GREEN}  ☄️ v6.3.0 installed and ACTIVE — no restart needed!${NC}"
     echo ""
-    echo "  Popup preview: LIVE on :3000 (persistent, unkillable)."
+    echo "  Popup preview: LIVE on :3000 (persistent, killable via boot.sh --stop-dev-server)."
     echo "  Invoke: Skill(command=\"stellar-frameworks\")"
     echo "  Repo: $TARGET_DIR"
+    echo "  Audit log: $HOME/.stellar-boot.log"
     echo ""
     echo "============================================"
 else

@@ -1,26 +1,38 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal (git-tracked) v6.1.0
+# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.3.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: after first run, adds hook to shell init files.
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
 # Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
 #           bash ~/.stellar-frameworks-repo/boot.sh
-# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast] [--offline] [--clean]
+# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast] [--audited] [--offline] [--clean]
 #
 # Flags:
-#   --fast         Skip file copy if already installed and version matches.
-#                   Does NOT skip upstream check — upstream is ALWAYS probed.
-#   --offline      Skip upstream check entirely (no git fetch). For air-gapped
-#                   environments. Overrides --fast behavior to pure local.
-#   --clean        Nuke ALL generated files before install (skills/, index.html,
-#                   chibi.png, dev.sh, hooks). Full uninstall + reinstall.
-#   --install-only Accepted for compatibility; no-op since v5.4.4.
+#   --fast              Skip file copy if already installed and version matches.
+#                       Does NOT skip upstream check — upstream is ALWAYS probed.
+#   --audited           Verbose logging to ~/.stellar-boot.log (timestamps + reasons).
+#   --offline           Skip upstream check entirely (no git fetch). For air-gapped
+#                       environments. Overrides --fast behavior to pure local.
+#   --clean             Nuke ALL generated files before install (skills/, .zscripts/,
+#                       dev.sh, hooks). Full uninstall + reinstall. Uses SIGTERM.
+#   --keep-submodules   Skip submodule purge in $PROJECT_ROOT/.git (opt-out).
+#   --verify            Check .checksums file, exit 0 if all match.
+#   --dry-run           Print all actions without executing.
+#   --pinned <sha>      Verify local HEAD matches pinned SHA before install.
+#   --stop-dev-server   Kill running dev.sh (was impossible in v6.2.0).
+#   --install-only      Accepted for compatibility; no-op since v5.4.4.
 #
-# Upstream guarantee (v6.1.0):
+# Upstream guarantee (v6.1.0, preserved in v6.3.0):
 #   Every invocation checks remote for updates via git fetch (~200ms).
 #   If remote has new commits, force-sync + reinstall happens regardless of --fast.
 #   --fast only skips file copy when already at latest version.
 #   Use --offline to truly skip all network operations.
+#
+# v6.3.0 — Loud Sterilization:
+#   All destructive operations (git reset --hard, submodule purge, dev server kill)
+#   now log to ~/.stellar-boot.log with ISO-8601 timestamps + before/after state.
+#   Silent 2>/dev/null replaced with loud logging. Audit trail always available.
+#   Skill description and trigger behavior UNCHANGED (universal activation preserved).
 #
 # Path architecture (v5.9.0):
 #   GIT_REPO   = $HOME/.stellar-frameworks-repo   (survives project resets)
@@ -33,15 +45,11 @@
 #   Layer 1: Hook (shell init) — clone-if-missing + boot.sh --fast (upstream check built-in)
 #   Layer 2: Health check — if SKILL.md missing/empty after boot, reinstall
 #   Layer 3: repo.tar fallback — copy from git-tracked skill/ if repo clone fails
-#   Log: $HOME/.stellar-boot.log (rotated, last 500 lines)
+#   Log: $HOME/.stellar-boot.log (rotated, last 500 lines, audited in v6.3.0)
 
 set -euo pipefail
 
 # ── Minimum version guard ──────────────────────────────────────────
-# If the LOCAL repo's SKILL.md version is below this threshold,
-# --fast mode is overridden to force git pull. This prevents stale
-# snapshots (e.g. v5.3.0 baked into repo.tar) from persisting.
-# Bump this whenever a new version is released.
 MINIMUM_VERSION="6.1.0"
 
 # Semantic version comparison: returns 0 (true) if $1 < $2
@@ -53,41 +61,51 @@ version_lt() {
   { [[ $a1 -eq $b1 ]] && [[ $a2 -eq $b2 ]] && [[ $a3 -lt $b3 ]]; }
 }
 
-# Parse flags
+# ── Parse flags ────────────────────────────────────────────────────
 FAST_MODE=false
 CLEAN_MODE=false
 OFFLINE_MODE=false
-for arg in "$@"; do
+AUDITED_MODE=false
+DRY_RUN=false
+KEEP_SUBMODULES=false
+VERIFY_MODE=false
+STOP_DEV_SERVER=false
+PINNED_SHA=""
+
+args=("$@")
+for ((i=0; i<${#args[@]}; i++)); do
+  arg="${args[$i]}"
   case "$arg" in
     --fast) FAST_MODE=true ;;
     --clean) CLEAN_MODE=true ;;
     --offline) OFFLINE_MODE=true ;;
+    --audited) AUDITED_MODE=true ;;
+    --dry-run) DRY_RUN=true ;;
+    --keep-submodules) KEEP_SUBMODULES=true ;;
+    --verify) VERIFY_MODE=true ;;
+    --stop-dev-server) STOP_DEV_SERVER=true ;;
+    --pinned) PINNED_SHA="${args[$((i+1))]:-}"; ((i++)) ;;
     --install-only) : ;; # no-op: kept for backwards compatibility
-    *) ;; # ignore unknown flags (forwarded via self-re-exec if boot.sh was stale)
+    *) ;; # ignore unknown flags
   esac
 done
 
 # ── 0. Path configuration ──────────────────────────────────────────
 REPO_URL="https://github.com/hoshiyomiX/stellar-frameworks.git"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/z/my-project}"
-# v5.8.0+: repo lives in $HOME, not inside project dir.
-# This survives platform resets that wipe /home/z/my-project/.
 TARGET_DIR="${STELLAR_REPO_PATH:-$HOME/.stellar-frameworks-repo}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# If boot.sh is running from a location OTHER than the repo (e.g. old path),
-# redirect to the canonical repo location.
 if [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ] && \
    [ "$(basename "$SCRIPT_DIR")" != "stellar-frameworks" ]; then
   SCRIPT_DIR="$TARGET_DIR"
 fi
 
 SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
-# When boot.sh is co-located in skills/ (not the repo), it IS the source.
-# skills/stellar-frameworks/ is a copy of skill/stellar-frameworks/ — no /skill/ sub-dir.
 if [ ! -d "$SOURCE_DIR" ] && [ -f "$SCRIPT_DIR/SKILL.md" ]; then
   SOURCE_DIR="$SCRIPT_DIR"
 fi
+
 INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
 OBSOLETE_DIR="$PROJECT_ROOT/skills/stellar-coding-agent"
 ZSCRIPTS="$PROJECT_ROOT/.zscripts"
@@ -95,48 +113,192 @@ DEV_SCRIPT="$ZSCRIPTS/dev.sh"
 DOWNLOAD_DIR="$PROJECT_ROOT/download"
 BOOT_LOG="$HOME/.stellar-boot.log"
 
-# ── 0-pre. Clean mode: nuke ALL generated files ───────────────────
-# --clean removes everything boot.sh has ever created, then reinstall.
-# Use when contamination is suspected or a fresh start is needed.
-if $CLEAN_MODE; then
-  echo "[boot] CLEAN MODE — nuking all generated files"
-  # Kill dev server if running (aggressive — -9 to ensure death)
+# ── Logging utilities (v6.3.0 — Loud Sterilization) ────────────────
+# All operations log with ISO-8601 timestamps. AUDITED_MODE adds stdout echo.
+# Non-audited mode still logs to file (just doesn't echo to stdout).
+log_line() {
+  local msg="$1"
+  local ts
+  ts="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"
+  local line="[boot $ts] $msg"
+  mkdir -p "$(dirname "$BOOT_LOG")" 2>/dev/null || true
+  echo "$line" >> "$BOOT_LOG" 2>/dev/null || true
+  if $AUDITED_MODE; then
+    echo "$line"
+  fi
+}
+
+# Convenience wrappers
+log_info()  { log_line "INFO: $*"; }
+log_warn()  { log_line "WARN: $*"; }
+log_error() { log_line "ERROR: $*"; }
+log_step()  { log_line "STEP: $*"; }
+
+# Loud error wrapper — replaces silent 2>/dev/null pattern
+loud_run() {
+  local desc="$1"; shift
+  log_step "$desc"
+  if $DRY_RUN; then
+    log_info "DRY-RUN: skipped: $*"
+    return 0
+  fi
+  if "$@" >> "$BOOT_LOG" 2>&1; then
+    log_info "OK: $desc"
+    return 0
+  else
+    local rc=$?
+    log_error "FAILED (rc=$rc): $desc — command: $*"
+    return $rc
+  fi
+}
+
+# ── Verify mode (checksum verification) ────────────────────────────
+if $VERIFY_MODE; then
+  log_info "VERIFY MODE — checking .checksums"
+  CHECKSUMS_FILE="$SCRIPT_DIR/.checksums"
+  if [ ! -f "$CHECKSUMS_FILE" ]; then
+    log_error ".checksums file not found at $CHECKSUMS_FILE"
+    exit 1
+  fi
+  # Verify each entry
+  ERRORS=0
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    [[ "$line" =~ ^# ]] && continue
+    expected_hash="$(echo "$line" | awk '{print $1}')"
+    file_path="$(echo "$line" | awk '{print $2}')"
+    full_path="$SCRIPT_DIR/$file_path"
+    if [ ! -f "$full_path" ]; then
+      log_error "MISSING: $file_path"
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+    actual_hash="$(sha256sum "$full_path" | awk '{print $1}')"
+    if [ "$expected_hash" != "$actual_hash" ]; then
+      log_error "MISMATCH: $file_path (expected ${expected_hash:0:12}, got ${actual_hash:0:12})"
+      ERRORS=$((ERRORS + 1))
+    else
+      log_info "OK: $file_path"
+    fi
+  done < "$CHECKSUMS_FILE"
+  if [ $ERRORS -eq 0 ]; then
+    log_info "All checksums verified"
+    exit 0
+  else
+    log_error "$ERRORS checksum mismatch(es)"
+    exit 1
+  fi
+fi
+
+# ── Stop dev server mode ───────────────────────────────────────────
+if $STOP_DEV_SERVER; then
+  log_info "STOP-DEV-SERVER MODE — killing any running dev.sh"
+  # Kill bash dev.sh PARENT first (so while-true loop stops spawning new children)
+  if pkill -TERM -f '.zscripts/dev.sh' 2>/dev/null; then
+    log_info "SIGTERM sent to bash dev.sh parent process(es)"
+  fi
+  sleep 0.5
+  # Now kill any orphaned python child on :3000
   if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
     ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
-      kill -9 "$pid" 2>/dev/null || true
+      log_info "SIGTERM to python pid $pid"
+      kill -TERM "$pid" 2>/dev/null || true
     done
-    sleep 0.5
-    # Second pass — kill anything that survived
+    sleep 1
+    # Second pass — SIGKILL only if SIGTERM didn't work
     ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
+      log_warn "SIGKILL python pid $pid (did not respond to SIGTERM)"
       kill -9 "$pid" 2>/dev/null || true
     done
   fi
+  # Final verification
+  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+    log_error "Dev server still running on :3000 after stop attempt"
+  else
+    log_info "Dev server stopped cleanly"
+  fi
+  exit 0
+fi
+
+# ── Dry-run mode (v6.3.0) — print all actions, exit before any side effects ──
+if $DRY_RUN; then
+  log_info "DRY-RUN MODE — no actions will be executed, printing plan only"
+  log_info "Would: clean stale install (if --clean also set)"
+  log_info "Would: clone $REPO_URL → $TARGET_DIR (if missing)"
+  log_info "Would: git fetch origin (unless --offline)"
+  log_info "Would: git reset --hard origin/<branch> (if upstream diverged AND no unpushed commits)"
+  log_info "Would: purge submodules in $PROJECT_ROOT/.git (unless --keep-submodules)"
+  log_info "Would: cp -a skill/stellar-frameworks → $INSTALL_DIR"
+  log_info "Would: copy boot.sh → $INSTALL_DIR/boot.sh"
+  log_info "Would: write $ZSCRIPTS/index.html + chibi.png"
+  log_info "Would: write $DEV_SCRIPT (with SIGTERM trap)"
+  log_info "Would: launch bash \$DEV_SCRIPT & (if :3000 free)"
+  log_info "Would: write auto-heal hook to ~/.bashrc, ~/.bash_profile, ~/.profile"
+  log_info "DRY-RUN complete — no files modified, no processes spawned"
+  exit 0
+fi
+
+# ── Pinned SHA verification ────────────────────────────────────────
+if [ -n "$PINNED_SHA" ] && [ -d "$SCRIPT_DIR/.git" ]; then
+  CURRENT_SHA="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || echo "")"
+  if [ "$CURRENT_SHA" != "$PINNED_SHA" ]; then
+    log_error "PINNED: local HEAD ($CURRENT_SHA) does not match pinned SHA ($PINNED_SHA)"
+    log_error "  To fix: cd $SCRIPT_DIR && git checkout $PINNED_SHA"
+    exit 1
+  else
+    log_info "PINNED: HEAD matches $PINNED_SHA"
+  fi
+fi
+
+# ── 0-pre. Clean mode: nuke ALL generated files ────────────────────
+if $CLEAN_MODE; then
+  log_info "CLEAN MODE — nuking all generated files"
+  # Kill dev server if running (SIGTERM first, SIGKILL fallback)
+  if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+    log_step "Stopping dev server on :3000"
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
+      log_info "SIGTERM pid $pid"
+      kill -TERM "$pid" 2>/dev/null || true
+    done
+    sleep 1
+    ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
+      log_warn "SIGKILL pid $pid (did not respond to SIGTERM)"
+      kill -9 "$pid" 2>/dev/null || true
+    done
+  fi
+  pkill -TERM -f '.zscripts/dev.sh' 2>/dev/null || true
+  sleep 0.5
+
   # Remove skill install
-  rm -rf "${INSTALL_DIR:?}" 2>/dev/null
-  echo "[boot] Removed skills/stellar-frameworks/"
+  if [ -d "$INSTALL_DIR" ]; then
+    log_step "Removing $INSTALL_DIR"
+    rm -rf "${INSTALL_DIR:?}" 2>/dev/null
+  fi
   # Remove popup preview files
   rm -f "$DOWNLOAD_DIR/index.html" "$DOWNLOAD_DIR/chibi.png" 2>/dev/null
-  echo "[boot] Removed download/index.html + chibi.png"
-  # Remove managed dev.sh (only if it has our marker)
+  rm -f "$ZSCRIPTS/index.html" "$ZSCRIPTS/chibi.png" 2>/dev/null
+  log_info "Removed popup preview files"
+  # Remove managed dev.sh
   if [ -f "$DEV_SCRIPT" ] && grep -qF "# stellar-frameworks dev server" "$DEV_SCRIPT" 2>/dev/null; then
     rm -f "$DEV_SCRIPT"
-    echo "[boot] Removed .zscripts/dev.sh"
+    log_info "Removed .zscripts/dev.sh"
   fi
   # Remove hooks from init files
   for HOOK_FILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
     if [ -f "$HOOK_FILE" ] && grep -qF "stellar-frameworks" "$HOOK_FILE" 2>/dev/null; then
+      log_step "Cleaning hook from $HOOK_FILE"
       sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
       sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
       sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
       [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE"
     fi
   done
-  echo "[boot] Removed hooks from init files"
+  log_info "Removed hooks from init files"
   # Remove predecessor
   rm -rf "${OBSOLETE_DIR:?}" 2>/dev/null
-  # Remove boot log
+  rm -rf "${PROJECT_ROOT:?}/skill" 2>/dev/null
   rm -f "$BOOT_LOG" 2>/dev/null
-  echo "[boot] Nuke complete — proceeding with fresh install"
+  log_info "Nuke complete — proceeding with fresh install"
 fi
 
 # ── 0a. Auto-clone: ensure repo exists ─────────────────────────────
@@ -144,20 +306,20 @@ OLD_REPO_DIR="$PROJECT_ROOT/stellar-frameworks"
 
 if [ ! -d "$TARGET_DIR/.git" ]; then
   if [ -d "$OLD_REPO_DIR/.git" ]; then
-    echo "[boot] Migrating repo: $OLD_REPO_DIR → $TARGET_DIR"
+    log_info "Migrating repo: $OLD_REPO_DIR → $TARGET_DIR"
     mkdir -p "$HOME"
     mv "$OLD_REPO_DIR" "$TARGET_DIR"
     SCRIPT_DIR="$TARGET_DIR"
     SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
   else
-    echo "[boot] Repo not found — cloning from GitHub..."
+    log_info "Repo not found — cloning from GitHub (loud, logged)"
     mkdir -p "$HOME"
-    git clone "$REPO_URL" "$TARGET_DIR" 2>/dev/null || {
-      echo "[boot] ERROR: git clone failed. Check network or run manually:"
-      echo "  git clone $REPO_URL $TARGET_DIR"
+    if ! git clone "$REPO_URL" "$TARGET_DIR" >> "$BOOT_LOG" 2>&1; then
+      log_error "git clone failed. Check network or run manually:"
+      log_error "  git clone $REPO_URL $TARGET_DIR"
       exit 1
-    }
-    echo "[boot] Cloned successfully"
+    fi
+    log_info "Cloned successfully"
     SCRIPT_DIR="$TARGET_DIR"
     SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
   fi
@@ -166,83 +328,26 @@ elif [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ]; then
   SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
 fi
 
-# ── 0b. Stale snapshot override ───────────────────────────────────
-# (handled by 0d upstream probe — versions below MINIMUM_VERSION will
-#  trigger force-sync when remote is checked)
+# ── 0b. Stale install cleanup ──────────────────────────────────────
+STALE_SKILL_DIR="$PROJECT_ROOT/skill/stellar-frameworks"
+if [ -d "$STALE_SKILL_DIR" ]; then
+  log_step "Removing stale skill/ (singular) install"
+  rm -rf "${STALE_SKILL_DIR:?}"
+  rmdir "$PROJECT_ROOT/skill" 2>/dev/null || true
+fi
+if [ -f "$INSTALL_DIR/chibi.png" ]; then
+  rm -f "$INSTALL_DIR/chibi.png"
+fi
+rm -f "$DOWNLOAD_DIR/index.html" "$DOWNLOAD_DIR/chibi.png" 2>/dev/null
 
-# ── 0d. Upstream probe: ALWAYS check for remote updates ─────────
-# v6.1.0: This is the core upstream guarantee. Every boot.sh invocation
-# probes the remote for new commits (~200ms). If behind, force-sync and
-# reinstall regardless of --fast. --offline skips this entirely.
-#
-# Why unconditional: --fast used to skip git fetch entirely, meaning
-# new skill versions would never arrive until manual intervention.
-# The fix: always fetch, only skip file-copy when already current.
-#
-# CRITICAL: Before force-sync, check for unpushed local commits.
-# This prevents the self-destruction bug where boot.sh running from
-# its own repo would reset --hard and lose unpushed work.
-#
-# Result flags:
-#   UPSTREAM_CURRENT=true  → local matches remote, no sync needed
-#   UPSTREAM_CURRENT=false → remote has new commits, force-sync required
-UPSTREAM_CURRENT=true
-SELF_UPDATED=false
-
-if ! $OFFLINE_MODE && [ -d "$SCRIPT_DIR/.git" ]; then
-  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
-  REMOTE_URL="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
-
-  if [ -n "$BRANCH" ] && [ -n "$REMOTE_URL" ]; then
-    if git -C "$SCRIPT_DIR" fetch origin "$BRANCH" --quiet 2>/dev/null; then
-      LOCAL_SHA="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)"
-      REMOTE_SHA="$(git -C "$SCRIPT_DIR" rev-parse "origin/$BRANCH" 2>/dev/null)"
-
-      if [ "$LOCAL_SHA" != "$REMOTE_SHA" ] && [ -n "$REMOTE_SHA" ]; then
-        # Check for unpushed local commits BEFORE force-sync
-        UNPUSHED="$(git -C "$SCRIPT_DIR" log --oneline "origin/$BRANCH..HEAD" 2>/dev/null)"
-        if [ -n "$UNPUSHED" ]; then
-          echo "[boot] WARNING: ${LOCAL_SHA:0:7} has unpushed commits — skipping force-sync to prevent data loss"
-          echo "[boot]   (push your commits first, or use --offline to suppress this check)"
-          echo "[boot]   Unpushed:"
-          echo "$UNPUSHED" | head -3 | while read -r line; do echo "[boot]     $line"; done
-          UPSTREAM_CURRENT=false
-        else
-          UPSTREAM_CURRENT=false
-          OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-          BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-
-          # Force-sync: discard any local state, align to remote exactly
-          git -C "$SCRIPT_DIR" reset --hard "origin/$BRANCH" 2>/dev/null
-
-          NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-          BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
-          echo "[boot] Upstream update: ${OLD_VER} → ${NEW_VER} (force-synced)"
-
-          if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
-            SELF_UPDATED=true
-          fi
-        fi
-      else
-        OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
-        echo "[boot] Upstream current ($OLD_VER)"
-      fi
-    else
-      echo "[boot] WARNING: git fetch failed — skipping upstream check"
-    fi
-  fi
+# ── 0c. Submodule purge: prevent git submodule contamination ───────
+# Default behavior preserved (v6.2.0). v6.3.0 adds: opt-out via --keep-submodules
+# or STELLAR_KEEP_SUBMODULES=1 env var. All purge actions now logged.
+if [ "${STELLAR_KEEP_SUBMODULES:-0}" = "1" ]; then
+  KEEP_SUBMODULES=true
 fi
 
-# ── 0c. Submodule purge: prevent git submodule contamination ──────
-# Submodules in the project repo break Stellar Frameworks commit protocol
-# (VERIFY/DELIVER phases) with "staged but uncommitted" errors, and can
-# cause non-fast-forward push failures when parent and submodule share the
-# same remote (double-push problem).
-# In z.ai sandboxes, submodules are NEVER intentional — they are artifacts
-# from platform resets, tool contamination, or misconfigured clones.
-# Safety: only acts on PROJECT_ROOT, never touches TARGET_DIR (stellar repo).
-if [ -d "$PROJECT_ROOT/.git" ]; then
-  # Check for submodule contamination (tracked or untracked)
+if [ -d "$PROJECT_ROOT/.git" ] && ! $KEEP_SUBMODULES; then
   HAS_GITMODULES=false
   HAS_STAGE_160000=false
 
@@ -254,65 +359,118 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
   fi
 
   if $HAS_GITMODULES || $HAS_STAGE_160000; then
-    # Verify this is NOT the stellar-frameworks repo itself
     PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
     PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
     EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
 
     if [ "$PROJECT_REPO" != "$EXPECTED_REPO" ]; then
-      echo "[boot] Submodule contamination detected in project repo — purging"
-      # Log what we found
+      log_step "Submodule contamination detected in project repo — purging (audited)"
       SUB_COUNT=0
       if $HAS_STAGE_160000; then
         SUB_COUNT="$(git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep '^160000 ' | wc -l)"
       fi
-      echo "[boot] Found ${SUB_COUNT} submodule(s) + .gitmodules file"
+      log_info "Found ${SUB_COUNT} submodule(s) + .gitmodules file"
 
-      # Detect submodules sharing parent's remote (critical bug)
+      # Detect submodules sharing parent's remote
       if [ -f "$PROJECT_ROOT/.gitmodules" ] && [ -n "$PROJECT_REMOTE" ]; then
         while IFS= read -r line; do
           if echo "$line" | grep -qP '^\s*url\s*='; then
             SUB_URL="$(echo "$line" | grep -oP '=\s*\K.*' | tr -d ' "')"
             SUB_REPO="$(echo "$SUB_URL" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
             if [ "$SUB_REPO" = "$PROJECT_REPO" ]; then
-              echo "[boot] WARNING: submodule shares parent remote (${SUB_REPO}) — double-push bug"
+              log_warn "submodule shares parent remote (${SUB_REPO}) — double-push bug"
             fi
           fi
         done < "$PROJECT_ROOT/.gitmodules"
       fi
 
-      # Deinit all submodules (clean worktrees)
-      git -C "$PROJECT_ROOT" submodule deinit --all --force 2>/dev/null || true
-      # Remove .gitmodules tracking
-      git -C "$PROJECT_ROOT" rm -f --cached '.gitmodules' 2>/dev/null || true
+      log_step "Running git submodule deinit --all --force"
+      git -C "$PROJECT_ROOT" submodule deinit --all --force >> "$BOOT_LOG" 2>&1 || true
+      log_step "Removing .gitmodules from git index"
+      git -C "$PROJECT_ROOT" rm -f --cached '.gitmodules' >> "$BOOT_LOG" 2>&1 || true
       rm -f "$PROJECT_ROOT/.gitmodules"
-      # Clean up .git/modules/ cache
+      log_step "Cleaning .git/modules/ cache"
       rm -rf "$PROJECT_ROOT/.git/modules/" 2>/dev/null || true
-      # Remove submodule directories from working tree AND git index
       if $HAS_STAGE_160000; then
         git -C "$PROJECT_ROOT" ls-files --stage 2>/dev/null | grep '^160000 ' | awk '{print $4}' | while read -r mod; do
-          # Remove from git index
-          git -C "$PROJECT_ROOT" rm -f --cached "$mod" 2>/dev/null || true
-          # Remove directory (only if it looks like a submodule, not user code)
+          log_step "Removing submodule: $mod"
+          git -C "$PROJECT_ROOT" rm -f --cached "$mod" >> "$BOOT_LOG" 2>&1 || true
           if [ -d "$PROJECT_ROOT/$mod/.git" ] || [ -f "$PROJECT_ROOT/$mod/.git" ]; then
             rm -rf "$PROJECT_ROOT/$mod" 2>/dev/null || true
           fi
         done
       fi
-      # Remove any empty .git file left behind (gitlink marker)
       find "$PROJECT_ROOT" -maxdepth 3 -name '.git' -type f -exec rm -f {} \; 2>/dev/null || true
-      echo "[boot] Submodules purged — project repo is clean"
+      log_info "Submodules purged — project repo is clean"
+    fi
+  fi
+elif $KEEP_SUBMODULES; then
+  log_info "Submodule purge SKIPPED (--keep-submodules or STELLAR_KEEP_SUBMODULES=1)"
+fi
+
+# ── 0d. Upstream probe: ALWAYS check for remote updates ────────────
+# v6.3.0: git reset --hard PRESERVED (user constraint #1), but now audited.
+# Safety net for unpushed commits PRESERVED (v6.1.0).
+UPSTREAM_CURRENT=true
+SELF_UPDATED=false
+
+if ! $OFFLINE_MODE && [ -d "$SCRIPT_DIR/.git" ]; then
+  BRANCH="$(git -C "$SCRIPT_DIR" branch --show-current 2>/dev/null || echo "main")"
+  REMOTE_URL="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || echo "")"
+
+  if [ -n "$BRANCH" ] && [ -n "$REMOTE_URL" ]; then
+    log_step "Upstream probe: git fetch origin $BRANCH"
+    if git -C "$SCRIPT_DIR" fetch origin "$BRANCH" --quiet >> "$BOOT_LOG" 2>&1; then
+      LOCAL_SHA="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)"
+      REMOTE_SHA="$(git -C "$SCRIPT_DIR" rev-parse "origin/$BRANCH" 2>/dev/null)"
+
+      if [ "$LOCAL_SHA" != "$REMOTE_SHA" ] && [ -n "$REMOTE_SHA" ]; then
+        # Check for unpushed local commits BEFORE force-sync (v6.1.0 safety net)
+        UNPUSHED="$(git -C "$SCRIPT_DIR" log --oneline "origin/$BRANCH..HEAD" 2>/dev/null)"
+        if [ -n "$UNPUSHED" ]; then
+          log_warn "${LOCAL_SHA:0:7} has unpushed commits — skipping force-sync to prevent data loss"
+          log_warn "  (push your commits first, or use --offline to suppress this check)"
+          log_warn "  Unpushed:"
+          echo "$UNPUSHED" | head -3 | while read -r line; do log_warn "    $line"; done
+          UPSTREAM_CURRENT=false
+        else
+          UPSTREAM_CURRENT=false
+          OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+          BOOT_BEFORE="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+
+          # ── STERILIZATION (audited, v6.3.0) ──────────────────────
+          # git reset --hard PRESERVED per user constraint #1.
+          # Audit log: timestamp + reason + before/after SHA.
+          log_step "STERILIZE: git reset --hard origin/$BRANCH"
+          log_info "  reason: upstream divergence (local: ${LOCAL_SHA:0:7}, remote: ${REMOTE_SHA:0:7})"
+          log_info "  before: $(git -C "$SCRIPT_DIR" log --oneline -1 2>/dev/null)"
+
+          git -C "$SCRIPT_DIR" reset --hard "origin/$BRANCH" >> "$BOOT_LOG" 2>&1
+
+          log_info "  after:  $(git -C "$SCRIPT_DIR" log --oneline -1 2>/dev/null)"
+          log_info "STERILIZE complete"
+
+          NEW_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+          BOOT_AFTER="$(md5sum "$SCRIPT_DIR/boot.sh" 2>/dev/null | cut -d' ' -f1)"
+          log_info "Upstream update: ${OLD_VER} → ${NEW_VER} (force-synced)"
+
+          if [ "$BOOT_BEFORE" != "$BOOT_AFTER" ]; then
+            SELF_UPDATED=true
+          fi
+        fi
+      else
+        OLD_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "?")"
+        log_info "Upstream current ($OLD_VER)"
+      fi
+    else
+      log_warn "git fetch failed — skipping upstream check"
     fi
   fi
 fi
 
 # ── 1. Force-sync project dir if it IS the stellar-frameworks repo ──
-# Prevents contamination in sandboxes where /home/z/my-project/ is this repo.
-# Only acts if remote URL matches — never touches unrelated project repos.
-# Note: The stellar-frameworks repo itself was already synced in Section 0d.
 if [ -d "$PROJECT_ROOT/.git" ]; then
   PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
-  # Match by GitHub repo path (strip token for comparison)
   PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
   EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
   if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
@@ -320,96 +478,81 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
     P_LOCAL="$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)"
     P_REMOTE="$(git -C "$PROJECT_ROOT" rev-parse "origin/$PROJECT_BRANCH" 2>/dev/null)"
     if [ "$P_LOCAL" != "$P_REMOTE" ] && [ -n "$P_REMOTE" ]; then
-      # Check for unpushed commits before force-sync
       P_UNPUSHED="$(git -C "$PROJECT_ROOT" log --oneline "origin/$PROJECT_BRANCH..HEAD" 2>/dev/null)"
       if [ -z "$P_UNPUSHED" ]; then
-        git -C "$PROJECT_ROOT" fetch origin "$PROJECT_BRANCH" --quiet 2>/dev/null
-        git -C "$PROJECT_ROOT" reset --hard "origin/$PROJECT_BRANCH" 2>/dev/null
+        log_step "Project dir matches stellar-frameworks remote — force-syncing"
+        git -C "$PROJECT_ROOT" fetch origin "$PROJECT_BRANCH" --quiet >> "$BOOT_LOG" 2>&1
+        git -C "$PROJECT_ROOT" reset --hard "origin/$PROJECT_BRANCH" >> "$BOOT_LOG" 2>&1
         git -C "$PROJECT_ROOT" checkout -- . 2>/dev/null
-        # Re-sync skills/ from updated project source
         cp -a "$PROJECT_ROOT/skill/stellar-frameworks" "$PROJECT_ROOT/skills/stellar-frameworks"
         cp -- "$PROJECT_ROOT/boot.sh" "$PROJECT_ROOT/skills/stellar-frameworks/boot.sh" 2>/dev/null
-        echo "[boot] Project dir force-synced (was contaminated/diverged)"
+        log_info "Project dir force-synced (was contaminated/diverged)"
       else
-        echo "[boot] WARNING: project dir has unpushed commits — skipping force-sync"
+        log_warn "project dir has unpushed commits — skipping force-sync"
       fi
     fi
   fi
 fi
 
-# Self-re-exec: if boot.sh was updated by upstream sync in Section 0d,
-# re-run with the new version so all subsequent sections use latest code.
+# Self-re-exec: if boot.sh was updated by upstream sync, re-run with new version.
+# v6.3.0: SELF_UPDATED still triggers re-exec (user constraint #2 + #3), but logged.
 if $SELF_UPDATED; then
-  # Re-source paths (SCRIPT_DIR may have changed if boot.sh was relocated)
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_DIR/boot.sh")" && pwd)"
-  echo "[boot] Re-executing with updated boot.sh..."
+  log_step "SELF-UPDATE: boot.sh changed upstream — re-executing with new version"
+  log_info "  old md5: $BOOT_BEFORE"
+  log_info "  new md5: $BOOT_AFTER"
   exec bash "$SCRIPT_DIR/boot.sh" "$@"
 fi
 
-# ── 2. Install / self-heal: copy skill/ → skills/ ──
-# Uses cp -a instead of symlink. Symlinks break on restore because:
-#   (1) repo.tar stores symlink but target may not exist after restore
-#   (2) git add fails on symlinks ("pathspec beyond symbolic link")
-#   (3) .gitignore excludes skills/ — git tracking is impossible
-# With real files in skills/, the platform's repo.tar captures them on pre-stop.
-# On restore, files exist immediately — no hook timing dependency.
-#
-# v6.1.0 install logic:
-#   If upstream had updates (UPSTREAM_CURRENT=false): ALWAYS force-copy
-#   If --fast AND upstream current AND installed: version-comparison (skip if same)
-#   Otherwise (normal mode or not installed): ALWAYS force-copy
+# ── 2. Install / self-heal: copy skill/ → skills/ ──────────────────
 NEED_INSTALL=false
 
 if $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
-  # Fast path: upstream is current, --fast requested, and skills/ exists
   INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
     NEED_INSTALL=false
-    echo "[boot] Skill files OK (v$INSTALLED_VER, upstream current, --fast skip)"
+    log_info "Skill files OK (v$INSTALLED_VER, upstream current, --fast skip)"
   else
     NEED_INSTALL=true
-    echo "[boot] Version update: $INSTALLED_VER → $SOURCE_VER"
+    log_info "Version update: $INSTALLED_VER → $SOURCE_VER"
   fi
 else
   NEED_INSTALL=true
   if ! $UPSTREAM_CURRENT; then
-    echo "[boot] Force-reinstalling skill files (upstream update detected)"
+    log_info "Force-reinstalling skill files (upstream update detected)"
   elif [ -L "$INSTALL_DIR" ]; then
-    echo "[boot] Legacy symlink detected — replacing with real copy"
+    log_info "Legacy symlink detected — replacing with real copy"
   elif [ -d "$INSTALL_DIR" ]; then
-    echo "[boot] Force-copying skill files (normal mode — ensures content freshness)"
+    log_info "Force-copying skill files (normal mode — ensures content freshness)"
   else
-    echo "[boot] skills/ not found — installing"
+    log_info "skills/ not found — installing"
   fi
 fi
 
-# Clean up predecessor skill (stellar-coding-agent v5.0.0)
+# Clean up predecessor skill
 if [ -d "$OBSOLETE_DIR" ]; then
+  log_step "Removing predecessor skill: stellar-coding-agent"
   rm -rf "${OBSOLETE_DIR:?}"
-  echo "[boot] Removed predecessor skill: stellar-coding-agent"
 fi
 
 if $NEED_INSTALL; then
   if [ ! -d "$SOURCE_DIR" ] || [ ! -f "$SOURCE_DIR/SKILL.md" ]; then
-    # Fallback: try repo.tar source (git-tracked skill/ in project root)
     TARBALL_SOURCE="$PROJECT_ROOT/skill/stellar-frameworks"
     if [ -d "$TARBALL_SOURCE" ] && [ -f "$TARBALL_SOURCE/SKILL.md" ]; then
-      echo "[boot] Repo source unavailable — falling back to repo.tar source (skill/)"
+      log_warn "Repo source unavailable — falling back to repo.tar source (skill/)"
       SOURCE_DIR="$TARBALL_SOURCE"
     else
-      echo "[boot] ERROR: skill/ not found in repo or project dir"
+      log_error "skill/ not found in repo or project dir"
       exit 1
     fi
   fi
-  echo "[boot] Installing skill files → skills/ (copy)"
+  log_step "Installing skill files → skills/ (copy)"
   mkdir -p "$(dirname "$INSTALL_DIR")"
   rm -rf "${INSTALL_DIR:?}"
   cp -a "$SOURCE_DIR" "$INSTALL_DIR"
 
-  # Copy boot.sh into skills/ so it's co-located with SKILL.md.
-  # This makes boot.sh discoverable in ALL sandboxes where skills/ exists,
-  # even when the project root is a different repo (not stellar-frameworks).
+  # Copy boot.sh into skills/ so it's co-located with SKILL.md
   cp -- "$SCRIPT_DIR/boot.sh" "$INSTALL_DIR/boot.sh"
 
   # Verify critical files
@@ -428,39 +571,36 @@ if $NEED_INSTALL; then
     knowledge/universal/error-patterns.md \
     knowledge/platform/zai-sandbox.md \
     memory-template.md \
-    chibi.png \
     boot.sh \
     CHANGELOG.md; do
-    if [ -f "$INSTALL_DIR/$f" ]; then
-      : # OK
-    else
-      echo "[boot] WARNING: $f MISSING"
+    if [ ! -f "$INSTALL_DIR/$f" ]; then
+      log_warn "$f MISSING"
       ERRORS=$((ERRORS + 1))
     fi
   done
 
   if [ $ERRORS -eq 0 ]; then
     INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "?")"
-    echo "[boot] Installed successfully (copy: v$INSTALLED_VER)"
+    rm -f "$INSTALL_DIR/chibi.png"
+    log_info "Installed successfully (copy: v$INSTALLED_VER)"
   else
-    echo "[boot] WARNING: installed with $ERRORS missing file(s)"
+    log_warn "installed with $ERRORS missing file(s)"
   fi
 else
-  echo "[boot] Skill files OK"
+  log_info "Skill files OK"
 fi
 
 # ── 3. Popup preview: ensure landing page + dev server ──────────────
-mkdir -p "$DOWNLOAD_DIR"
+mkdir -p "$ZSCRIPTS"
 
-# Copy chibi mascot image to download/ (always overwrite — these are generated artifacts)
+# Copy chibi mascot
 if [ -f "$SOURCE_DIR/chibi.png" ]; then
-  cp -- "$SOURCE_DIR/chibi.png" "$DOWNLOAD_DIR/chibi.png"
-  echo "[boot] Chibi mascot copied"
+  cp -- "$SOURCE_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
+  log_info "Chibi mascot copied"
 fi
 
-# Always overwrite index.html — it's a generated artifact, not user content.
-# This ensures the popup preview always matches the current boot.sh version.
-cat > "$DOWNLOAD_DIR/index.html" << 'SPLASH'
+# Always overwrite index.html — popup-only artifact
+cat > "$ZSCRIPTS/index.html" << 'SPLASH'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -491,149 +631,195 @@ p span{color:#a78bfa}
 <div class="container">
   <div class="chibi-wrap">
     <img class="chibi-img" src="chibi.png" alt="Stellar Frameworks mascot"
+         loading="eager"
          onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
     <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
   </div>
   <h1>Welcome to Stellar Frameworks</h1>
-  <div class="version">v6.1.0</div>
+  <div class="version">v6.3.0</div>
   <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
   <div class="badge"><span class="dot"></span> Dev server running</div>
 </div>
 </body>
 </html>
 SPLASH
-echo "[boot] Landing page created"
+log_info "Landing page created"
 
-# Ensure .zscripts/dev.sh exists and is up-to-date
+# ── Ensure .zscripts/dev.sh exists and is up-to-date (v6.3.0: killable) ──
 DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
 
-if [ ! -f "$DEV_SCRIPT" ]; then
-  echo "[boot] Creating dev.sh for popup preview..."
-  mkdir -p "$ZSCRIPTS"
+write_dev_sh() {
   cat > "$DEV_SCRIPT" << 'DEVSH'
 #!/bin/bash
-# stellar-frameworks dev server — persistent popup preview
-# Auto-restarts if killed (unkillable). Port :3000.
+# stellar-frameworks dev server v6.3.0 — persistent + killable
+# Auto-restarts on crash (preserved from v6.2.0).
+# Killable via SIGTERM/SIGINT (NEW in v6.3.0): pkill -f dev.sh now works.
+# All output logged to ~/.stellar-boot.log (audited).
 # Created by boot.sh — do not edit manually.
 
+DEV_LOG="$HOME/.stellar-boot.log"
+
+dev_log() {
+  local ts
+  ts="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"
+  echo "[dev.sh $ts] $*" >> "$DEV_LOG" 2>/dev/null || true
+}
+
+# Trap SIGTERM/SIGINT — exit cleanly instead of requiring SIGKILL
+cleanup() {
+  dev_log "received signal — exiting cleanly"
+  exit 0
+}
+trap cleanup SIGTERM SIGINT
+
+# Port guard — exit gracefully if already in use
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  echo "[dev.sh] Port :3000 already in use — not starting" >&2
+  dev_log "Port :3000 already in use — not starting"
   exit 0
 fi
 
-# Detect actual Next.js project (next.config.js/mjs must exist — just having
-# 'next' in package.json is not enough, e.g. Android apps with NextAuth dep)
+# Detect actual Next.js project
 if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.config.mjs ] || [ -f /home/z/my-project/next.config.ts ]; then
+  dev_log "Next.js project detected — running bun run dev (persistent)"
   while true; do
-    cd /home/z/my-project && bun run dev
+    cd /home/z/my-project && bun run dev >> "$DEV_LOG" 2>&1 || true
     sleep 2
+    dev_log "bun run dev exited — restarting (crash recovery)"
   done
 else
-  mkdir -p /home/z/my-project/download
+  mkdir -p /home/z/my-project/.zscripts
+  dev_log "Static project — running python3 http.server :3000 (persistent)"
   while true; do
-    cd /home/z/my-project/download && python3 -m http.server 3000
+    cd /home/z/my-project/.zscripts && python3 -m http.server 3000 >> "$DEV_LOG" 2>&1 || true
     sleep 1
+    dev_log "http.server exited — restarting (crash recovery)"
   done
 fi
 DEVSH
   chmod +x "$DEV_SCRIPT"
-  echo "[boot] dev.sh created"
+}
+
+if [ ! -f "$DEV_SCRIPT" ]; then
+  log_step "Creating dev.sh for popup preview"
+  mkdir -p "$ZSCRIPTS"
+  write_dev_sh
+  log_info "dev.sh created (persistent + killable)"
 elif ! grep -qF "$DEV_SCRIPT_MARKER" "$DEV_SCRIPT" 2>/dev/null; then
-  echo "[boot] dev.sh already exists (external) — keeping it"
+  log_info "dev.sh already exists (external) — keeping it"
 else
-  # Managed dev.sh exists but may be outdated — always overwrite in normal mode
   if $FAST_MODE; then
-    echo "[boot] dev.sh OK (managed by stellar-frameworks, --fast skip)"
+    log_info "dev.sh OK (managed by stellar-frameworks, --fast skip)"
   else
-    echo "[boot] Overwriting dev.sh (managed, normal mode — ensures content freshness)"
+    log_step "Overwriting dev.sh (managed, normal mode — ensures content freshness)"
     mkdir -p "$ZSCRIPTS"
-    cat > "$DEV_SCRIPT" << 'DEVSH'
-#!/bin/bash
-# stellar-frameworks dev server — persistent popup preview
-# Auto-restarts if killed (unkillable). Port :3000.
-# Created by boot.sh — do not edit manually.
-
-if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  echo "[dev.sh] Port :3000 already in use — not starting" >&2
-  exit 0
-fi
-
-# Detect actual Next.js project (next.config.js/mjs must exist)
-if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.config.mjs ] || [ -f /home/z/my-project/next.config.ts ]; then
-  while true; do
-    cd /home/z/my-project && bun run dev
-    sleep 2
-  done
-else
-  mkdir -p /home/z/my-project/download
-  while true; do
-    cd /home/z/my-project/download && python3 -m http.server 3000
-    sleep 1
-  done
-fi
-DEVSH
-    chmod +x "$DEV_SCRIPT"
+    write_dev_sh
   fi
 fi
 
+# Launch dev server
 if [ -f "$DEV_SCRIPT" ]; then
   if $CLEAN_MODE; then
-    # After --clean: always kill + relaunch fresh (old server may serve stale files)
+    # After --clean: SIGTERM anything on :3000, then relaunch
     ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | while read -r pid; do
-      kill -9 "$pid" 2>/dev/null || true
+      log_info "SIGTERM pid $pid (clean relaunch)"
+      kill -TERM "$pid" 2>/dev/null || true
     done
-    sleep 0.3
-    bash "$DEV_SCRIPT" >/dev/null 2>&1 &
-    echo "[boot] Popup preview force-relaunched on :3000"
+    sleep 0.5
+    bash "$DEV_SCRIPT" >> "$BOOT_LOG" 2>&1 &
+    log_info "Popup preview force-relaunched on :3000"
   elif ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-    echo "[boot] Popup preview already running on :3000"
+    log_info "Popup preview already running on :3000"
   else
-    bash "$DEV_SCRIPT" >/dev/null 2>&1 &
-    echo "[boot] Popup preview launched on :3000"
+    bash "$DEV_SCRIPT" >> "$BOOT_LOG" 2>&1 &
+    log_info "Popup preview launched on :3000"
   fi
 fi
 
-# ── 4. Self-heal persistence (hook) ─────────────────────────────
+# ── 4. Self-heal persistence (hook) — v6.3.0 audited ──────────────
+# Hook PRESERVED in all 3 init files (user constraint).
+# v6.3.0: hook now logs to ~/.stellar-boot.log with timestamps.
+# Hook still runs boot.sh --fast (which does git fetch + possible reset --hard).
+# All output redirected to log file (loud), not /dev/null.
+# Written via heredoc to avoid printf escape-sequence bugs with \[ and \].
 BASHRC_MARKER="# stellar-frameworks auto-heal"
-BOOT_LOG="$HOME/.stellar-boot.log"
-BASHRC_PHASE1="BOOT_LOG=$HOME/.stellar-boot.log; mkdir -p $HOME; [ -d $TARGET_DIR/.git ] || git clone $REPO_URL $TARGET_DIR 2>/dev/null; bash $TARGET_DIR/boot.sh --fast >>$BOOT_LOG 2>&1; [ -s $PROJECT_ROOT/skills/stellar-frameworks/SKILL.md ] || bash $TARGET_DIR/boot.sh >>$BOOT_LOG 2>&1; tail -500 $BOOT_LOG > $BOOT_LOG.tmp && mv $BOOT_LOG.tmp $BOOT_LOG 2>/dev/null || true"
 
 # Clean up stale hook from wrong path (v5.4.1 bug)
 STALE_BASHRC="$PROJECT_ROOT/.bashrc"
 if [ -f "$STALE_BASHRC" ] && grep -qF "$BASHRC_MARKER" "$STALE_BASHRC" 2>/dev/null; then
+  log_step "Cleaning stale hook from $STALE_BASHRC"
   sed -i '/# stellar-frameworks auto-heal/d' "$STALE_BASHRC"
   sed -i '/stellar-frameworks.*boot\.sh/d' "$STALE_BASHRC"
   [ ! -s "$STALE_BASHRC" ] && rm -f "$STALE_BASHRC"
-  echo "[boot] Cleaned stale hook from $STALE_BASHRC"
 fi
 
 HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile")
 HOOKS_WRITTEN=0
 
+# Generate hook content via heredoc — expands $VARS at write time,
+# but preserves backslashes and special chars literally.
+# Using quoted 'HOOK_CONTENT' would prevent var expansion, so we use
+# unquoted heredoc and escape $STELLAR_* with \$ to delay eval.
 for HOOK_FILE in "${HOOK_TARGETS[@]}"; do
   if [ -f "$HOOK_FILE" ]; then
     if grep -qF "boot.sh" "$HOOK_FILE" 2>/dev/null; then
+      log_step "Removing old hook from $HOOK_FILE (will rewrite)"
       sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
       sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
+      sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
+      sed -i '/STELLAR_LOG=/d' "$HOOK_FILE"
+      sed -i '/STELLAR_REPO=/d' "$HOOK_FILE"
+      sed -i '/STELLAR_SKILL=/d' "$HOOK_FILE"
+      sed -i '/stellar auto-heal/d' "$HOOK_FILE"
+      sed -i '/shell startup — running/d' "$HOOK_FILE"
+      sed -i '/repo missing — cloning/d' "$HOOK_FILE"
+      sed -i '/skill files MISSING/d' "$HOOK_FILE"
+      # v6.3.0: also clean leftover tail/cleanup lines from prior hook rewrites
+      sed -i '/tail -500 "\$STELLAR_LOG"/d' "$HOOK_FILE"
+      sed -i '/STELLAR_LOG\.tmp/d' "$HOOK_FILE"
+      sed -i '/bash "\$STELLAR_REPO\/boot\.sh"/d' "$HOOK_FILE"
     fi
-    printf '\n%s\n%s\n' "$BASHRC_MARKER" "$BASHRC_PHASE1" >> "$HOOK_FILE"
+    cat >> "$HOOK_FILE" <<HOOK_EOF
+
+$BASHRC_MARKER
+STELLAR_LOG="$HOME/.stellar-boot.log"
+STELLAR_REPO="$TARGET_DIR"
+STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
+echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
+[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
+bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
+[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
+tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
+HOOK_EOF
   else
-    printf '%s\n%s\n' "$BASHRC_MARKER" "$BASHRC_PHASE1" > "$HOOK_FILE"
+    cat > "$HOOK_FILE" <<HOOK_EOF
+$BASHRC_MARKER
+STELLAR_LOG="$HOME/.stellar-boot.log"
+STELLAR_REPO="$TARGET_DIR"
+STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
+echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
+[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
+bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
+[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
+tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
+HOOK_EOF
   fi
   HOOKS_WRITTEN=$((HOOKS_WRITTEN + 1))
+  log_info "Hook written to $HOOK_FILE"
 done
 
-echo "[boot] Auto-heal hook written to $HOOKS_WRITTEN/3 init files (clone + upstream-check + boot + health-check + log)"
+log_info "Auto-heal hook written to $HOOKS_WRITTEN/3 init files (audited, with timestamps)"
 
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.1.0 installed and ACTIVE — no restart needed!        ║"
-  echo "║  Popup preview: LIVE on :3000 (persistent, unkillable).    ║"
+  echo "║  ☄️ v6.3.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  Popup preview: LIVE on :3000 (persistent, killable).       ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
   echo "║  Auto-heal: hook in 3 init files + health check + log.     ║"
-  echo "║  Log: $BOOT_LOG                                          ║"
+  echo "║  Audit log: $BOOT_LOG                          ║"
+  echo "║  Stop server: boot.sh --stop-dev-server                    ║"
+  echo "║  Verify:     boot.sh --verify                              ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
 fi

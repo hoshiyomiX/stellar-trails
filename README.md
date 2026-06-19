@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-6.0.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-6.3.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 [![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
@@ -25,12 +25,51 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo; bash ~/.stellar-frameworks-repo/boot.sh --clean
+# Recommended (pinned + verified)
+git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
+cd ~/.stellar-frameworks-repo
+git checkout v6.3.0
+bash boot.sh --verify && bash boot.sh
+```
+
+```bash
+# Minimal (still works, just less defensive)
+[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
+bash ~/.stellar-frameworks-repo/boot.sh
 ```
 
 Add `--clean` for fresh install (nuke all files first). Omit for update-only.
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.0.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.3.0 · ACTIVE`.
+
+### Flags (v6.3.0)
+
+| Flag | Purpose |
+|------|---------|
+| `--audited` | Echo all log lines to stdout (in addition to file logging). Default still logs to `~/.stellar-boot.log`. |
+| `--fast` | Skip file copy if version matches. **Does NOT skip upstream check** — upstream is ALWAYS probed (auto-update preserved). |
+| `--offline` | Skip upstream check entirely (no `git fetch`). For air-gapped environments. |
+| `--clean` | Nuke ALL generated files before install (SIGTERM, not SIGKILL). Full uninstall + reinstall. |
+| `--keep-submodules` | Skip submodule purge in `$PROJECT_ROOT/.git`. Also via `STELLAR_KEEP_SUBMODULES=1` env var. |
+| `--verify` | Check `.checksums` file (SHA-256 of all 14 critical files). Exit 0 if match. |
+| `--dry-run` | Print all actions without executing. Useful for sandbox pre-flight. |
+| `--pinned <sha>` | Verify local HEAD matches pinned SHA before install. |
+| `--stop-dev-server` | Kill running dev.sh (was impossible in v6.2.0). |
+| `--install-only` | Accepted for backwards compatibility; no-op since v5.4.4. |
+
+### Audit Log
+
+All destructive operations (`git reset --hard`, submodule purge, dev server kill, skill file install) are logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Sample entry:
+
+```
+[boot 2026-06-19T10:15:23+08:00] STERILIZE: git reset --hard origin/main
+[boot 2026-06-19T10:15:23+08:00]   reason: upstream divergence (local: fe449f6, remote: abc1234)
+[boot 2026-06-19T10:15:23+08:00]   before: fe449f6 feat: v6.2.0 — popup assets moved to .zscripts/
+[boot 2026-06-19T10:15:24+08:00]   after:  abc1234 feat: v6.3.0 — loud sterilization
+[boot 2026-06-19T10:15:24+08:00] STERILIZE complete
+```
+
+Log is rotated to last 500 lines.
 
 ---
 
