@@ -28,7 +28,8 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ### Recommended — Quick Install (one-liner, uses `latest` tag)
 
 ```bash
-git clone --quiet --branch latest --depth 1 https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install \
+git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 \
+  https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install \
   && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules \
   && rm -rf /tmp/stellar-install
 ```
@@ -57,12 +58,13 @@ rm -rf /tmp/stellar-install
 
 | Flag | Alasan |
 |------|--------|
+| `-c advice.detachedHead=false` | Suppress git "detached HEAD" advice (clone tag selalu detached, advice noisy) |
+| `--quiet` (git clone) | Suppress progress output (Cloning into..., Receiving objects...) |
+| `--branch latest` | Mututable tag, selalu points ke release terbaru |
+| `--depth 1` (git clone) | Shallow clone — minim download (no history) |
 | `--audited` | Echo semua log ke stdout (transparency, sandbox bisa audit) |
 | `--offline` | Skip `git fetch` — tidak ada `git reset --hard` otomatis yang bisa overwrite changes |
 | `--keep-submodules` | Jangan sentuh `$PROJECT_ROOT/.git/modules/` — tidak destructive terhadap project git |
-| `--quiet` (git clone) | Suppress `detached HEAD` advice noise dari clone tag |
-| `--depth 1` (git clone) | Shallow clone — minim download (no history) |
-| `--branch latest` | Mututable tag, selalu points ke release terbaru |
 
 ### Add `--clean` for fresh reinstall
 
