@@ -1,10 +1,13 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.4.0
+# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.4.2
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
-# Self-heal: SKILL.md bootstrap (4-layer fallback) is the ONLY heal mechanism.
+# Self-heal: SKILL.md bootstrap (5-layer fallback) is the ONLY heal mechanism.
 #            No shell init hooks (v6.4.0 removed ~/.bashrc/.bash_profile/.profile hooks).
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
 # v6.4.0: Single-clone model — boot.sh uses its own dir as repo root. No $HOME re-clone.
+# v6.4.2: Dual-location install — skills/stellar-frameworks/ (platform-discovered)
+#         + .zscripts/stellar-frameworks/ (reliably survives sandbox reset).
+#         SKILL.md bootstrap layer 1 reads from .zscripts/ first.
 # Install:  git clone https://github.com/hoshiyomiX/stellar-frameworks.git <path>
 #           bash <path>/boot.sh
 # Invoke:   bash <path>/boot.sh [--fast] [--audited] [--offline] [--clean]
@@ -143,6 +146,14 @@ INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
 OBSOLETE_DIR="$PROJECT_ROOT/skills/stellar-coding-agent"
 ZSCRIPTS="$PROJECT_ROOT/.zscripts"
 DEV_SCRIPT="$ZSCRIPTS/dev.sh"
+# v6.4.2: PERSISTENT_BAKED_DIR is the dual-location copy that survives sandbox
+# reset reliably. /home/z/my-project/skills/ is gitignored by z.ai platform's
+# /start.sh (always rewritten to "skills/\nnode_modules/"), and tar snapshot
+# mechanism uses --exclude-vcs-ignores which doesn't honor gitignore negation
+# patterns (!skills/stellar-frameworks/). .zscripts/ is NOT touched by /start.sh
+# and IS included in repo.tar snapshot. SKILL.md bootstrap layer 1 reads from
+# this dir first, falling back to INSTALL_DIR if not present.
+PERSISTENT_BAKED_DIR="$ZSCRIPTS/stellar-frameworks"
 DOWNLOAD_DIR="$PROJECT_ROOT/download"
 BOOT_LOG="$HOME/.stellar-boot.log"
 
@@ -598,6 +609,21 @@ if $NEED_INSTALL; then
   # Copy boot.sh into skills/ so it's co-located with SKILL.md
   cp -- "$SCRIPT_DIR/boot.sh" "$INSTALL_DIR/boot.sh"
 
+  # v6.4.2: Also copy to PERSISTENT_BAKED_DIR (.zscripts/stellar-frameworks/)
+  # This is the dual-location that reliably survives sandbox reset:
+  #   - skills/ is gitignored by /start.sh (always rewritten)
+  #   - tar --exclude-vcs-ignores doesn't honor gitignore negation
+  #   - .zscripts/ is not touched by /start.sh and is included in repo.tar
+  # SKILL.md bootstrap layer 1 reads from this dir first.
+  if [ "$PERSISTENT_BAKED_DIR" != "$INSTALL_DIR" ] && [ -d "$ZSCRIPTS" ]; then
+    log_step "Mirroring skill files → $PERSISTENT_BAKED_DIR (persistent backup)"
+    mkdir -p "$PERSISTENT_BAKED_DIR"
+    rm -rf "${PERSISTENT_BAKED_DIR:?}"
+    cp -a "$SOURCE_DIR" "$PERSISTENT_BAKED_DIR"
+    cp -- "$SCRIPT_DIR/boot.sh" "$PERSISTENT_BAKED_DIR/boot.sh"
+    log_info "Persistent backup mirrored to $PERSISTENT_BAKED_DIR"
+  fi
+
   # Verify critical files
   ERRORS=0
   for f in \
@@ -825,11 +851,11 @@ fi
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.4.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.4.2 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, killable).       ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
-  echo "║  Self-heal: SKILL.md 4-layer bootstrap (no shell hooks).   ║"
+  echo "║  Self-heal: SKILL.md 5-layer bootstrap (no shell hooks).   ║"
   echo "║  Audit log: $BOOT_LOG                          ║"
   echo "║  Stop server: boot.sh --stop-dev-server                    ║"
   echo "║  Verify:     boot.sh --verify                              ║"

@@ -1,5 +1,52 @@
 # Changelog
 
+## [6.4.2] — 2026-06-19
+
+### Changed — Dual-Location Persistence (repo.tar fix)
+
+- **Akar masalah v6.4.0 ditemukan**: `skills/stellar-frameworks/` (yang di-git-track via `.gitignore` exception `skills/*` + `!skills/stellar-frameworks/`) ternyata **TIDAK** masuk ke `repo.tar` snapshot. Investigasi `/start.sh` z.ai platform mengungkap:
+  1. `/start.sh` selalu rewrite `.gitignore` ke `skills/\nnode_modules/` (jika match trigger `upload/+download/+db/`)
+  2. Service z.ai (PID 871, root-only `/app/`) membuat `repo.tar` menggunakan `tar --exclude-vcs-ignores` (atau equivalent)
+  3. **Bug GNU tar**: `--exclude-vcs-ignores` membaca `.gitignore` tapi **tidak menghormati negation pattern** (`!skills/stellar-frameworks/`). Akibatnya semua file di `skills/` di-exclude dari snapshot meski ada exception.
+
+- **Fix v6.4.2 — dual-location install**: boot.sh sekarang meng-copy skill files ke **dua lokasi**:
+  1. `skills/stellar-frameworks/` — untuk platform discovery (z.ai scanner membaca `skills/*/SKILL.md`)
+  2. `.zscripts/stellar-frameworks/` — untuk **persistent backup** yang reliably survive sandbox reset
+
+- **Kenapa `.zscripts/` reliable**:
+  - `/start.sh` TIDAK menulis ke `.zscripts/` (hanya baca `.zscripts/dev.sh` untuk popup preview)
+  - `.zscripts/` tidak di-exclude `.gitignore` default z.ai (`skills/\nnode_modules/`)
+  - `tar --exclude-vcs-ignores` include `.zscripts/` (verified via test)
+  - `.zscripts/` sudah survive reset sebelumnya (terlihat di repo.tar current: `.zscripts/chibi.png`, `.zscripts/dev.sh`, `.zscripts/index.html`)
+
+- **SKILL.md bootstrap diperbarui dari 4-layer → 5-layer**:
+  - Layer 1 (NEW): `/home/z/my-project/.zscripts/stellar-frameworks/boot.sh` (PRIMARY — survives reset)
+  - Layer 2: `/home/z/my-project/skills/stellar-frameworks/boot.sh` (legacy fallback, may be wiped)
+  - Layer 3: `/home/z/my-project/.stellar-frameworks-repo/boot.sh` (project-local clone)
+  - Layer 4: `~/.stellar-frameworks-repo/boot.sh` (home clone, volatile)
+  - Layer 5: Fresh clone from GitHub (always available)
+
+- **Field test**: Sandbox reset di tengah sesi pengembangan v6.4.0 mengkonfirmasi bahwa `skills/stellar-frameworks/` hilang dari working tree (meski ada di git index). Hanya `git checkout HEAD -- skills/stellar-frameworks/` yang merestore. v6.4.2 menyelesaikan ini dengan layer 1 yang reliable.
+
+### Files Modified
+
+- `boot.sh` — tambah `PERSISTENT_BAKED_DIR=$ZSCRIPTS/stellar-frameworks`, mirror cp ke lokasi tersebut setelah install ke `skills/`, bump version ke v6.4.2, update banner ke "5-layer bootstrap"
+- `skill/stellar-frameworks/SKILL.md` — rewrite Step 1 bootstrap jadi 5-layer dengan layer 1 di `.zscripts/`, bump version ke 6.4.2, update banner
+
+### Migration from v6.4.0/v6.4.1
+
+Tidak ada action user required. Pada next `Skill()` invoke, SKILL.md bootstrap akan:
+1. Cek `.zscripts/stellar-frameworks/boot.sh` (tidak ada di v6.4.0 install) → skip
+2. Cek `skills/stellar-frameworks/boot.sh` (ada) → run with v6.4.0 boot.sh
+3. boot.sh v6.4.0 akan jalan (tanpa fitur mirror ke `.zscripts/`)
+
+Untuk mendapatkan fitur v6.4.2, user harus **re-install** dari source v6.4.2:
+```bash
+cd ~/.stellar-frameworks-repo  # atau lokasi clone
+git fetch origin && git checkout v6.4.2  # atau main
+bash boot.sh --audited --keep-submodules
+```
+
 ## [6.4.0] — 2026-06-19
 
 ### Changed — Single-Clone + Bootstrap-Only Healing
