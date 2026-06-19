@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-6.3.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-6.4.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 [![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
@@ -25,11 +25,13 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-# Recommended (pinned + verified)
+# Recommended (pinned + verified, v6.4.0 single-clone model)
+PINNED_SHA=9cbd5f1c7d1a1de79e08dcb255293085d159d831
 git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
 cd ~/.stellar-frameworks-repo
-git checkout v6.3.0
-bash boot.sh --verify && bash boot.sh
+git checkout "$PINNED_SHA"
+bash boot.sh --verify
+bash boot.sh --audited --offline --pinned "$PINNED_SHA" --keep-submodules
 ```
 
 ```bash
@@ -40,9 +42,16 @@ bash ~/.stellar-frameworks-repo/boot.sh
 
 Add `--clean` for fresh install (nuke all files first). Omit for update-only.
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.3.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.4.0 · ACTIVE`.
 
-### Flags (v6.3.0)
+### What's New in v6.4.0
+
+- **Single-clone model**: No more silent `$HOME/.stellar-frameworks-repo` re-clone. `boot.sh` uses its own location as the repo root, eliminating triple-clone redundancy.
+- **No shell init hooks**: `~/.bashrc`, `~/.bash_profile`, `~/.profile` are no longer modified. Healing happens exclusively via the 4-layer SKILL.md bootstrap that runs on every `Skill()` invoke.
+- **Co-located boot.sh**: `boot.sh` can run from `skills/stellar-frameworks/` (post-install copy) — enables SKILL.md bootstrap layer 1 to succeed without needing the source clone.
+- **Baked skill files**: Project `.gitignore` exception ensures `skills/stellar-frameworks/` is git-tracked, surviving sandbox resets via both git tree and `repo.tar` working-tree snapshot.
+
+### Flags (v6.4.0)
 
 | Flag | Purpose |
 |------|---------|

@@ -1,5 +1,25 @@
 # Changelog
 
+## [6.4.0] — 2026-06-19
+
+### Changed — Single-Clone + Bootstrap-Only Healing
+
+- **Triple-clone redundancy eliminated** — `boot.sh` no longer hardcodes `TARGET_DIR=$HOME/.stellar-frameworks-repo` and no longer auto-clones there. `SCRIPT_DIR` (the directory containing `boot.sh`) is now the authoritative repo root. Users must clone the repo themselves before running `boot.sh`; no silent `$HOME` re-clone. Reduces storage from 3 copies (user clone + home re-clone + skills cp -a copy) to 2 (user clone + skills cp -a copy).
+
+- **Shell init hooks removed** — `boot.sh` no longer writes auto-heal hooks to `~/.bashrc`, `~/.bash_profile`, `~/.profile`. Healing happens exclusively via the 4-layer `SKILL.md` bootstrap that runs on every `Skill()` invoke. Shell startup is now faster (no `boot.sh --fast` execution per shell) and no longer modifies user shell init files without explicit consent. The hook-writing block (lines 745-810 in v6.3.0) is replaced with cleanup-only logic that strips legacy v6.3.0 hooks from init files on next run (graceful migration).
+
+- **Co-located boot.sh support** — `boot.sh` can now run from `skills/stellar-frameworks/` (the post-install cp -a copy) without erroring. Path config detects three cases: (A) boot.sh inside a git repo (canonical source), (B) boot.sh co-located with `SKILL.md` (post-install copy), (C) boot.sh inside `skills/stellar-frameworks/` with a parent that is the stellar repo. Previously running the co-located copy failed with "skill/ not found in repo" because path logic incorrectly adopted project root as SCRIPT_DIR.
+
+- **Baked skill files git-tracked** — Project `.gitignore` updated from `skills/` (excludes everything) to `skills/*` + `!skills/stellar-frameworks/` (excludes all skills except stellar-frameworks). This makes the 18 load-path skill files survive sandbox resets via git tree (in addition to working-tree `repo.tar` snapshot). Dual-guarantee persistence: layer A (git tree), layer B (working-tree snapshot), layer C (SKILL.md 4-layer bootstrap fallback).
+
+- **`.checksums` regenerated** — All 20 SHA-256 hashes updated to match v6.4.0 file state (`boot.sh` and `skill/stellar-frameworks/SKILL.md` changed).
+
+### Migration from v6.3.0
+
+v6.3.0 users upgrading to v6.4.0 will have their existing shell hooks automatically cleaned on next `boot.sh` run. The cleanup is logged to `~/.stellar-boot.log` with the line: `Cleaned N legacy shell hook(s) — healing now via SKILL.md bootstrap only`.
+
+After upgrade, the `~/.stellar-frameworks-repo` directory (if it exists from a v6.3.0 install) can be safely deleted — it's no longer used by v6.4.0.
+
 ## [6.3.0] — 2026-06-19
 
 ### Changed — Loud Sterilization
