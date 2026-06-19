@@ -6,7 +6,8 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-6.4.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-6.4.3-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-frameworks/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
@@ -24,34 +25,63 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ## Quick Start
 
-```bash
-# Recommended (pinned + verified, v6.4.0 single-clone model)
-PINNED_SHA=ec256b185c663c42e544b686994340e60f0e6bca
-git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-cd ~/.stellar-frameworks-repo
-git checkout "$PINNED_SHA"
-bash boot.sh --verify
-bash boot.sh --audited --offline --pinned "$PINNED_SHA" --keep-submodules
-```
+### Recommended — Quick Install (one-liner, uses `latest` tag)
 
 ```bash
-# Minimal (still works, just less defensive)
-[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-bash ~/.stellar-frameworks-repo/boot.sh
+git clone --quiet --branch latest --depth 1 https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install \
+  && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules \
+  && rm -rf /tmp/stellar-install
 ```
 
-Add `--clean` for fresh install (nuke all files first). Omit for update-only.
+**What this does:**
+1. Clone `latest` tag (mutable, always points to newest release) ke `/tmp/stellar-install` — shallow clone, no history
+2. Run `boot.sh` dengan safe flags (lihat penjelasan flag di bawah)
+3. Cleanup `/tmp/stellar-install` — install sudah selesai, source clone tidak diperlukan lagi
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.4.0 · ACTIVE`.
+**Skill siap dipakai:** `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.4.3 · ACTIVE`.
 
-### What's New in v6.4.0
+### Pinned Install (untuk reproducibility)
 
-- **Single-clone model**: No more silent `$HOME/.stellar-frameworks-repo` re-clone. `boot.sh` uses its own location as the repo root, eliminating triple-clone redundancy.
-- **No shell init hooks**: `~/.bashrc`, `~/.bash_profile`, `~/.profile` are no longer modified. Healing happens exclusively via the 4-layer SKILL.md bootstrap that runs on every `Skill()` invoke.
-- **Co-located boot.sh**: `boot.sh` can run from `skills/stellar-frameworks/` (post-install copy) — enables SKILL.md bootstrap layer 1 to succeed without needing the source clone.
-- **Baked skill files**: Project `.gitignore` exception ensures `skills/stellar-frameworks/` is git-tracked, surviving sandbox resets via both git tree and `repo.tar` working-tree snapshot.
+Jika butuh reproducible build dengan versi spesifik:
 
-### Flags (v6.4.0)
+```bash
+PINNED_SHA=5bb29120c7a169676cfbf60afebba68c6d5c907f  # v6.4.3
+git clone --quiet https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install
+cd /tmp/stellar-install && git checkout "$PINNED_SHA" && cd -
+bash /tmp/stellar-install/boot.sh --verify  # verify checksums (SHA-256)
+bash /tmp/stellar-install/boot.sh --audited --offline --pinned "$PINNED_SHA" --keep-submodules
+rm -rf /tmp/stellar-install
+```
+
+### Why these flags?
+
+| Flag | Alasan |
+|------|--------|
+| `--audited` | Echo semua log ke stdout (transparency, sandbox bisa audit) |
+| `--offline` | Skip `git fetch` — tidak ada `git reset --hard` otomatis yang bisa overwrite changes |
+| `--keep-submodules` | Jangan sentuh `$PROJECT_ROOT/.git/modules/` — tidak destructive terhadap project git |
+| `--quiet` (git clone) | Suppress `detached HEAD` advice noise dari clone tag |
+| `--depth 1` (git clone) | Shallow clone — minim download (no history) |
+| `--branch latest` | Mututable tag, selalu points ke release terbaru |
+
+### Add `--clean` for fresh reinstall
+
+Jika install lama bermasalah dan mau nuclear option:
+```bash
+bash /tmp/stellar-install/boot.sh --clean --audited --keep-submodules
+```
+`--clean` akan nuke semua generated files dulu sebelum install ulang.
+
+### What's New in v6.4.3
+
+- **v6.4.3**: Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer (hapus 3 layer yang terbukti gagal survive reset)
+- **v6.4.2**: Dual-location install — `skills/stellar-frameworks/` (platform discovery) + `.zscripts/stellar-frameworks/` (persistent backup yang reliably survive sandbox reset)
+- **v6.4.0**: Single-clone model (no `$HOME` re-clone), shell init hooks removed (no `~/.bashrc` modification)
+- **v6.4.0**: Co-located `boot.sh` support — bisa jalan dari `skills/` atau `.zscripts/` post-install copy
+
+See [CHANGELOG.md](skill/stellar-frameworks/CHANGELOG.md) untuk full history.
+
+### Flags (v6.4.3)
 
 | Flag | Purpose |
 |------|---------|
@@ -252,6 +282,9 @@ stellar-frameworks/                   # The stellar-frameworks repo itself
 
 | Version | Summary |
 |---------|---------|
+| [**v6.4.3**](skill/stellar-frameworks/CHANGELOG.md) | Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer (hapus 3 layer yang terbukti gagal survive reset). `latest` mutable tag ditambahkan untuk konsistensi install. |
+| [**v6.4.2**](skill/stellar-frameworks/CHANGELOG.md) | Dual-location install — `skills/stellar-frameworks/` (platform discovery) + `.zscripts/stellar-frameworks/` (persistent backup yang reliably survive sandbox reset). SKILL.md bootstrap 5-layer dengan `.zscripts/` sebagai layer 1. |
+| [**v6.4.1**](skill/stellar-frameworks/CHANGELOG.md) | README documentation update (PINNED_SHA fix, .checksums count, audit log sample, persistence table, file structure, version history). |
 | [**v6.4.0**](skill/stellar-frameworks/CHANGELOG.md) | Single-clone model (no `$HOME` re-clone), shell init hooks removed (SKILL.md bootstrap is sole heal mechanism), co-located `boot.sh` support, baked skill files git-tracked in project repo (dual-guarantee persistence) |
 | [**v6.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Loud Sterilization: audit logging for all destructive ops, `--audited` flag, `.zscripts/` popup assets (context pollution fix) |
 | [**v6.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Popup assets moved to `.zscripts/` (hidden from platform scanner) |
