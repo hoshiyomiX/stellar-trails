@@ -26,7 +26,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ```bash
 # Recommended (pinned + verified, v6.4.0 single-clone model)
-PINNED_SHA=9cbd5f1c7d1a1de79e08dcb255293085d159d831
+PINNED_SHA=ec256b185c663c42e544b686994340e60f0e6bca
 git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
 cd ~/.stellar-frameworks-repo
 git checkout "$PINNED_SHA"
@@ -60,7 +60,7 @@ Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6
 | `--offline` | Skip upstream check entirely (no `git fetch`). For air-gapped environments. |
 | `--clean` | Nuke ALL generated files before install (SIGTERM, not SIGKILL). Full uninstall + reinstall. |
 | `--keep-submodules` | Skip submodule purge in `$PROJECT_ROOT/.git`. Also via `STELLAR_KEEP_SUBMODULES=1` env var. |
-| `--verify` | Check `.checksums` file (SHA-256 of all 14 critical files). Exit 0 if match. |
+| `--verify` | Check `.checksums` file (SHA-256 of all 20 critical files). Exit 0 if match. |
 | `--dry-run` | Print all actions without executing. Useful for sandbox pre-flight. |
 | `--pinned <sha>` | Verify local HEAD matches pinned SHA before install. |
 | `--stop-dev-server` | Kill running dev.sh (was impossible in v6.2.0). |
@@ -68,14 +68,15 @@ Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6
 
 ### Audit Log
 
-All destructive operations (`git reset --hard`, submodule purge, dev server kill, skill file install) are logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Sample entry:
+All destructive operations (`git reset --hard`, submodule purge, dev server kill, skill file install, legacy hook cleanup) are logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Sample entries from v6.4.0:
 
 ```
-[boot 2026-06-19T10:15:23+08:00] STERILIZE: git reset --hard origin/main
-[boot 2026-06-19T10:15:23+08:00]   reason: upstream divergence (local: fe449f6, remote: abc1234)
-[boot 2026-06-19T10:15:23+08:00]   before: fe449f6 feat: v6.2.0 — popup assets moved to .zscripts/
-[boot 2026-06-19T10:15:24+08:00]   after:  abc1234 feat: v6.3.0 — loud sterilization
-[boot 2026-06-19T10:15:24+08:00] STERILIZE complete
+[boot 2026-06-19T10:15:23+08:00] STEP: STERILIZE: git reset --hard origin/main
+[boot 2026-06-19T10:15:23+08:00] INFO:   reason: upstream divergence (local: 9cbd5f1, remote: ec256b1)
+[boot 2026-06-19T10:15:24+08:00] STEP: Cleaning legacy v6.3.0 hook from /home/z/.bashrc
+[boot 2026-06-19T10:15:24+08:00] INFO: Cleaned 3 legacy shell hook(s) — healing now via SKILL.md bootstrap only
+[boot 2026-06-19T10:15:25+08:00] INFO: Running from co-located install (no .git) — using skills/ as source
+[boot 2026-06-19T10:15:25+08:00] INFO: Installed successfully (copy: v6.4.0)
 ```
 
 Log is rotated to last 500 lines.
@@ -173,38 +174,40 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 The platform reads `SKILL.md` from disk on every `Skill()` call — updates are effective immediately without restart. The challenge is that the z.ai platform periodically **resets the sandbox**, wiping both the project directory (`/home/z/my-project/`) and the home directory (`$HOME/`).
 
-The framework survives resets through a layered recovery chain:
+The framework survives resets through a layered recovery chain (v6.4.0 simplified model — no more shell init hooks):
 
 | Layer | Mechanism | Survives reset? |
 |-------|-----------|-----------------|
-| **skill/** (git-tracked source) | Platform creates `repo.tar` from working tree before reset, extracts after | Yes |
-| **skills/** (platform load path) | `cp -a` from `skill/` — real files, baked into `repo.tar` | Yes |
-| **boot.sh** (co-located in `skills/`) | Copied alongside SKILL.md, survives via `repo.tar` | Yes |
-| **SKILL.md activation fallback** | 4-layer bootstrap: co-located boot.sh → project boot.sh → home repo → GitHub clone | Yes |
-| **$HOME/ repo & hooks** | Auto-heal hook in `.bashrc` clones repo, runs boot.sh | No (volatile) |
+| **skill/** (git-tracked source in stellar repo) | Platform creates `repo.tar` from working tree before reset, extracts after | Yes |
+| **skills/stellar-frameworks/** (project repo, git-tracked) | v6.4.0: `.gitignore` exception (`skills/*` + `!skills/stellar-frameworks/`) makes 18 load-path files git-tracked — survives via git tree AND `repo.tar` | Yes (dual-guarantee) |
+| **boot.sh** (co-located in `skills/`) | Copied alongside SKILL.md during install, baked into `repo.tar` AND git tree | Yes |
+| **SKILL.md 4-layer bootstrap** | Sole heal mechanism (v6.4.0): co-located `boot.sh` → project-local repo `boot.sh` → home repo → GitHub fresh clone | Yes (layer 1 always fires) |
+| **$HOME/ repo & shell hooks** | v6.3.0 used `.bashrc` hooks — **REMOVED in v6.4.0**. No more shell init file modifications. | N/A (mechanism deleted) |
 
 **Recovery in practice:**
 
 | Scenario | What happens |
 |----------|-------------|
-| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned, skill files installed. |
-| **Sandbox reset** | `skill/` and `skills/` restored from `repo.tar` automatically. Platform discovers `skills/*/SKILL.md` and registers the skill. On next `Skill()` call, activation fallback runs `boot.sh --fast` (~50ms) to verify and sync files. If files are missing entirely, falls back to GitHub clone. |
-| **Stale snapshot contamination** | `boot.sh` force-syncs the home repo with `git reset --hard origin/main`, eliminating diverged branches and uncommitted artifacts from previous sessions. |
+| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned to a single location, `boot.sh` installs `skills/stellar-frameworks/` via `cp -a`. No shell hooks written. |
+| **Sandbox reset** | `skill/` and `skills/stellar-frameworks/` restored from `repo.tar` (working-tree snapshot). Additionally, `skills/stellar-frameworks/` is in the project git tree (v6.4.0 dual-guarantee). On next `Skill()` invoke, SKILL.md bootstrap layer 1 fires: runs `skills/stellar-frameworks/boot.sh --fast --audited` (~50ms) to verify and sync files. Falls back to layers 2-4 only if layer 1 fails. |
+| **v6.3.0 → v6.4.0 migration** | First `boot.sh` run after upgrade detects legacy `.bashrc/.bash_profile/.profile` hooks and strips them via `python3` in-place edit. Logged as `Cleaned N legacy shell hook(s)`. Shell startup becomes faster post-migration. |
+| **Stale snapshot contamination** | `boot.sh --offline` skips upstream check entirely. Without `--offline`, `boot.sh` force-syncs via `git reset --hard origin/main` if upstream diverged AND no unpushed commits exist. All operations audited. |
 
-The key insight: **the framework is self-healing without relying on persistent hooks**. The git-tracked `skill/` directory and the SKILL.md activation fallback together guarantee recovery even when all volatile state is wiped.
+The key insight: **the framework is self-healing via the SKILL.md 4-layer bootstrap alone**. The git-tracked `skills/stellar-frameworks/` directory and the co-located `boot.sh` together guarantee recovery even when all volatile state (home dir, shell init files) is wiped.
 
 ---
 
 ## File Structure
 
 ```
-stellar-frameworks/
+stellar-frameworks/                   # The stellar-frameworks repo itself
 ├── boot.sh                           # Install + self-heal + force-sync (single entry point)
 ├── setup.sh                          # [Legacy] Standalone installer — boot.sh handles this now
 ├── README.md                         # This file
-├── .gitignore                        # Excludes skills/ (platform-managed), platform scaffolding
+├── .gitignore                        # Excludes /skills/ (runtime-generated in stellar repo for testing)
+├── .checksums                        # SHA-256 of 20 critical files (verified by --verify)
 │
-├── skill/stellar-frameworks/         # Git-tracked source of truth (survives repo.tar)
+├── skill/stellar-frameworks/         # Git-tracked source of truth (19 files)
 │   ├── SKILL.md                      # Core framework (activation, phases, SSV, error recovery)
 │   ├── boot.sh                       # Co-located copy — ensures boot.sh is always discoverable
 │   ├── CHANGELOG.md                  # Version history (all 25+ versions)
@@ -221,11 +224,17 @@ stellar-frameworks/
 │   │   └── platform/                 # z.ai sandbox constraints
 │   └── ...
 │
-└── skills/stellar-frameworks/        # ⚠️ Gitignored — platform load path
+└── skills/stellar-frameworks/        # ⚠️ Gitignored IN STELLAR REPO (runtime copy)
                                     # Populated by boot.sh (cp -a from skill/)
-                                    # Survives repo.tar as real files
-                                    # This is what the platform scans for SKILL.md
+                                    #
+                                    # IN PROJECT REPO (where skill is installed):
+                                    # This dir IS git-tracked via .gitignore exception:
+                                    #   skills/*
+                                    #   !skills/stellar-frameworks/
+                                    # That's the v6.4.0 dual-guarantee persistence model.
 ```
+
+**Note on dual `.gitignore`**: The stellar repo's own `.gitignore` excludes `/skills/` (because `skills/` is runtime-generated when boot.sh is tested inside the stellar repo). The **project repo's** `.gitignore` (where the skill is installed for actual use) uses `skills/*` + `!skills/stellar-frameworks/` exception to git-track the 18 load-path files. Both behaviors are correct for their respective contexts.
 
 ---
 
@@ -243,7 +252,12 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
+| [**v6.4.0**](skill/stellar-frameworks/CHANGELOG.md) | Single-clone model (no `$HOME` re-clone), shell init hooks removed (SKILL.md bootstrap is sole heal mechanism), co-located `boot.sh` support, baked skill files git-tracked in project repo (dual-guarantee persistence) |
+| [**v6.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Loud Sterilization: audit logging for all destructive ops, `--audited` flag, `.zscripts/` popup assets (context pollution fix) |
+| [**v6.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Popup assets moved to `.zscripts/` (hidden from platform scanner) |
+| [**v6.1.0**](skill/stellar-frameworks/CHANGELOG.md) | Upstream-always-check + unpushed-commit safety net |
 | [**v6.0.0**](skill/stellar-frameworks/CHANGELOG.md) | Version reset, chibi mascot, transparent background, force-sync, co-location, activation fallback, README overhaul |
+| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | setup.sh version sync fix |
 | [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization |
 
 > Full changelog with all 25+ versions: [`skill/stellar-frameworks/CHANGELOG.md`](skill/stellar-frameworks/CHANGELOG.md)
