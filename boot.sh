@@ -1,11 +1,13 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.3.0
+# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.4.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
-# Self-heal: after first run, adds hook to shell init files.
+# Self-heal: SKILL.md bootstrap (4-layer fallback) is the ONLY heal mechanism.
+#            No shell init hooks (v6.4.0 removed ~/.bashrc/.bash_profile/.profile hooks).
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-#           bash ~/.stellar-frameworks-repo/boot.sh
-# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast] [--audited] [--offline] [--clean]
+# v6.4.0: Single-clone model — boot.sh uses its own dir as repo root. No $HOME re-clone.
+# Install:  git clone https://github.com/hoshiyomiX/stellar-frameworks.git <path>
+#           bash <path>/boot.sh
+# Invoke:   bash <path>/boot.sh [--fast] [--audited] [--offline] [--clean]
 #
 # Flags:
 #   --fast              Skip file copy if already installed and version matches.
@@ -35,7 +37,7 @@
 #   Skill description and trigger behavior UNCHANGED (universal activation preserved).
 #
 # Path architecture (v5.9.0):
-#   GIT_REPO   = $HOME/.stellar-frameworks-repo   (survives project resets)
+#   GIT_REPO   = SCRIPT_DIR (dir of boot.sh itself — no separate home clone)
 #   INSTALL    = $PROJECT_ROOT/skills/stellar-frameworks  (platform load path)
 #   Hook lives in $HOME init files (survives project resets)
 #   If repo is missing, hook auto-clones from GitHub before booting.
@@ -93,12 +95,21 @@ done
 # ── 0. Path configuration ──────────────────────────────────────────
 REPO_URL="https://github.com/hoshiyomiX/stellar-frameworks.git"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/z/my-project}"
-TARGET_DIR="${STELLAR_REPO_PATH:-$HOME/.stellar-frameworks-repo}"
+# v6.4.0: Single-clone model — boot.sh uses its own directory as the repo root.
+# No separate $HOME/.stellar-frameworks-repo clone. Eliminates triple-clone redundancy.
+# SCRIPT_DIR is authoritative; STELLAR_REPO_PATH override kept for edge cases only.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET_DIR="${STELLAR_REPO_PATH:-$SCRIPT_DIR}"
 
-if [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ] && \
-   [ "$(basename "$SCRIPT_DIR")" != "stellar-frameworks" ]; then
-  SCRIPT_DIR="$TARGET_DIR"
+# If boot.sh is co-located inside skills/stellar-frameworks/ (post-install copy),
+# walk up to find the actual git repo root.
+if [ ! -d "$SCRIPT_DIR/.git" ] && [ -d "$SCRIPT_DIR/../../.git" ]; then
+  candidate="$(cd "$SCRIPT_DIR/../.." && pwd)"
+  # Only adopt if this parent looks like the stellar-frameworks repo
+  if [ -d "$candidate/skill/stellar-frameworks" ] || [ -d "$candidate/.stellar-frameworks-repo" ]; then
+    SCRIPT_DIR="$candidate"
+    TARGET_DIR="$SCRIPT_DIR"
+  fi
 fi
 
 SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
@@ -224,7 +235,7 @@ fi
 if $DRY_RUN; then
   log_info "DRY-RUN MODE — no actions will be executed, printing plan only"
   log_info "Would: clean stale install (if --clean also set)"
-  log_info "Would: clone $REPO_URL → $TARGET_DIR (if missing)"
+  log_info "Would: use SCRIPT_DIR as repo root: $SCRIPT_DIR"
   log_info "Would: git fetch origin (unless --offline)"
   log_info "Would: git reset --hard origin/<branch> (if upstream diverged AND no unpushed commits)"
   log_info "Would: purge submodules in $PROJECT_ROOT/.git (unless --keep-submodules)"
@@ -301,31 +312,27 @@ if $CLEAN_MODE; then
   log_info "Nuke complete — proceeding with fresh install"
 fi
 
-# ── 0a. Auto-clone: ensure repo exists ─────────────────────────────
+# ── 0a. v6.4.0: No auto-clone (single-clone model) ────────────────
+# boot.sh uses SCRIPT_DIR (its own location) as repo root. If not a git repo,
+# user must clone manually. No silent $HOME re-clone (eliminates triple-clone).
 OLD_REPO_DIR="$PROJECT_ROOT/stellar-frameworks"
 
-if [ ! -d "$TARGET_DIR/.git" ]; then
+if [ ! -d "$SCRIPT_DIR/.git" ]; then
+  # boot.sh not in a git repo — try migration from old path, else error out
   if [ -d "$OLD_REPO_DIR/.git" ]; then
-    log_info "Migrating repo: $OLD_REPO_DIR → $TARGET_DIR"
-    mkdir -p "$HOME"
-    mv "$OLD_REPO_DIR" "$TARGET_DIR"
-    SCRIPT_DIR="$TARGET_DIR"
-    SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
-  else
-    log_info "Repo not found — cloning from GitHub (loud, logged)"
-    mkdir -p "$HOME"
-    if ! git clone "$REPO_URL" "$TARGET_DIR" >> "$BOOT_LOG" 2>&1; then
-      log_error "git clone failed. Check network or run manually:"
-      log_error "  git clone $REPO_URL $TARGET_DIR"
+    log_info "Migrating repo: $OLD_REPO_DIR → $SCRIPT_DIR"
+    mv "$OLD_REPO_DIR" "$SCRIPT_DIR" 2>/dev/null || {
+      log_error "Could not migrate $OLD_REPO_DIR → $SCRIPT_DIR"
+      log_error "Clone manually: git clone $REPO_URL <path> && bash <path>/boot.sh"
       exit 1
-    fi
-    log_info "Cloned successfully"
-    SCRIPT_DIR="$TARGET_DIR"
-    SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
+    }
+    SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
+  else
+    log_error "boot.sh is not inside a git repo. Clone first:"
+    log_error "  git clone $REPO_URL <path>"
+    log_error "  bash <path>/boot.sh"
+    exit 1
   fi
-elif [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ]; then
-  SCRIPT_DIR="$TARGET_DIR"
-  SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
 fi
 
 # ── 0b. Stale install cleanup ──────────────────────────────────────
