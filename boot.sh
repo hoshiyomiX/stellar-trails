@@ -1,13 +1,14 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.4.2
+# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.4.3
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
-# Self-heal: SKILL.md bootstrap (5-layer fallback) is the ONLY heal mechanism.
+# Self-heal: SKILL.md bootstrap (2-layer fallback) is the ONLY heal mechanism.
 #            No shell init hooks (v6.4.0 removed ~/.bashrc/.bash_profile/.profile hooks).
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
 # v6.4.0: Single-clone model — boot.sh uses its own dir as repo root. No $HOME re-clone.
 # v6.4.2: Dual-location install — skills/stellar-frameworks/ (platform-discovered)
 #         + .zscripts/stellar-frameworks/ (reliably survives sandbox reset).
-#         SKILL.md bootstrap layer 1 reads from .zscripts/ first.
+# v6.4.3: Collapsed SKILL.md bootstrap from 5-layer to 2-layer (kept only the
+#         layers proven to survive sandbox reset: .zscripts/ + fresh GitHub clone).
 # Install:  git clone https://github.com/hoshiyomiX/stellar-frameworks.git <path>
 #           bash <path>/boot.sh
 # Invoke:   bash <path>/boot.sh [--fast] [--audited] [--offline] [--clean]
@@ -851,11 +852,11 @@ fi
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.4.2 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.4.3 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, killable).       ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
-  echo "║  Self-heal: SKILL.md 5-layer bootstrap (no shell hooks).   ║"
+  echo "║  Self-heal: SKILL.md 2-layer bootstrap (no shell hooks).   ║"
   echo "║  Audit log: $BOOT_LOG                          ║"
   echo "║  Stop server: boot.sh --stop-dev-server                    ║"
   echo "║  Verify:     boot.sh --verify                              ║"

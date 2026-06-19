@@ -1,5 +1,32 @@
 # Changelog
 
+## [6.4.3] — 2026-06-19
+
+### Changed — Collapsed Bootstrap to 2-Layer (removed failed fallbacks)
+
+- **SKILL.md bootstrap diperamping dari 5-layer → 2-layer** setelah field-test selama pengembangan v6.4.0–v6.4.2 membuktikan 3 dari 5 layer **gagal survive sandbox reset**:
+
+  | Layer v6.4.2 | Status reset test | Alasan gagal |
+  |---|---|---|
+  | Layer 2: `skills/stellar-frameworks/boot.sh` | ❌ FAIL | `tar --exclude-vcs-ignores` bug: tidak honor `!skills/stellar-frameworks/` negation pattern. File di-exclude dari `repo.tar` meski ada di git tree. |
+  | Layer 3: `/home/z/my-project/.stellar-frameworks-repo/boot.sh` | ❌ FAIL | Working-tree only, di-gitignore (`.stellar-frameworks-repo/`), tidak masuk `repo.tar` snapshot. |
+  | Layer 4: `~/.stellar-frameworks-repo/boot.sh` | ❌ FAIL | Home dir (`$HOME`) di-wipe saat sandbox reset. |
+
+- **Layer yang dipertahankan** (hanya 2):
+  1. **Layer 1**: `.zscripts/stellar-frameworks/boot.sh` — PRIMARY, terbukti survive reset (verified via simulated reset test di v6.4.2)
+  2. **Layer 2**: Fresh clone dari GitHub ke `/tmp/stellar-frameworks-fresh-clone/` — last resort, butuh network. Clone ke `/tmp/` (bukan `~/.stellar-frameworks-repo/`) karena lokasi sementara — setelah boot.sh jalan, `.zscripts/stellar-frameworks/` akan ter-populate dan Layer 1 akan menangani invoke berikutnya.
+
+- **Alasan cleanup**: Menyimpan fallback yang terbukti gagal hanya menambah kompleksitas tanpa value — mereka tidak pernah fire dalam praktik karena Layer 1 sudah cukup. Worst case (Layer 1 gagal), better langsung ke fresh clone daripada nyangkut di layer menengah yang juga akan gagal.
+
+### Files Modified
+
+- `skill/stellar-frameworks/SKILL.md` — Step 1 bootstrap rewrite dari 5-layer ke 2-layer, bump version ke 6.4.3, update activation banner
+- `boot.sh` — update header comment + banner ("5-layer" → "2-layer"), bump version ke v6.4.3
+
+### Migration from v6.4.2
+
+Tidak ada action user required. SKILL.md bootstrap v6.4.3 akan tetap menemukan install v6.4.2 di `.zscripts/stellar-frameworks/boot.sh` (Layer 1, tidak berubah). Layer 2/3/4 yang dihapus tidak akan pernah fire jika Layer 1 ada.
+
 ## [6.4.2] — 2026-06-19
 
 ### Changed — Dual-Location Persistence (repo.tar fix)

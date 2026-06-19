@@ -6,12 +6,12 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 6.4.2
+- **version**: 6.4.3
 
 ## Activation
 
 ```
-☄️ STELLAR · v6.4.2 · ACTIVE
+☄️ STELLAR · v6.4.3 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
@@ -19,42 +19,36 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 **Step 1 — Bootstrap (~50ms, audited self-heal — THE ONLY HEAL MECHANISM):**
 ```bash
-# v6.4.2 — Audited 5-layer fallback. Runs on EVERY skill invoke.
+# v6.4.3 — Audited 2-layer fallback. Runs on EVERY skill invoke.
 # This is the SOLE self-heal mechanism: no shell init hooks (~/.bashrc etc.)
 # are modified by boot.sh anymore. All healing flows through this bootstrap.
 # All operations logged to ~/.stellar-boot.log with ISO-8601 timestamps.
 #
-# v6.4.2 change: layer 1 is now .zscripts/stellar-frameworks/boot.sh (NOT
-# skills/stellar-frameworks/boot.sh). Reason: z.ai /start.sh rewrites
-# .gitignore to "skills/\nnode_modules/" on every boot, and the platform's
-# repo.tar snapshot uses tar --exclude-vcs-ignores which doesn't honor
-# gitignore negation patterns (!skills/stellar-frameworks/). Result:
-# skills/stellar-frameworks/ is excluded from repo.tar snapshot, leaving
-# the skill unhealable after reset. .zscripts/ is NOT touched by /start.sh
-# and IS included in repo.tar, making it the reliable persistent location.
+# v6.4.3 change: collapsed from 5-layer to 2-layer. Layers 2/3/4 of v6.4.2
+# were all PROVEN TO FAIL sandbox reset (field-tested during v6.4.0 dev):
+#   - skills/stellar-frameworks/boot.sh — excluded from repo.tar by
+#     tar --exclude-vcs-ignores bug (doesn't honor !pattern negation)
+#   - /home/z/my-project/.stellar-frameworks-repo/boot.sh — gitignored,
+#     not in repo.tar snapshot
+#   - ~/.stellar-frameworks-repo/boot.sh — home dir wiped on reset
+# Only Layer 1 (.zscripts/, included in repo.tar) and Layer 2 (fresh
+# clone, network-dependent) survive. Keeping failed fallbacks added
+# complexity without value — they never fire in practice.
 STELLAR_LOG="$HOME/.stellar-boot.log"
 echo "[skill $(date -Iseconds 2>/dev/null) ] SKILL.md invoked — running audited bootstrap" >> "$STELLAR_LOG" 2>/dev/null
 
-# Layer 1: .zscripts/stellar-frameworks/boot.sh (v6.4.2 — survives reset)
+# Layer 1: .zscripts/stellar-frameworks/boot.sh (PRIMARY — survives reset)
 if [ -f /home/z/my-project/.zscripts/stellar-frameworks/boot.sh ]; then
   bash /home/z/my-project/.zscripts/stellar-frameworks/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
-# Layer 2: skills/stellar-frameworks/boot.sh (legacy fallback, may not survive reset)
-elif [ -f /home/z/my-project/skills/stellar-frameworks/boot.sh ]; then
-  bash /home/z/my-project/skills/stellar-frameworks/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
-# Layer 3: project-local repo clone
-elif [ -f /home/z/my-project/.stellar-frameworks-repo/boot.sh ]; then
-  bash /home/z/my-project/.stellar-frameworks-repo/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
-# Layer 4: home repo clone (legacy)
-elif [ -d ~/.stellar-frameworks-repo ]; then
-  bash ~/.stellar-frameworks-repo/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
-# Layer 5: fresh clone from GitHub
+# Layer 2: fresh clone from GitHub (last resort, requires network)
 else
   echo "[skill $(date -Iseconds 2>/dev/null) ] no install found — fresh clone" >> "$STELLAR_LOG"
-  git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo >> "$STELLAR_LOG" 2>&1
-  bash ~/.stellar-frameworks-repo/boot.sh --audited >> "$STELLAR_LOG" 2>&1
+  git clone https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-frameworks-fresh-clone >> "$STELLAR_LOG" 2>&1
+  bash /tmp/stellar-frameworks-fresh-clone/boot.sh --audited >> "$STELLAR_LOG" 2>&1
+  rm -rf /tmp/stellar-frameworks-fresh-clone
 fi
 ```
-Five-layer fallback (v6.4.2): (1) `.zscripts/stellar-frameworks/boot.sh` (PRIMARY — survives reset reliably) → (2) `skills/stellar-frameworks/boot.sh` (legacy fallback, may be wiped on reset) → (3) project-local repo clone → (4) home repo clone → (5) fresh clone from GitHub. **v6.4.2 change**: layer 1 moved from `skills/` to `.zscripts/` because the platform's `/start.sh` rewrites `.gitignore` to exclude `skills/`, and `tar --exclude-vcs-ignores` (used by the snapshot mechanism) does not honor gitignore negation patterns. `.zscripts/` is not touched by `/start.sh` and is reliably included in `repo.tar`. All actions logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Popup assets (index.html, chibi.png) also live in `.zscripts/` (co-located with the skill). Idempotent — prints "Skill files OK" if everything is current.
+Two-layer fallback (v6.4.3): (1) `.zscripts/stellar-frameworks/boot.sh` (PRIMARY — survives reset reliably, included in `repo.tar`) → (2) fresh clone from GitHub (last resort, network required). **v6.4.3 change**: collapsed from 5-layer to 2-layer after field-testing proved layers 2/3/4 of v6.4.2 all failed sandbox reset. The platform's `/start.sh` rewrites `.gitignore` to exclude `skills/`, `tar --exclude-vcs-ignores` doesn't honor gitignore negation patterns, and home/project working-tree clones are not in `repo.tar` snapshot. `.zscripts/` is the only location that reliably survives. All actions logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Popup assets (index.html, chibi.png) also live in `.zscripts/` (co-located with the skill). Idempotent — prints "Skill files OK" if everything is current.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -64,7 +58,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR · v6.4.2 · ACTIVE
+☄️ STELLAR · v6.4.3 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
