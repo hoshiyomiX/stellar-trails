@@ -101,20 +101,42 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/z/my-project}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="${STELLAR_REPO_PATH:-$SCRIPT_DIR}"
 
-# If boot.sh is co-located inside skills/stellar-frameworks/ (post-install copy),
-# walk up to find the actual git repo root.
-if [ ! -d "$SCRIPT_DIR/.git" ] && [ -d "$SCRIPT_DIR/../../.git" ]; then
-  candidate="$(cd "$SCRIPT_DIR/../.." && pwd)"
-  # Only adopt if this parent looks like the stellar-frameworks repo
-  if [ -d "$candidate/skill/stellar-frameworks" ] || [ -d "$candidate/.stellar-frameworks-repo" ]; then
-    SCRIPT_DIR="$candidate"
-    TARGET_DIR="$SCRIPT_DIR"
-  fi
-fi
-
+# v6.4.0: Detect WHERE boot.sh is running from.
+# Case A: boot.sh inside a git repo (canonical source, e.g. .stellar-frameworks-repo/)
+#   → SCRIPT_DIR has .git, SOURCE_DIR = SCRIPT_DIR/skill/stellar-frameworks
+# Case B: boot.sh co-located in skills/stellar-frameworks/ (post-install copy)
+#   → SCRIPT_DIR has SKILL.md but no .git. SOURCE_DIR = SCRIPT_DIR itself
+#     (the cp -a already put all skill files alongside boot.sh).
+# Case C: boot.sh inside skills/stellar-frameworks/ AND we can find a parent
+#   git repo that IS the stellar-frameworks repo (has skill/stellar-frameworks/)
+#   → walk up to use that as SCRIPT_DIR (lets --verify find .checksums, etc.)
+# Note: do NOT adopt project root /home/z/my-project just because it has
+# .stellar-frameworks-repo/ — that's not the stellar repo itself.
 SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
-if [ ! -d "$SOURCE_DIR" ] && [ -f "$SCRIPT_DIR/SKILL.md" ]; then
-  SOURCE_DIR="$SCRIPT_DIR"
+
+if [ ! -d "$SCRIPT_DIR/.git" ]; then
+  # boot.sh not in a git repo — try walking up to find stellar repo (Case C)
+  found_stellar_repo=""
+  cur="$SCRIPT_DIR"
+  for _ in 1 2 3 4; do
+    parent="$(cd "$cur/.." && pwd 2>/dev/null)" || break
+    [ "$parent" = "$cur" ] && break  # reached /
+    if [ -d "$parent/.git" ] && [ -d "$parent/skill/stellar-frameworks" ]; then
+      found_stellar_repo="$parent"
+      break
+    fi
+    cur="$parent"
+  done
+
+  if [ -n "$found_stellar_repo" ]; then
+    # Case C: parent is the stellar repo
+    SCRIPT_DIR="$found_stellar_repo"
+    TARGET_DIR="$SCRIPT_DIR"
+    SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
+  elif [ -f "$SCRIPT_DIR/SKILL.md" ]; then
+    # Case B: co-located in skills/stellar-frameworks/ (no parent stellar repo)
+    SOURCE_DIR="$SCRIPT_DIR"
+  fi
 fi
 
 INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
@@ -318,8 +340,17 @@ fi
 OLD_REPO_DIR="$PROJECT_ROOT/stellar-frameworks"
 
 if [ ! -d "$SCRIPT_DIR/.git" ]; then
-  # boot.sh not in a git repo — try migration from old path, else error out
-  if [ -d "$OLD_REPO_DIR/.git" ]; then
+  # boot.sh not in a git repo. Three valid sub-cases:
+  #   (a) Co-located in skills/stellar-frameworks/ with SKILL.md → already
+  #       installed, SOURCE_DIR=SCRIPT_DIR (set above in path config block).
+  #       This is the SKILL.md bootstrap layer 1 path. Valid, no action needed.
+  #   (b) Found stellar repo parent (Case C from path config) → SCRIPT_DIR
+  #       already updated to that repo. Re-check .git.
+  #   (c) Truly orphaned boot.sh → error out.
+  if [ -f "$SCRIPT_DIR/SKILL.md" ] && [ -d "$SCRIPT_DIR" ]; then
+    # Sub-case (a): co-located, no .git but has SKILL.md — valid post-install state
+    log_info "Running from co-located install (no .git) — using skills/ as source"
+  elif [ -d "$OLD_REPO_DIR/.git" ]; then
     log_info "Migrating repo: $OLD_REPO_DIR → $SCRIPT_DIR"
     mv "$OLD_REPO_DIR" "$SCRIPT_DIR" 2>/dev/null || {
       log_error "Could not migrate $OLD_REPO_DIR → $SCRIPT_DIR"
@@ -328,7 +359,7 @@ if [ ! -d "$SCRIPT_DIR/.git" ]; then
     }
     SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
   else
-    log_error "boot.sh is not inside a git repo. Clone first:"
+    log_error "boot.sh is not inside a git repo and no SKILL.md co-located. Clone first:"
     log_error "  git clone $REPO_URL <path>"
     log_error "  bash <path>/boot.sh"
     exit 1
@@ -514,7 +545,12 @@ fi
 # ── 2. Install / self-heal: copy skill/ → skills/ ──────────────────
 NEED_INSTALL=false
 
-if $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+# v6.4.0: If boot.sh is running from INSTALL_DIR itself (co-located copy,
+# SKILL.md bootstrap layer 1), there's nothing to install — SOURCE_DIR
+# and INSTALL_DIR are the same directory. Skip install entirely.
+if [ "$(cd "$SOURCE_DIR" 2>/dev/null && pwd)" = "$(cd "$INSTALL_DIR" 2>/dev/null && pwd)" ]; then
+  log_info "Running from install dir (co-located) — no copy needed"
+elif $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
   INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
