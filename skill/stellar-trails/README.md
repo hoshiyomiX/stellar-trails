@@ -11,14 +11,14 @@ Structured development framework for GLM — a phase state machine with traceabi
 ## Quick Start
 
 ```bash
-[ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-bash ~/.stellar-frameworks-repo/boot.sh
+[ -d ~/.stellar-trails-repo ] || git clone https://github.com/hoshiyomiX/stellar-trails.git ~/.stellar-trails-repo
+bash ~/.stellar-trails-repo/boot.sh
 ```
 
 After install, the skill triggers automatically on every task. Manual activation:
 
 ```
-Skill(command="stellar-frameworks")
+Skill(command="stellar-trails")
 ```
 
 ## Version History
@@ -34,9 +34,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 ## Architecture
 
 ```
-stellar-frameworks/               (repo root)
+stellar-trails/               (repo root)
 ├── boot.sh                        # Self-heal installer (clone, cp-a, hook, force-sync)
-└── skill/stellar-frameworks/
+└── skill/stellar-trails/
     ├── SKILL.md                   # Skill definition (activation + framework reference)
     ├── boot.sh                    # Co-located copy — ensures boot.sh is always discoverable
     ├── memory-template.md         # Memory system templates & storage rules

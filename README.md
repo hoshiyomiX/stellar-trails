@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="skill/stellar-frameworks/chibi.png" alt="Stellar Frameworks mascot" width="180">
+<img src="skill/stellar-trails/chibi.png" alt="Stellar Frameworks mascot" width="180">
 
-# ☄️ stellar-frameworks
+# ☄️ stellar-trails
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-6.4.3-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
-[![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-frameworks/releases/tag/latest)
+[![Version](https://img.shields.io/badge/version-7.0.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Shell-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
 
@@ -29,7 +29,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ```bash
 git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 \
-  https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install \
+  https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-install \
   && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules \
   && rm -rf /tmp/stellar-install
 ```
@@ -39,15 +39,15 @@ git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 \
 2. Run `boot.sh` dengan safe flags (lihat penjelasan flag di bawah)
 3. Cleanup `/tmp/stellar-install` — install sudah selesai, source clone tidak diperlukan lagi
 
-**Skill siap dipakai:** `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v6.4.3 · ACTIVE`.
+**Skill siap dipakai:** `Skill(command="stellar-trails")` — look for `☄️ STELLAR TRAILS · v7.0.0 · ACTIVE`.
 
 ### Pinned Install (untuk reproducibility)
 
 Jika butuh reproducible build dengan versi spesifik:
 
 ```bash
-PINNED_SHA=5bb29120c7a169676cfbf60afebba68c6d5c907f  # v6.4.3
-git clone --quiet https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-install
+PINNED_SHA=<v7.0.0-commit-sha-after-push>  # v7.0.0 — fill after commit
+git clone --quiet https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-install
 cd /tmp/stellar-install && git checkout "$PINNED_SHA" && cd -
 bash /tmp/stellar-install/boot.sh --verify  # verify checksums (SHA-256)
 bash /tmp/stellar-install/boot.sh --audited --offline --pinned "$PINNED_SHA" --keep-submodules
@@ -74,20 +74,40 @@ bash /tmp/stellar-install/boot.sh --clean --audited --keep-submodules
 ```
 `--clean` akan nuke semua generated files dulu sebelum install ulang.
 
-### What's New in v6.4.3
+### What's New in v7.0.0
 
+- **v7.0.0 (BREAKING)**: Rebrand `stellar-frameworks` → `stellar-trails`. Repo renamed di GitHub (old URL auto-redirects). Skill name berubah: `Skill(command="stellar-frameworks")` → `Skill(command="stellar-trails")`. Directory names berubah: `skill/stellar-frameworks/` → `skill/stellar-trails/` (juga `skills/` dan `.zscripts/` load paths). Log file: `~/.stellar-boot.log` → `~/.stellar-trails.log`. Soft migration: repo lama tetap accessible via GitHub redirect, existing install v6.4.3 tetap jalan sampai user upgrade manual.
 - **v6.4.3**: Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer (hapus 3 layer yang terbukti gagal survive reset)
-- **v6.4.2**: Dual-location install — `skills/stellar-frameworks/` (platform discovery) + `.zscripts/stellar-frameworks/` (persistent backup yang reliably survive sandbox reset)
+- **v6.4.2**: Dual-location install — `skills/stellar-trails/` (platform discovery) + `.zscripts/stellar-trails/` (persistent backup yang reliably survive sandbox reset)
 - **v6.4.0**: Single-clone model (no `$HOME` re-clone), shell init hooks removed (no `~/.bashrc` modification)
 - **v6.4.0**: Co-located `boot.sh` support — bisa jalan dari `skills/` atau `.zscripts/` post-install copy
 
-See [CHANGELOG.md](skill/stellar-frameworks/CHANGELOG.md) untuk full history.
+See [CHANGELOG.md](skill/stellar-trails/CHANGELOG.md) untuk full history.
 
-### Flags (v6.4.3)
+### Migration from stellar-frameworks (v6.4.3) → stellar-trails (v7.0.0)
+
+Jika Anda punya install `stellar-frameworks` lama, langkah migrasi:
+
+1. **Hapus install lama** (optional — bisa共存 sampai Anda siap upgrade):
+   ```bash
+   rm -rf /home/z/my-project/skills/stellar-frameworks
+   rm -rf /home/z/my-project/.zscripts/stellar-frameworks
+   rm -rf /home/z/my-project/.stellar-frameworks-repo
+   ```
+2. **Install stellar-trails** pakai quick install command di atas.
+3. **Update invoke**: `Skill(command="stellar-frameworks")` → `Skill(command="stellar-trails")`.
+4. **Audit log**: `~/.stellar-boot.log` lama tetap ada (tidak auto-hapus). Bisa dihapus manual setelah verifikasi:
+   ```bash
+   rm -f ~/.stellar-boot.log
+   ```
+
+GitHub auto-redirect URL `github.com/hoshiyomiX/stellar-frameworks` → `github.com/hoshiyomiX/stellar-trails` aktif selama repo tidak dibuat ulang dengan nama lama.
+
+### Flags (v7.0.0)
 
 | Flag | Purpose |
 |------|---------|
-| `--audited` | Echo all log lines to stdout (in addition to file logging). Default still logs to `~/.stellar-boot.log`. |
+| `--audited` | Echo all log lines to stdout (in addition to file logging). Default still logs to `~/.stellar-trails.log`. |
 | `--fast` | Skip file copy if version matches. **Does NOT skip upstream check** — upstream is ALWAYS probed (auto-update preserved). |
 | `--offline` | Skip upstream check entirely (no `git fetch`). For air-gapped environments. |
 | `--clean` | Nuke ALL generated files before install (SIGTERM, not SIGKILL). Full uninstall + reinstall. |
@@ -100,7 +120,7 @@ See [CHANGELOG.md](skill/stellar-frameworks/CHANGELOG.md) untuk full history.
 
 ### Audit Log
 
-All destructive operations (`git reset --hard`, submodule purge, dev server kill, skill file install, legacy hook cleanup) are logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Sample entries from v6.4.0:
+All destructive operations (`git reset --hard`, submodule purge, dev server kill, skill file install, legacy hook cleanup) are logged to `~/.stellar-trails.log` with ISO-8601 timestamps. Sample entries from v6.4.0:
 
 ```
 [boot 2026-06-19T10:15:23+08:00] STEP: STERILIZE: git reset --hard origin/main
@@ -211,7 +231,7 @@ The framework survives resets through a layered recovery chain (v6.4.0 simplifie
 | Layer | Mechanism | Survives reset? |
 |-------|-----------|-----------------|
 | **skill/** (git-tracked source in stellar repo) | Platform creates `repo.tar` from working tree before reset, extracts after | Yes |
-| **skills/stellar-frameworks/** (project repo, git-tracked) | v6.4.0: `.gitignore` exception (`skills/*` + `!skills/stellar-frameworks/`) makes 18 load-path files git-tracked — survives via git tree AND `repo.tar` | Yes (dual-guarantee) |
+| **skills/stellar-trails/** (project repo, git-tracked) | v6.4.0: `.gitignore` exception (`skills/*` + `!skills/stellar-trails/`) makes 18 load-path files git-tracked — survives via git tree AND `repo.tar` | Yes (dual-guarantee) |
 | **boot.sh** (co-located in `skills/`) | Copied alongside SKILL.md during install, baked into `repo.tar` AND git tree | Yes |
 | **SKILL.md 4-layer bootstrap** | Sole heal mechanism (v6.4.0): co-located `boot.sh` → project-local repo `boot.sh` → home repo → GitHub fresh clone | Yes (layer 1 always fires) |
 | **$HOME/ repo & shell hooks** | v6.3.0 used `.bashrc` hooks — **REMOVED in v6.4.0**. No more shell init file modifications. | N/A (mechanism deleted) |
@@ -220,26 +240,26 @@ The framework survives resets through a layered recovery chain (v6.4.0 simplifie
 
 | Scenario | What happens |
 |----------|-------------|
-| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned to a single location, `boot.sh` installs `skills/stellar-frameworks/` via `cp -a`. No shell hooks written. |
-| **Sandbox reset** | `skill/` and `skills/stellar-frameworks/` restored from `repo.tar` (working-tree snapshot). Additionally, `skills/stellar-frameworks/` is in the project git tree (v6.4.0 dual-guarantee). On next `Skill()` invoke, SKILL.md bootstrap layer 1 fires: runs `skills/stellar-frameworks/boot.sh --fast --audited` (~50ms) to verify and sync files. Falls back to layers 2-4 only if layer 1 fails. |
+| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned to a single location, `boot.sh` installs `skills/stellar-trails/` via `cp -a`. No shell hooks written. |
+| **Sandbox reset** | `skill/` and `skills/stellar-trails/` restored from `repo.tar` (working-tree snapshot). Additionally, `skills/stellar-trails/` is in the project git tree (v6.4.0 dual-guarantee). On next `Skill()` invoke, SKILL.md bootstrap layer 1 fires: runs `skills/stellar-trails/boot.sh --fast --audited` (~50ms) to verify and sync files. Falls back to layers 2-4 only if layer 1 fails. |
 | **v6.3.0 → v6.4.0 migration** | First `boot.sh` run after upgrade detects legacy `.bashrc/.bash_profile/.profile` hooks and strips them via `python3` in-place edit. Logged as `Cleaned N legacy shell hook(s)`. Shell startup becomes faster post-migration. |
 | **Stale snapshot contamination** | `boot.sh --offline` skips upstream check entirely. Without `--offline`, `boot.sh` force-syncs via `git reset --hard origin/main` if upstream diverged AND no unpushed commits exist. All operations audited. |
 
-The key insight: **the framework is self-healing via the SKILL.md 4-layer bootstrap alone**. The git-tracked `skills/stellar-frameworks/` directory and the co-located `boot.sh` together guarantee recovery even when all volatile state (home dir, shell init files) is wiped.
+The key insight: **the framework is self-healing via the SKILL.md 4-layer bootstrap alone**. The git-tracked `skills/stellar-trails/` directory and the co-located `boot.sh` together guarantee recovery even when all volatile state (home dir, shell init files) is wiped.
 
 ---
 
 ## File Structure
 
 ```
-stellar-frameworks/                   # The stellar-frameworks repo itself
+stellar-trails/                   # The stellar-trails repo itself
 ├── boot.sh                           # Install + self-heal + force-sync (single entry point)
 ├── setup.sh                          # [Legacy] Standalone installer — boot.sh handles this now
 ├── README.md                         # This file
 ├── .gitignore                        # Excludes /skills/ (runtime-generated in stellar repo for testing)
 ├── .checksums                        # SHA-256 of 20 critical files (verified by --verify)
 │
-├── skill/stellar-frameworks/         # Git-tracked source of truth (19 files)
+├── skill/stellar-trails/         # Git-tracked source of truth (19 files)
 │   ├── SKILL.md                      # Core framework (activation, phases, SSV, error recovery)
 │   ├── boot.sh                       # Co-located copy — ensures boot.sh is always discoverable
 │   ├── CHANGELOG.md                  # Version history (all 25+ versions)
@@ -256,17 +276,17 @@ stellar-frameworks/                   # The stellar-frameworks repo itself
 │   │   └── platform/                 # z.ai sandbox constraints
 │   └── ...
 │
-└── skills/stellar-frameworks/        # ⚠️ Gitignored IN STELLAR REPO (runtime copy)
+└── skills/stellar-trails/        # ⚠️ Gitignored IN STELLAR REPO (runtime copy)
                                     # Populated by boot.sh (cp -a from skill/)
                                     #
                                     # IN PROJECT REPO (where skill is installed):
                                     # This dir IS git-tracked via .gitignore exception:
                                     #   skills/*
-                                    #   !skills/stellar-frameworks/
+                                    #   !skills/stellar-trails/
                                     # That's the v6.4.0 dual-guarantee persistence model.
 ```
 
-**Note on dual `.gitignore`**: The stellar repo's own `.gitignore` excludes `/skills/` (because `skills/` is runtime-generated when boot.sh is tested inside the stellar repo). The **project repo's** `.gitignore` (where the skill is installed for actual use) uses `skills/*` + `!skills/stellar-frameworks/` exception to git-track the 18 load-path files. Both behaviors are correct for their respective contexts.
+**Note on dual `.gitignore`**: The stellar repo's own `.gitignore` excludes `/skills/` (because `skills/` is runtime-generated when boot.sh is tested inside the stellar repo). The **project repo's** `.gitignore` (where the skill is installed for actual use) uses `skills/*` + `!skills/stellar-trails/` exception to git-track the 18 load-path files. Both behaviors are correct for their respective contexts.
 
 ---
 
@@ -284,15 +304,16 @@ stellar-frameworks/                   # The stellar-frameworks repo itself
 
 | Version | Summary |
 |---------|---------|
-| [**v6.4.3**](skill/stellar-frameworks/CHANGELOG.md) | Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer (hapus 3 layer yang terbukti gagal survive reset). `latest` mutable tag ditambahkan untuk konsistensi install. |
-| [**v6.4.2**](skill/stellar-frameworks/CHANGELOG.md) | Dual-location install — `skills/stellar-frameworks/` (platform discovery) + `.zscripts/stellar-frameworks/` (persistent backup yang reliably survive sandbox reset). SKILL.md bootstrap 5-layer dengan `.zscripts/` sebagai layer 1. |
-| [**v6.4.1**](skill/stellar-frameworks/CHANGELOG.md) | README documentation update (PINNED_SHA fix, .checksums count, audit log sample, persistence table, file structure, version history). |
-| [**v6.4.0**](skill/stellar-frameworks/CHANGELOG.md) | Single-clone model (no `$HOME` re-clone), shell init hooks removed (SKILL.md bootstrap is sole heal mechanism), co-located `boot.sh` support, baked skill files git-tracked in project repo (dual-guarantee persistence) |
-| [**v6.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Loud Sterilization: audit logging for all destructive ops, `--audited` flag, `.zscripts/` popup assets (context pollution fix) |
-| [**v6.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Popup assets moved to `.zscripts/` (hidden from platform scanner) |
-| [**v6.1.0**](skill/stellar-frameworks/CHANGELOG.md) | Upstream-always-check + unpushed-commit safety net |
-| [**v6.0.0**](skill/stellar-frameworks/CHANGELOG.md) | Version reset, chibi mascot, transparent background, force-sync, co-location, activation fallback, README overhaul |
-| [**v5.11.0**](skill/stellar-frameworks/CHANGELOG.md) | setup.sh version sync fix |
-| [**v5.10.0**](skill/stellar-frameworks/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization |
+| [**v7.0.0**](skill/stellar-trails/CHANGELOG.md) | **BREAKING** — Rebrand `stellar-frameworks` → `stellar-trails`. Repo renamed di GitHub (soft migration via auto-redirect). Skill name, directory names, log file path semua berubah. Existing user perlu manual migration. |
+| [**v6.4.3**](skill/stellar-trails/CHANGELOG.md) | Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer (hapus 3 layer yang terbukti gagal survive reset). `latest` mutable tag ditambahkan untuk konsistensi install. |
+| [**v6.4.2**](skill/stellar-trails/CHANGELOG.md) | Dual-location install — `skills/stellar-trails/` (platform discovery) + `.zscripts/stellar-trails/` (persistent backup yang reliably survive sandbox reset). SKILL.md bootstrap 5-layer dengan `.zscripts/` sebagai layer 1. |
+| [**v6.4.1**](skill/stellar-trails/CHANGELOG.md) | README documentation update (PINNED_SHA fix, .checksums count, audit log sample, persistence table, file structure, version history). |
+| [**v6.4.0**](skill/stellar-trails/CHANGELOG.md) | Single-clone model (no `$HOME` re-clone), shell init hooks removed (SKILL.md bootstrap is sole heal mechanism), co-located `boot.sh` support, baked skill files git-tracked in project repo (dual-guarantee persistence) |
+| [**v6.3.0**](skill/stellar-trails/CHANGELOG.md) | Loud Sterilization: audit logging for all destructive ops, `--audited` flag, `.zscripts/` popup assets (context pollution fix) |
+| [**v6.2.0**](skill/stellar-trails/CHANGELOG.md) | Popup assets moved to `.zscripts/` (hidden from platform scanner) |
+| [**v6.1.0**](skill/stellar-trails/CHANGELOG.md) | Upstream-always-check + unpushed-commit safety net |
+| [**v6.0.0**](skill/stellar-trails/CHANGELOG.md) | Version reset, chibi mascot, transparent background, force-sync, co-location, activation fallback, README overhaul |
+| [**v5.11.0**](skill/stellar-trails/CHANGELOG.md) | setup.sh version sync fix |
+| [**v5.10.0**](skill/stellar-trails/CHANGELOG.md) | Skill-creator audit: dead refs, dead asset, description optimization |
 
-> Full changelog with all 25+ versions: [`skill/stellar-frameworks/CHANGELOG.md`](skill/stellar-frameworks/CHANGELOG.md)
+> Full changelog with all 25+ versions: [`skill/stellar-trails/CHANGELOG.md`](skill/stellar-trails/CHANGELOG.md)

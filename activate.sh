@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Mid-session activator (v5.4.3)
+# stellar-trails — Mid-session activator (v5.4.3)
 # Loads skill content into context WITHOUT needing a session restart.
 #
 # How it works:
@@ -9,21 +9,21 @@
 #   The content is IDENTICAL to what Skill() would inject — it's the same file.
 #
 # Usage (paste into chat):
-#   Read the output of: bash ~/my-project/stellar-frameworks/activate.sh
-#   Then follow the stellar-frameworks instructions manually.
+#   Read the output of: bash ~/my-project/stellar-trails/activate.sh
+#   Then follow the stellar-trails instructions manually.
 #
 # Or have the assistant run:
-#   Bash: bash ~/my-project/stellar-frameworks/activate.sh
+#   Bash: bash ~/my-project/stellar-trails/activate.sh
 #   Then read the printed file paths and follow the instructions.
 
 set -euo pipefail
 
 PROJECT_ROOT="${PROJECT_ROOT:-/home/z/my-project}"
-INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
+INSTALL_DIR="$PROJECT_ROOT/skills/stellar-trails"
 
 if [ ! -f "$INSTALL_DIR/SKILL.md" ]; then
   echo "[activate] ERROR: Skill not installed. Run boot.sh first:"
-  echo "  bash $PROJECT_ROOT/stellar-frameworks/boot.sh --fast --install-only"
+  echo "  bash $PROJECT_ROOT/stellar-trails/boot.sh --fast --install-only"
   exit 1
 fi
 

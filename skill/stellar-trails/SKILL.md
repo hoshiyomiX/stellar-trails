@@ -1,17 +1,17 @@
 ---
-name: stellar-frameworks
+name: stellar-trails
 description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones. Web development (Next.js, UI) is delegated to fullstack-dev; this framework wraps the phase machine around it."
 ---
 <!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) boot.sh header/banner/MINIMUM_VERSION, (4) setup.sh header/banner/version-check, (5) root README.md badge/invoke/file-structure/version-history, (6) skill/README.md version-history, (7) CHANGELOG.md -->
 
 ## Metadata
 
-- **version**: 6.4.3
+- **version**: 7.0.0
 
 ## Activation
 
 ```
-☄️ STELLAR · v6.4.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.0.0 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
@@ -22,33 +22,33 @@ description: "Activates on every task without exception: coding (features, bugs,
 # v6.4.3 — Audited 2-layer fallback. Runs on EVERY skill invoke.
 # This is the SOLE self-heal mechanism: no shell init hooks (~/.bashrc etc.)
 # are modified by boot.sh anymore. All healing flows through this bootstrap.
-# All operations logged to ~/.stellar-boot.log with ISO-8601 timestamps.
+# All operations logged to ~/.stellar-trails.log with ISO-8601 timestamps.
 #
 # v6.4.3 change: collapsed from 5-layer to 2-layer. Layers 2/3/4 of v6.4.2
 # were all PROVEN TO FAIL sandbox reset (field-tested during v6.4.0 dev):
-#   - skills/stellar-frameworks/boot.sh — excluded from repo.tar by
+#   - skills/stellar-trails/boot.sh — excluded from repo.tar by
 #     tar --exclude-vcs-ignores bug (doesn't honor !pattern negation)
-#   - /home/z/my-project/.stellar-frameworks-repo/boot.sh — gitignored,
+#   - /home/z/my-project/.stellar-trails-repo/boot.sh — gitignored,
 #     not in repo.tar snapshot
-#   - ~/.stellar-frameworks-repo/boot.sh — home dir wiped on reset
+#   - ~/.stellar-trails-repo/boot.sh — home dir wiped on reset
 # Only Layer 1 (.zscripts/, included in repo.tar) and Layer 2 (fresh
 # clone, network-dependent) survive. Keeping failed fallbacks added
 # complexity without value — they never fire in practice.
-STELLAR_LOG="$HOME/.stellar-boot.log"
+STELLAR_LOG="$HOME/.stellar-trails.log"
 echo "[skill $(date -Iseconds 2>/dev/null) ] SKILL.md invoked — running audited bootstrap" >> "$STELLAR_LOG" 2>/dev/null
 
-# Layer 1: .zscripts/stellar-frameworks/boot.sh (PRIMARY — survives reset)
-if [ -f /home/z/my-project/.zscripts/stellar-frameworks/boot.sh ]; then
-  bash /home/z/my-project/.zscripts/stellar-frameworks/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
+# Layer 1: .zscripts/stellar-trails/boot.sh (PRIMARY — survives reset)
+if [ -f /home/z/my-project/.zscripts/stellar-trails/boot.sh ]; then
+  bash /home/z/my-project/.zscripts/stellar-trails/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
 # Layer 2: fresh clone from GitHub (last resort, requires network)
 else
   echo "[skill $(date -Iseconds 2>/dev/null) ] no install found — fresh clone" >> "$STELLAR_LOG"
-  git clone https://github.com/hoshiyomiX/stellar-frameworks.git /tmp/stellar-frameworks-fresh-clone >> "$STELLAR_LOG" 2>&1
-  bash /tmp/stellar-frameworks-fresh-clone/boot.sh --audited >> "$STELLAR_LOG" 2>&1
-  rm -rf /tmp/stellar-frameworks-fresh-clone
+  git clone https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-trails-fresh-clone >> "$STELLAR_LOG" 2>&1
+  bash /tmp/stellar-trails-fresh-clone/boot.sh --audited >> "$STELLAR_LOG" 2>&1
+  rm -rf /tmp/stellar-trails-fresh-clone
 fi
 ```
-Two-layer fallback (v6.4.3): (1) `.zscripts/stellar-frameworks/boot.sh` (PRIMARY — survives reset reliably, included in `repo.tar`) → (2) fresh clone from GitHub (last resort, network required). **v6.4.3 change**: collapsed from 5-layer to 2-layer after field-testing proved layers 2/3/4 of v6.4.2 all failed sandbox reset. The platform's `/start.sh` rewrites `.gitignore` to exclude `skills/`, `tar --exclude-vcs-ignores` doesn't honor gitignore negation patterns, and home/project working-tree clones are not in `repo.tar` snapshot. `.zscripts/` is the only location that reliably survives. All actions logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Popup assets (index.html, chibi.png) also live in `.zscripts/` (co-located with the skill). Idempotent — prints "Skill files OK" if everything is current.
+Two-layer fallback (v6.4.3): (1) `.zscripts/stellar-trails/boot.sh` (PRIMARY — survives reset reliably, included in `repo.tar`) → (2) fresh clone from GitHub (last resort, network required). **v6.4.3 change**: collapsed from 5-layer to 2-layer after field-testing proved layers 2/3/4 of v6.4.2 all failed sandbox reset. The platform's `/start.sh` rewrites `.gitignore` to exclude `skills/`, `tar --exclude-vcs-ignores` doesn't honor gitignore negation patterns, and home/project working-tree clones are not in `repo.tar` snapshot. `.zscripts/` is the only location that reliably survives. All actions logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Popup assets (index.html, chibi.png) also live in `.zscripts/` (co-located with the skill). Idempotent — prints "Skill files OK" if everything is current.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -58,7 +58,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR · v6.4.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.0.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

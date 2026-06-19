@@ -1,16 +1,29 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal, audited (git-tracked) v6.3.0
+# stellar-trails — Install, self-heal, audited (git-tracked) v7.0.0
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
-# Self-heal: after first run, adds hook to shell init files.
+# Self-heal: SKILL.md bootstrap (2-layer fallback) is the ONLY heal mechanism.
+#            No shell init hooks (v6.4.0 removed ~/.bashrc/.bash_profile/.profile hooks).
 # Popup preview: creates .zscripts/dev.sh AND launches it for immediate :3000 serving.
-# Install:  [ -d ~/.stellar-frameworks-repo ] || git clone https://github.com/hoshiyomiX/stellar-frameworks.git ~/.stellar-frameworks-repo
-#           bash ~/.stellar-frameworks-repo/boot.sh
-# Invoke:  bash ~/.stellar-frameworks-repo/boot.sh [--fast] [--audited] [--offline] [--clean]
+# v6.4.0: Single-clone model — boot.sh uses its own dir as repo root. No $HOME re-clone.
+# v6.4.2: Dual-location install — skills/stellar-trails/ (platform-discovered)
+#         + .zscripts/stellar-trails/ (reliably survives sandbox reset).
+# v6.4.3: Collapsed SKILL.md bootstrap from 5-layer to 2-layer (kept only the
+#         layers proven to survive sandbox reset: .zscripts/ + fresh GitHub clone).
+# v7.0.0: REBRAND stellar-frameworks → stellar-trails. Breaking change:
+#         - Repo renamed: github.com/hoshiyomiX/stellar-frameworks → stellar-trails
+#         - Skill name: Skill(command='stellar-frameworks') → 'stellar-trails'
+#         - Directory names: skill/stellar-frameworks/ → skill/stellar-trails/
+#           (also skills/ and .zscripts/ load paths)
+#         - Log file: ~/.stellar-boot.log → ~/.stellar-trails.log
+#         - GitHub auto-redirects old repo URL → new (soft migration)
+# Install:  git clone https://github.com/hoshiyomiX/stellar-trails.git <path>
+#           bash <path>/boot.sh
+# Invoke:   bash <path>/boot.sh [--fast] [--audited] [--offline] [--clean]
 #
 # Flags:
 #   --fast              Skip file copy if already installed and version matches.
 #                       Does NOT skip upstream check — upstream is ALWAYS probed.
-#   --audited           Verbose logging to ~/.stellar-boot.log (timestamps + reasons).
+#   --audited           Verbose logging to ~/.stellar-trails.log (timestamps + reasons).
 #   --offline           Skip upstream check entirely (no git fetch). For air-gapped
 #                       environments. Overrides --fast behavior to pure local.
 #   --clean             Nuke ALL generated files before install (skills/, .zscripts/,
@@ -30,13 +43,13 @@
 #
 # v6.3.0 — Loud Sterilization:
 #   All destructive operations (git reset --hard, submodule purge, dev server kill)
-#   now log to ~/.stellar-boot.log with ISO-8601 timestamps + before/after state.
+#   now log to ~/.stellar-trails.log with ISO-8601 timestamps + before/after state.
 #   Silent 2>/dev/null replaced with loud logging. Audit trail always available.
 #   Skill description and trigger behavior UNCHANGED (universal activation preserved).
 #
 # Path architecture (v5.9.0):
-#   GIT_REPO   = $HOME/.stellar-frameworks-repo   (survives project resets)
-#   INSTALL    = $PROJECT_ROOT/skills/stellar-frameworks  (platform load path)
+#   GIT_REPO   = SCRIPT_DIR (dir of boot.sh itself — no separate home clone)
+#   INSTALL    = $PROJECT_ROOT/skills/stellar-trails  (platform load path)
 #   Hook lives in $HOME init files (survives project resets)
 #   If repo is missing, hook auto-clones from GitHub before booting.
 #
@@ -45,7 +58,7 @@
 #   Layer 1: Hook (shell init) — clone-if-missing + boot.sh --fast (upstream check built-in)
 #   Layer 2: Health check — if SKILL.md missing/empty after boot, reinstall
 #   Layer 3: repo.tar fallback — copy from git-tracked skill/ if repo clone fails
-#   Log: $HOME/.stellar-boot.log (rotated, last 500 lines, audited in v6.3.0)
+#   Log: $HOME/.stellar-trails.log (rotated, last 500 lines, audited in v6.3.0)
 
 set -euo pipefail
 
@@ -91,27 +104,66 @@ for ((i=0; i<${#args[@]}; i++)); do
 done
 
 # ── 0. Path configuration ──────────────────────────────────────────
-REPO_URL="https://github.com/hoshiyomiX/stellar-frameworks.git"
+REPO_URL="https://github.com/hoshiyomiX/stellar-trails.git"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/z/my-project}"
-TARGET_DIR="${STELLAR_REPO_PATH:-$HOME/.stellar-frameworks-repo}"
+# v6.4.0: Single-clone model — boot.sh uses its own directory as the repo root.
+# No separate $HOME/.stellar-trails-repo clone. Eliminates triple-clone redundancy.
+# SCRIPT_DIR is authoritative; STELLAR_REPO_PATH override kept for edge cases only.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET_DIR="${STELLAR_REPO_PATH:-$SCRIPT_DIR}"
 
-if [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ] && \
-   [ "$(basename "$SCRIPT_DIR")" != "stellar-frameworks" ]; then
-  SCRIPT_DIR="$TARGET_DIR"
+# v6.4.0: Detect WHERE boot.sh is running from.
+# Case A: boot.sh inside a git repo (canonical source, e.g. .stellar-trails-repo/)
+#   → SCRIPT_DIR has .git, SOURCE_DIR = SCRIPT_DIR/skill/stellar-trails
+# Case B: boot.sh co-located in skills/stellar-trails/ (post-install copy)
+#   → SCRIPT_DIR has SKILL.md but no .git. SOURCE_DIR = SCRIPT_DIR itself
+#     (the cp -a already put all skill files alongside boot.sh).
+# Case C: boot.sh inside skills/stellar-trails/ AND we can find a parent
+#   git repo that IS the stellar-trails repo (has skill/stellar-trails/)
+#   → walk up to use that as SCRIPT_DIR (lets --verify find .checksums, etc.)
+# Note: do NOT adopt project root /home/z/my-project just because it has
+# .stellar-trails-repo/ — that's not the stellar repo itself.
+SOURCE_DIR="$SCRIPT_DIR/skill/stellar-trails"
+
+if [ ! -d "$SCRIPT_DIR/.git" ]; then
+  # boot.sh not in a git repo — try walking up to find stellar repo (Case C)
+  found_stellar_repo=""
+  cur="$SCRIPT_DIR"
+  for _ in 1 2 3 4; do
+    parent="$(cd "$cur/.." && pwd 2>/dev/null)" || break
+    [ "$parent" = "$cur" ] && break  # reached /
+    if [ -d "$parent/.git" ] && [ -d "$parent/skill/stellar-trails" ]; then
+      found_stellar_repo="$parent"
+      break
+    fi
+    cur="$parent"
+  done
+
+  if [ -n "$found_stellar_repo" ]; then
+    # Case C: parent is the stellar repo
+    SCRIPT_DIR="$found_stellar_repo"
+    TARGET_DIR="$SCRIPT_DIR"
+    SOURCE_DIR="$SCRIPT_DIR/skill/stellar-trails"
+  elif [ -f "$SCRIPT_DIR/SKILL.md" ]; then
+    # Case B: co-located in skills/stellar-trails/ (no parent stellar repo)
+    SOURCE_DIR="$SCRIPT_DIR"
+  fi
 fi
 
-SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
-if [ ! -d "$SOURCE_DIR" ] && [ -f "$SCRIPT_DIR/SKILL.md" ]; then
-  SOURCE_DIR="$SCRIPT_DIR"
-fi
-
-INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
+INSTALL_DIR="$PROJECT_ROOT/skills/stellar-trails"
 OBSOLETE_DIR="$PROJECT_ROOT/skills/stellar-coding-agent"
 ZSCRIPTS="$PROJECT_ROOT/.zscripts"
 DEV_SCRIPT="$ZSCRIPTS/dev.sh"
+# v6.4.2: PERSISTENT_BAKED_DIR is the dual-location copy that survives sandbox
+# reset reliably. /home/z/my-project/skills/ is gitignored by z.ai platform's
+# /start.sh (always rewritten to "skills/\nnode_modules/"), and tar snapshot
+# mechanism uses --exclude-vcs-ignores which doesn't honor gitignore negation
+# patterns (!skills/stellar-trails/). .zscripts/ is NOT touched by /start.sh
+# and IS included in repo.tar snapshot. SKILL.md bootstrap layer 1 reads from
+# this dir first, falling back to INSTALL_DIR if not present.
+PERSISTENT_BAKED_DIR="$ZSCRIPTS/stellar-trails"
 DOWNLOAD_DIR="$PROJECT_ROOT/download"
-BOOT_LOG="$HOME/.stellar-boot.log"
+BOOT_LOG="$HOME/.stellar-trails.log"
 
 # ── Logging utilities (v6.3.0 — Loud Sterilization) ────────────────
 # All operations log with ISO-8601 timestamps. AUDITED_MODE adds stdout echo.
@@ -224,16 +276,16 @@ fi
 if $DRY_RUN; then
   log_info "DRY-RUN MODE — no actions will be executed, printing plan only"
   log_info "Would: clean stale install (if --clean also set)"
-  log_info "Would: clone $REPO_URL → $TARGET_DIR (if missing)"
+  log_info "Would: use SCRIPT_DIR as repo root: $SCRIPT_DIR"
   log_info "Would: git fetch origin (unless --offline)"
   log_info "Would: git reset --hard origin/<branch> (if upstream diverged AND no unpushed commits)"
   log_info "Would: purge submodules in $PROJECT_ROOT/.git (unless --keep-submodules)"
-  log_info "Would: cp -a skill/stellar-frameworks → $INSTALL_DIR"
+  log_info "Would: cp -a skill/stellar-trails → $INSTALL_DIR"
   log_info "Would: copy boot.sh → $INSTALL_DIR/boot.sh"
   log_info "Would: write $ZSCRIPTS/index.html + chibi.png"
   log_info "Would: write $DEV_SCRIPT (with SIGTERM trap)"
   log_info "Would: launch bash \$DEV_SCRIPT & (if :3000 free)"
-  log_info "Would: write auto-heal hook to ~/.bashrc, ~/.bash_profile, ~/.profile"
+  log_info "Would: CLEAN legacy v6.3.0 hooks from ~/.bashrc, ~/.bash_profile, ~/.profile (no new hooks written)"
   log_info "DRY-RUN complete — no files modified, no processes spawned"
   exit 0
 fi
@@ -279,17 +331,17 @@ if $CLEAN_MODE; then
   rm -f "$ZSCRIPTS/index.html" "$ZSCRIPTS/chibi.png" 2>/dev/null
   log_info "Removed popup preview files"
   # Remove managed dev.sh
-  if [ -f "$DEV_SCRIPT" ] && grep -qF "# stellar-frameworks dev server" "$DEV_SCRIPT" 2>/dev/null; then
+  if [ -f "$DEV_SCRIPT" ] && grep -qF "# stellar-trails dev server" "$DEV_SCRIPT" 2>/dev/null; then
     rm -f "$DEV_SCRIPT"
     log_info "Removed .zscripts/dev.sh"
   fi
   # Remove hooks from init files
   for HOOK_FILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-    if [ -f "$HOOK_FILE" ] && grep -qF "stellar-frameworks" "$HOOK_FILE" 2>/dev/null; then
+    if [ -f "$HOOK_FILE" ] && grep -qF "stellar-trails" "$HOOK_FILE" 2>/dev/null; then
       log_step "Cleaning hook from $HOOK_FILE"
-      sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
+      sed -i '/# stellar-trails auto-heal/d' "$HOOK_FILE"
+      sed -i '/stellar-trails.*boot\.sh/d' "$HOOK_FILE"
+      sed -i '/stellar-trails-repo/d' "$HOOK_FILE"
       [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE"
     fi
   done
@@ -301,35 +353,40 @@ if $CLEAN_MODE; then
   log_info "Nuke complete — proceeding with fresh install"
 fi
 
-# ── 0a. Auto-clone: ensure repo exists ─────────────────────────────
-OLD_REPO_DIR="$PROJECT_ROOT/stellar-frameworks"
+# ── 0a. v6.4.0: No auto-clone (single-clone model) ────────────────
+# boot.sh uses SCRIPT_DIR (its own location) as repo root. If not a git repo,
+# user must clone manually. No silent $HOME re-clone (eliminates triple-clone).
+OLD_REPO_DIR="$PROJECT_ROOT/stellar-trails"
 
-if [ ! -d "$TARGET_DIR/.git" ]; then
-  if [ -d "$OLD_REPO_DIR/.git" ]; then
-    log_info "Migrating repo: $OLD_REPO_DIR → $TARGET_DIR"
-    mkdir -p "$HOME"
-    mv "$OLD_REPO_DIR" "$TARGET_DIR"
-    SCRIPT_DIR="$TARGET_DIR"
-    SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
-  else
-    log_info "Repo not found — cloning from GitHub (loud, logged)"
-    mkdir -p "$HOME"
-    if ! git clone "$REPO_URL" "$TARGET_DIR" >> "$BOOT_LOG" 2>&1; then
-      log_error "git clone failed. Check network or run manually:"
-      log_error "  git clone $REPO_URL $TARGET_DIR"
+if [ ! -d "$SCRIPT_DIR/.git" ]; then
+  # boot.sh not in a git repo. Three valid sub-cases:
+  #   (a) Co-located in skills/stellar-trails/ with SKILL.md → already
+  #       installed, SOURCE_DIR=SCRIPT_DIR (set above in path config block).
+  #       This is the SKILL.md bootstrap layer 1 path. Valid, no action needed.
+  #   (b) Found stellar repo parent (Case C from path config) → SCRIPT_DIR
+  #       already updated to that repo. Re-check .git.
+  #   (c) Truly orphaned boot.sh → error out.
+  if [ -f "$SCRIPT_DIR/SKILL.md" ] && [ -d "$SCRIPT_DIR" ]; then
+    # Sub-case (a): co-located, no .git but has SKILL.md — valid post-install state
+    log_info "Running from co-located install (no .git) — using skills/ as source"
+  elif [ -d "$OLD_REPO_DIR/.git" ]; then
+    log_info "Migrating repo: $OLD_REPO_DIR → $SCRIPT_DIR"
+    mv "$OLD_REPO_DIR" "$SCRIPT_DIR" 2>/dev/null || {
+      log_error "Could not migrate $OLD_REPO_DIR → $SCRIPT_DIR"
+      log_error "Clone manually: git clone $REPO_URL <path> && bash <path>/boot.sh"
       exit 1
-    fi
-    log_info "Cloned successfully"
-    SCRIPT_DIR="$TARGET_DIR"
-    SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
+    }
+    SOURCE_DIR="$SCRIPT_DIR/skill/stellar-trails"
+  else
+    log_error "boot.sh is not inside a git repo and no SKILL.md co-located. Clone first:"
+    log_error "  git clone $REPO_URL <path>"
+    log_error "  bash <path>/boot.sh"
+    exit 1
   fi
-elif [ "$(basename "$SCRIPT_DIR")" != ".stellar-frameworks-repo" ]; then
-  SCRIPT_DIR="$TARGET_DIR"
-  SOURCE_DIR="$TARGET_DIR/skill/stellar-frameworks"
 fi
 
 # ── 0b. Stale install cleanup ──────────────────────────────────────
-STALE_SKILL_DIR="$PROJECT_ROOT/skill/stellar-frameworks"
+STALE_SKILL_DIR="$PROJECT_ROOT/skill/stellar-trails"
 if [ -d "$STALE_SKILL_DIR" ]; then
   log_step "Removing stale skill/ (singular) install"
   rm -rf "${STALE_SKILL_DIR:?}"
@@ -361,7 +418,7 @@ if [ -d "$PROJECT_ROOT/.git" ] && ! $KEEP_SUBMODULES; then
   if $HAS_GITMODULES || $HAS_STAGE_160000; then
     PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
     PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
-    EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+    EXPECTED_REPO="github.com/hoshiyomiX/stellar-trails"
 
     if [ "$PROJECT_REPO" != "$EXPECTED_REPO" ]; then
       log_step "Submodule contamination detected in project repo — purging (audited)"
@@ -468,11 +525,11 @@ if ! $OFFLINE_MODE && [ -d "$SCRIPT_DIR/.git" ]; then
   fi
 fi
 
-# ── 1. Force-sync project dir if it IS the stellar-frameworks repo ──
+# ── 1. Force-sync project dir if it IS the stellar-trails repo ──
 if [ -d "$PROJECT_ROOT/.git" ]; then
   PROJECT_REMOTE="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || echo "")"
   PROJECT_REPO="$(echo "$PROJECT_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+?)(\.git)?$|\1|')"
-  EXPECTED_REPO="github.com/hoshiyomiX/stellar-frameworks"
+  EXPECTED_REPO="github.com/hoshiyomiX/stellar-trails"
   if [ "$PROJECT_REPO" = "$EXPECTED_REPO" ]; then
     PROJECT_BRANCH="$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "main")"
     P_LOCAL="$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)"
@@ -480,12 +537,12 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
     if [ "$P_LOCAL" != "$P_REMOTE" ] && [ -n "$P_REMOTE" ]; then
       P_UNPUSHED="$(git -C "$PROJECT_ROOT" log --oneline "origin/$PROJECT_BRANCH..HEAD" 2>/dev/null)"
       if [ -z "$P_UNPUSHED" ]; then
-        log_step "Project dir matches stellar-frameworks remote — force-syncing"
+        log_step "Project dir matches stellar-trails remote — force-syncing"
         git -C "$PROJECT_ROOT" fetch origin "$PROJECT_BRANCH" --quiet >> "$BOOT_LOG" 2>&1
         git -C "$PROJECT_ROOT" reset --hard "origin/$PROJECT_BRANCH" >> "$BOOT_LOG" 2>&1
         git -C "$PROJECT_ROOT" checkout -- . 2>/dev/null
-        cp -a "$PROJECT_ROOT/skill/stellar-frameworks" "$PROJECT_ROOT/skills/stellar-frameworks"
-        cp -- "$PROJECT_ROOT/boot.sh" "$PROJECT_ROOT/skills/stellar-frameworks/boot.sh" 2>/dev/null
+        cp -a "$PROJECT_ROOT/skill/stellar-trails" "$PROJECT_ROOT/skills/stellar-trails"
+        cp -- "$PROJECT_ROOT/boot.sh" "$PROJECT_ROOT/skills/stellar-trails/boot.sh" 2>/dev/null
         log_info "Project dir force-synced (was contaminated/diverged)"
       else
         log_warn "project dir has unpushed commits — skipping force-sync"
@@ -507,7 +564,12 @@ fi
 # ── 2. Install / self-heal: copy skill/ → skills/ ──────────────────
 NEED_INSTALL=false
 
-if $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
+# v6.4.0: If boot.sh is running from INSTALL_DIR itself (co-located copy,
+# SKILL.md bootstrap layer 1), there's nothing to install — SOURCE_DIR
+# and INSTALL_DIR are the same directory. Skip install entirely.
+if [ "$(cd "$SOURCE_DIR" 2>/dev/null && pwd)" = "$(cd "$INSTALL_DIR" 2>/dev/null && pwd)" ]; then
+  log_info "Running from install dir (co-located) — no copy needed"
+elif $UPSTREAM_CURRENT && $FAST_MODE && [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/SKILL.md" ] && [ -s "$INSTALL_DIR/SKILL.md" ]; then
   INSTALLED_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   SOURCE_VER="$(grep -oP 'version\*{2}:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$SOURCE_DIR/SKILL.md" 2>/dev/null || echo "0.0.0")"
   if [ "$INSTALLED_VER" = "$SOURCE_VER" ]; then
@@ -538,7 +600,7 @@ fi
 
 if $NEED_INSTALL; then
   if [ ! -d "$SOURCE_DIR" ] || [ ! -f "$SOURCE_DIR/SKILL.md" ]; then
-    TARBALL_SOURCE="$PROJECT_ROOT/skill/stellar-frameworks"
+    TARBALL_SOURCE="$PROJECT_ROOT/skill/stellar-trails"
     if [ -d "$TARBALL_SOURCE" ] && [ -f "$TARBALL_SOURCE/SKILL.md" ]; then
       log_warn "Repo source unavailable — falling back to repo.tar source (skill/)"
       SOURCE_DIR="$TARBALL_SOURCE"
@@ -554,6 +616,21 @@ if $NEED_INSTALL; then
 
   # Copy boot.sh into skills/ so it's co-located with SKILL.md
   cp -- "$SCRIPT_DIR/boot.sh" "$INSTALL_DIR/boot.sh"
+
+  # v6.4.2: Also copy to PERSISTENT_BAKED_DIR (.zscripts/stellar-trails/)
+  # This is the dual-location that reliably survives sandbox reset:
+  #   - skills/ is gitignored by /start.sh (always rewritten)
+  #   - tar --exclude-vcs-ignores doesn't honor gitignore negation
+  #   - .zscripts/ is not touched by /start.sh and is included in repo.tar
+  # SKILL.md bootstrap layer 1 reads from this dir first.
+  if [ "$PERSISTENT_BAKED_DIR" != "$INSTALL_DIR" ] && [ -d "$ZSCRIPTS" ]; then
+    log_step "Mirroring skill files → $PERSISTENT_BAKED_DIR (persistent backup)"
+    mkdir -p "$PERSISTENT_BAKED_DIR"
+    rm -rf "${PERSISTENT_BAKED_DIR:?}"
+    cp -a "$SOURCE_DIR" "$PERSISTENT_BAKED_DIR"
+    cp -- "$SCRIPT_DIR/boot.sh" "$PERSISTENT_BAKED_DIR/boot.sh"
+    log_info "Persistent backup mirrored to $PERSISTENT_BAKED_DIR"
+  fi
 
   # Verify critical files
   ERRORS=0
@@ -646,18 +723,18 @@ SPLASH
 log_info "Landing page created"
 
 # ── Ensure .zscripts/dev.sh exists and is up-to-date (v6.3.0: killable) ──
-DEV_SCRIPT_MARKER="# stellar-frameworks dev server"
+DEV_SCRIPT_MARKER="# stellar-trails dev server"
 
 write_dev_sh() {
   cat > "$DEV_SCRIPT" << 'DEVSH'
 #!/bin/bash
-# stellar-frameworks dev server v6.3.0 — persistent + killable
+# stellar-trails dev server v6.3.0 — persistent + killable
 # Auto-restarts on crash (preserved from v6.2.0).
 # Killable via SIGTERM/SIGINT (NEW in v6.3.0): pkill -f dev.sh now works.
-# All output logged to ~/.stellar-boot.log (audited).
+# All output logged to ~/.stellar-trails.log (audited).
 # Created by boot.sh — do not edit manually.
 
-DEV_LOG="$HOME/.stellar-boot.log"
+DEV_LOG="$HOME/.stellar-trails.log"
 
 dev_log() {
   local ts
@@ -708,7 +785,7 @@ elif ! grep -qF "$DEV_SCRIPT_MARKER" "$DEV_SCRIPT" 2>/dev/null; then
   log_info "dev.sh already exists (external) — keeping it"
 else
   if $FAST_MODE; then
-    log_info "dev.sh OK (managed by stellar-frameworks, --fast skip)"
+    log_info "dev.sh OK (managed by stellar-trails, --fast skip)"
   else
     log_step "Overwriting dev.sh (managed, normal mode — ensures content freshness)"
     mkdir -p "$ZSCRIPTS"
@@ -735,88 +812,58 @@ if [ -f "$DEV_SCRIPT" ]; then
   fi
 fi
 
-# ── 4. Self-heal persistence (hook) — v6.3.0 audited ──────────────
-# Hook PRESERVED in all 3 init files (user constraint).
-# v6.3.0: hook now logs to ~/.stellar-boot.log with timestamps.
-# Hook still runs boot.sh --fast (which does git fetch + possible reset --hard).
-# All output redirected to log file (loud), not /dev/null.
-# Written via heredoc to avoid printf escape-sequence bugs with \[ and \].
-BASHRC_MARKER="# stellar-frameworks auto-heal"
+# ── 4. Self-heal: SKILL.md bootstrap is the ONLY heal mechanism ──
+# v6.4.0: Shell init hooks REMOVED. No more ~/.bashrc, ~/.bash_profile,
+# ~/.profile modifications. Healing happens exclusively via the 4-layer
+# bootstrap in SKILL.md (skills/stellar-trails/boot.sh → project boot.sh
+# → home repo → fresh clone).
+#
+# This block now does CLEANUP ONLY: strips any legacy v6.3.0 hooks from
+# shell init files so upgrades from v6.3.0 → v6.4.0 are clean.
+BASHRC_MARKER="# stellar-trails auto-heal"
 
-# Clean up stale hook from wrong path (v5.4.1 bug)
+# Clean up legacy hooks from all shell init files (v6.3.0 → v6.4.0 migration)
 STALE_BASHRC="$PROJECT_ROOT/.bashrc"
-if [ -f "$STALE_BASHRC" ] && grep -qF "$BASHRC_MARKER" "$STALE_BASHRC" 2>/dev/null; then
-  log_step "Cleaning stale hook from $STALE_BASHRC"
-  sed -i '/# stellar-frameworks auto-heal/d' "$STALE_BASHRC"
-  sed -i '/stellar-frameworks.*boot\.sh/d' "$STALE_BASHRC"
-  [ ! -s "$STALE_BASHRC" ] && rm -f "$STALE_BASHRC"
-fi
+HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$STALE_BASHRC")
+HOOKS_CLEANED=0
 
-HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile")
-HOOKS_WRITTEN=0
-
-# Generate hook content via heredoc — expands $VARS at write time,
-# but preserves backslashes and special chars literally.
-# Using quoted 'HOOK_CONTENT' would prevent var expansion, so we use
-# unquoted heredoc and escape $STELLAR_* with \$ to delay eval.
 for HOOK_FILE in "${HOOK_TARGETS[@]}"; do
-  if [ -f "$HOOK_FILE" ]; then
-    if grep -qF "boot.sh" "$HOOK_FILE" 2>/dev/null; then
-      log_step "Removing old hook from $HOOK_FILE (will rewrite)"
-      sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
-      sed -i '/STELLAR_LOG=/d' "$HOOK_FILE"
-      sed -i '/STELLAR_REPO=/d' "$HOOK_FILE"
-      sed -i '/STELLAR_SKILL=/d' "$HOOK_FILE"
-      sed -i '/stellar auto-heal/d' "$HOOK_FILE"
-      sed -i '/shell startup — running/d' "$HOOK_FILE"
-      sed -i '/repo missing — cloning/d' "$HOOK_FILE"
-      sed -i '/skill files MISSING/d' "$HOOK_FILE"
-      # v6.3.0: also clean leftover tail/cleanup lines from prior hook rewrites
-      sed -i '/tail -500 "\$STELLAR_LOG"/d' "$HOOK_FILE"
-      sed -i '/STELLAR_LOG\.tmp/d' "$HOOK_FILE"
-      sed -i '/bash "\$STELLAR_REPO\/boot\.sh"/d' "$HOOK_FILE"
-    fi
-    cat >> "$HOOK_FILE" <<HOOK_EOF
-
-$BASHRC_MARKER
-STELLAR_LOG="$HOME/.stellar-boot.log"
-STELLAR_REPO="$TARGET_DIR"
-STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
-echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
-[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
-bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
-[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
-tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
-HOOK_EOF
-  else
-    cat > "$HOOK_FILE" <<HOOK_EOF
-$BASHRC_MARKER
-STELLAR_LOG="$HOME/.stellar-boot.log"
-STELLAR_REPO="$TARGET_DIR"
-STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
-echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
-[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
-bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
-[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
-tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
-HOOK_EOF
+  if [ -f "$HOOK_FILE" ] && grep -qF "$BASHRC_MARKER" "$HOOK_FILE" 2>/dev/null; then
+    log_step "Cleaning legacy v6.3.0 hook from $HOOK_FILE"
+    # Strip the entire hook block: from marker line to end of file (hook was appended at EOF)
+    # Use python for safe in-place edit (sed -i /pattern/,$d has portability quirks)
+    python3 -c "
+import sys
+path = '$HOOK_FILE'
+with open(path) as fh:
+    content = fh.read()
+marker = '$BASHRC_MARKER'
+idx = content.find(marker)
+if idx >= 0:
+    new_content = content[:idx].rstrip() + '\n'
+    with open(path, 'w') as fh:
+        fh.write(new_content)
+    print(f'  cleaned: {path}')
+" && HOOKS_CLEANED=$((HOOKS_CLEANED + 1))
+    # Remove now-empty file (only if it had ONLY the hook)
+    [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE" 2>/dev/null
   fi
-  HOOKS_WRITTEN=$((HOOKS_WRITTEN + 1))
-  log_info "Hook written to $HOOK_FILE"
 done
 
-log_info "Auto-heal hook written to $HOOKS_WRITTEN/3 init files (audited, with timestamps)"
+if [ $HOOKS_CLEANED -gt 0 ]; then
+  log_info "Cleaned $HOOKS_CLEANED legacy shell hook(s) — healing now via SKILL.md bootstrap only"
+else
+  log_info "No legacy shell hooks found — healing via SKILL.md bootstrap only"
+fi
 
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.3.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v7.0.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, killable).       ║"
-  echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
+  echo "║  Invoke: Skill(command=\"stellar-trails\")                 ║"
   echo "║  Repo: $TARGET_DIR"
-  echo "║  Auto-heal: hook in 3 init files + health check + log.     ║"
+  echo "║  Self-heal: SKILL.md 2-layer bootstrap (no shell hooks).   ║"
   echo "║  Audit log: $BOOT_LOG                          ║"
   echo "║  Stop server: boot.sh --stop-dev-server                    ║"
   echo "║  Verify:     boot.sh --verify                              ║"
