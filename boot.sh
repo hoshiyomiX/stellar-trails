@@ -244,7 +244,7 @@ if $DRY_RUN; then
   log_info "Would: write $ZSCRIPTS/index.html + chibi.png"
   log_info "Would: write $DEV_SCRIPT (with SIGTERM trap)"
   log_info "Would: launch bash \$DEV_SCRIPT & (if :3000 free)"
-  log_info "Would: write auto-heal hook to ~/.bashrc, ~/.bash_profile, ~/.profile"
+  log_info "Would: CLEAN legacy v6.3.0 hooks from ~/.bashrc, ~/.bash_profile, ~/.profile (no new hooks written)"
   log_info "DRY-RUN complete — no files modified, no processes spawned"
   exit 0
 fi
@@ -742,88 +742,58 @@ if [ -f "$DEV_SCRIPT" ]; then
   fi
 fi
 
-# ── 4. Self-heal persistence (hook) — v6.3.0 audited ──────────────
-# Hook PRESERVED in all 3 init files (user constraint).
-# v6.3.0: hook now logs to ~/.stellar-boot.log with timestamps.
-# Hook still runs boot.sh --fast (which does git fetch + possible reset --hard).
-# All output redirected to log file (loud), not /dev/null.
-# Written via heredoc to avoid printf escape-sequence bugs with \[ and \].
+# ── 4. Self-heal: SKILL.md bootstrap is the ONLY heal mechanism ──
+# v6.4.0: Shell init hooks REMOVED. No more ~/.bashrc, ~/.bash_profile,
+# ~/.profile modifications. Healing happens exclusively via the 4-layer
+# bootstrap in SKILL.md (skills/stellar-frameworks/boot.sh → project boot.sh
+# → home repo → fresh clone).
+#
+# This block now does CLEANUP ONLY: strips any legacy v6.3.0 hooks from
+# shell init files so upgrades from v6.3.0 → v6.4.0 are clean.
 BASHRC_MARKER="# stellar-frameworks auto-heal"
 
-# Clean up stale hook from wrong path (v5.4.1 bug)
+# Clean up legacy hooks from all shell init files (v6.3.0 → v6.4.0 migration)
 STALE_BASHRC="$PROJECT_ROOT/.bashrc"
-if [ -f "$STALE_BASHRC" ] && grep -qF "$BASHRC_MARKER" "$STALE_BASHRC" 2>/dev/null; then
-  log_step "Cleaning stale hook from $STALE_BASHRC"
-  sed -i '/# stellar-frameworks auto-heal/d' "$STALE_BASHRC"
-  sed -i '/stellar-frameworks.*boot\.sh/d' "$STALE_BASHRC"
-  [ ! -s "$STALE_BASHRC" ] && rm -f "$STALE_BASHRC"
-fi
+HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$STALE_BASHRC")
+HOOKS_CLEANED=0
 
-HOOK_TARGETS=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile")
-HOOKS_WRITTEN=0
-
-# Generate hook content via heredoc — expands $VARS at write time,
-# but preserves backslashes and special chars literally.
-# Using quoted 'HOOK_CONTENT' would prevent var expansion, so we use
-# unquoted heredoc and escape $STELLAR_* with \$ to delay eval.
 for HOOK_FILE in "${HOOK_TARGETS[@]}"; do
-  if [ -f "$HOOK_FILE" ]; then
-    if grep -qF "boot.sh" "$HOOK_FILE" 2>/dev/null; then
-      log_step "Removing old hook from $HOOK_FILE (will rewrite)"
-      sed -i '/# stellar-frameworks auto-heal/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks.*boot\.sh/d' "$HOOK_FILE"
-      sed -i '/stellar-frameworks-repo/d' "$HOOK_FILE"
-      sed -i '/STELLAR_LOG=/d' "$HOOK_FILE"
-      sed -i '/STELLAR_REPO=/d' "$HOOK_FILE"
-      sed -i '/STELLAR_SKILL=/d' "$HOOK_FILE"
-      sed -i '/stellar auto-heal/d' "$HOOK_FILE"
-      sed -i '/shell startup — running/d' "$HOOK_FILE"
-      sed -i '/repo missing — cloning/d' "$HOOK_FILE"
-      sed -i '/skill files MISSING/d' "$HOOK_FILE"
-      # v6.3.0: also clean leftover tail/cleanup lines from prior hook rewrites
-      sed -i '/tail -500 "\$STELLAR_LOG"/d' "$HOOK_FILE"
-      sed -i '/STELLAR_LOG\.tmp/d' "$HOOK_FILE"
-      sed -i '/bash "\$STELLAR_REPO\/boot\.sh"/d' "$HOOK_FILE"
-    fi
-    cat >> "$HOOK_FILE" <<HOOK_EOF
-
-$BASHRC_MARKER
-STELLAR_LOG="$HOME/.stellar-boot.log"
-STELLAR_REPO="$TARGET_DIR"
-STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
-echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
-[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
-bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
-[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
-tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
-HOOK_EOF
-  else
-    cat > "$HOOK_FILE" <<HOOK_EOF
-$BASHRC_MARKER
-STELLAR_LOG="$HOME/.stellar-boot.log"
-STELLAR_REPO="$TARGET_DIR"
-STELLAR_SKILL="$INSTALL_DIR/SKILL.md"
-echo "[stellar \$(date -Iseconds 2>/dev/null) ] shell startup — running stellar auto-heal" >> "\$STELLAR_LOG" 2>/dev/null
-[ -d "\$STELLAR_REPO/.git" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] repo missing — cloning" >> "\$STELLAR_LOG"; git clone "$REPO_URL" "\$STELLAR_REPO" >> "\$STELLAR_LOG" 2>&1; }
-bash "\$STELLAR_REPO/boot.sh" --fast --audited >> "\$STELLAR_LOG" 2>&1
-[ -s "\$STELLAR_SKILL" ] || { echo "[stellar \$(date -Iseconds 2>/dev/null) ] skill files MISSING — full recovery" >> "\$STELLAR_LOG"; bash "\$STELLAR_REPO/boot.sh" --audited >> "\$STELLAR_LOG" 2>&1; }
-tail -500 "\$STELLAR_LOG" > "\$STELLAR_LOG.tmp" && mv "\$STELLAR_LOG.tmp" "\$STELLAR_LOG" 2>/dev/null || true
-HOOK_EOF
+  if [ -f "$HOOK_FILE" ] && grep -qF "$BASHRC_MARKER" "$HOOK_FILE" 2>/dev/null; then
+    log_step "Cleaning legacy v6.3.0 hook from $HOOK_FILE"
+    # Strip the entire hook block: from marker line to end of file (hook was appended at EOF)
+    # Use python for safe in-place edit (sed -i /pattern/,$d has portability quirks)
+    python3 -c "
+import sys
+path = '$HOOK_FILE'
+with open(path) as fh:
+    content = fh.read()
+marker = '$BASHRC_MARKER'
+idx = content.find(marker)
+if idx >= 0:
+    new_content = content[:idx].rstrip() + '\n'
+    with open(path, 'w') as fh:
+        fh.write(new_content)
+    print(f'  cleaned: {path}')
+" && HOOKS_CLEANED=$((HOOKS_CLEANED + 1))
+    # Remove now-empty file (only if it had ONLY the hook)
+    [ ! -s "$HOOK_FILE" ] && rm -f "$HOOK_FILE" 2>/dev/null
   fi
-  HOOKS_WRITTEN=$((HOOKS_WRITTEN + 1))
-  log_info "Hook written to $HOOK_FILE"
 done
 
-log_info "Auto-heal hook written to $HOOKS_WRITTEN/3 init files (audited, with timestamps)"
+if [ $HOOKS_CLEANED -gt 0 ]; then
+  log_info "Cleaned $HOOKS_CLEANED legacy shell hook(s) — healing now via SKILL.md bootstrap only"
+else
+  log_info "No legacy shell hooks found — healing via SKILL.md bootstrap only"
+fi
 
 if $NEED_INSTALL; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  ☄️ v6.3.0 installed and ACTIVE — no restart needed!        ║"
+  echo "║  ☄️ v6.4.0 installed and ACTIVE — no restart needed!        ║"
   echo "║  Popup preview: LIVE on :3000 (persistent, killable).       ║"
   echo "║  Invoke: Skill(command=\"stellar-frameworks\")                 ║"
   echo "║  Repo: $TARGET_DIR"
-  echo "║  Auto-heal: hook in 3 init files + health check + log.     ║"
+  echo "║  Self-heal: SKILL.md 4-layer bootstrap (no shell hooks).   ║"
   echo "║  Audit log: $BOOT_LOG                          ║"
   echo "║  Stop server: boot.sh --stop-dev-server                    ║"
   echo "║  Verify:     boot.sh --verify                              ║"
