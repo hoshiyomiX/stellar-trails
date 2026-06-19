@@ -46,7 +46,7 @@ git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 \
 Jika butuh reproducible build dengan versi spesifik:
 
 ```bash
-PINNED_SHA=<v7.0.0-commit-sha-after-push>  # v7.0.0 — fill after commit
+PINNED_SHA=938fe896ba67565aa9e8eb2bfec41dfb4fb6a344  # v7.0.0
 git clone --quiet https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-install
 cd /tmp/stellar-install && git checkout "$PINNED_SHA" && cd -
 bash /tmp/stellar-install/boot.sh --verify  # verify checksums (SHA-256)
