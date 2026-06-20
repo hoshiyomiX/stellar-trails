@@ -1,5 +1,51 @@
 # Changelog
 
+## [7.1.1] — 2026-06-20
+
+### Added — CI/CD Workflow + Simplified Install Instructions
+
+- **GitHub Actions release workflow** (`.github/workflows/release.yml`): trigger otomatis saat tag `v*.*.*` di-push. Workflow akan:
+  1. Verify version match antara tag dan SKILL.md metadata
+  2. Build zip dari `skill/stellar-trails/` directory
+  3. Generate SHA-256 checksum file
+  4. Create GitHub Release dengan zip + checksum sebagai release assets
+  5. Move `latest` tag ke commit (stable releases only, skip pre-release)
+  6. Generate release body dengan install instructions + checksum info
+- **Simplified install Path A**: sebelumnya user harus `git clone + build zip manual`. Sekarang cukup download asset dari GitHub Release via:
+  - `gh release download latest` (recommended — gh CLI)
+  - `curl -sL https://github.com/.../releases/latest/download/stellar-trails.zip`
+  - Browser download manual
+- **Checksum verification** di dokumentasi: SHA256 file tersedia sebagai release asset, user bisa verify integrity sebelum upload ke `/home/user_skills/`.
+
+### Why This Change
+
+v7.1.0 masih punya masalah: user harus `git clone` + `zip` manual untuk dapat skill zip. Ini:
+1. **Membutuhkan git + zip tool** — tidak selalu tersedia di sandbox
+2. **Tidak ada integrity verification** — user tidak bisa verify zip tidak dimodifikasi
+3. **Tidak reproducible** — build zip bisa berbeda tergantung sistem
+
+CI/CD workflow solve ketiga masalah:
+1. **Pre-built asset** di GitHub Release — download saja, no tools needed
+2. **SHA-256 checksum** ter-generate otomatis + tersedia sebagai release asset
+3. **Reproducible** — workflow jalan di environment yang sama (ubuntu-latest) setiap release
+
+### Files Modified
+
+- `.github/workflows/release.yml` (NEW) — release workflow
+- `skill/stellar-trails/SKILL.md` — bump version 7.1.0 → 7.1.1, update banner
+- `README.md` — bump version badge, simplify Path A instructions (download dari release), tambah CI/CD section, tambah checksum verification
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Test Plan
+
+v7.1.1 release ini akan jadi first test workflow. Setelah tag `v7.1.1` di-push:
+1. Workflow trigger otomatis di GitHub Actions
+2. Zip + checksum ter-upload ke https://github.com/hoshiyomiX/stellar-trails/releases/tag/v7.1.1
+3. `latest` tag di-move ke commit ini
+4. User bisa download via `gh release download latest` atau `curl`
+
+Jika workflow gagal, fix dan re-tag (force-push tag).
+
 ## [7.1.0] — 2026-06-20
 
 ### Changed — Stateless Skill (removed shell execution bootstrap)

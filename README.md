@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.1.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.1.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -72,7 +72,7 @@ ZAI platform auto-extracts user skills from `/home/user_skills/*.zip` (PolarFS p
    # /home/z/my-project/skills/stellar-trails/SKILL.md
    ```
 
-**Skill siap dipakai:** `Skill(command="stellar-trails")` — look for `☄️ STELLAR TRAILS · v7.1.0 · ACTIVE`.
+**Skill siap dipakai:** `Skill(command="stellar-trails")` — look for `☄️ STELLAR TRAILS · v7.1.1 · ACTIVE`.
 
 **Persistence model:**
 - `/home/user_skills/stellar-trails.zip` → PolarFS persistent mount, survive across sessions
