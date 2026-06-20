@@ -6,49 +6,52 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.0.0
+- **version**: 7.1.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.0.0 · ACTIVE
-   Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
+☄️ STELLAR TRAILS · v7.1.0 · ACTIVE
+   Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
 **Before any task output, complete these steps in order:**
 
-**Step 1 — Bootstrap (~50ms, audited self-heal — THE ONLY HEAL MECHANISM):**
+**Step 1 — Verify skill files present (no shell execution, pure file check):**
 ```bash
-# v6.4.3 — Audited 2-layer fallback. Runs on EVERY skill invoke.
-# This is the SOLE self-heal mechanism: no shell init hooks (~/.bashrc etc.)
-# are modified by boot.sh anymore. All healing flows through this bootstrap.
-# All operations logged to ~/.stellar-trails.log with ISO-8601 timestamps.
+# v7.1.0 — Stateless skill. No bootstrap, no shell execution, no self-heal.
 #
-# v6.4.3 change: collapsed from 5-layer to 2-layer. Layers 2/3/4 of v6.4.2
-# were all PROVEN TO FAIL sandbox reset (field-tested during v6.4.0 dev):
-#   - skills/stellar-trails/boot.sh — excluded from repo.tar by
-#     tar --exclude-vcs-ignores bug (doesn't honor !pattern negation)
-#   - /home/z/my-project/.stellar-trails-repo/boot.sh — gitignored,
-#     not in repo.tar snapshot
-#   - ~/.stellar-trails-repo/boot.sh — home dir wiped on reset
-# Only Layer 1 (.zscripts/, included in repo.tar) and Layer 2 (fresh
-# clone, network-dependent) survive. Keeping failed fallbacks added
-# complexity without value — they never fire in practice.
-STELLAR_LOG="$HOME/.stellar-trails.log"
-echo "[skill $(date -Iseconds 2>/dev/null) ] SKILL.md invoked — running audited bootstrap" >> "$STELLAR_LOG" 2>/dev/null
-
-# Layer 1: .zscripts/stellar-trails/boot.sh (PRIMARY — survives reset)
-if [ -f /home/z/my-project/.zscripts/stellar-trails/boot.sh ]; then
-  bash /home/z/my-project/.zscripts/stellar-trails/boot.sh --fast --audited >> "$STELLAR_LOG" 2>&1
-# Layer 2: fresh clone from GitHub (last resort, requires network)
-else
-  echo "[skill $(date -Iseconds 2>/dev/null) ] no install found — fresh clone" >> "$STELLAR_LOG"
-  git clone https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-trails-fresh-clone >> "$STELLAR_LOG" 2>&1
-  bash /tmp/stellar-trails-fresh-clone/boot.sh --audited >> "$STELLAR_LOG" 2>&1
-  rm -rf /tmp/stellar-trails-fresh-clone
-fi
+# Why this change: forensic investigation revealed that the ZAI platform
+# auto-extracts user skills from /home/user_skills/*.zip (PolarFS persistent
+# mount) on every session start, ~5 seconds after official_skills extraction.
+# The entire bootstrap architecture (boot.sh, .zscripts/ persistent backup,
+# 5-layer fallback chain) was solving a problem that didn't exist on ZAI.
+# Worse, the shell-execution pattern triggered supply-chain attack refusals
+# from security-conscious agents.
+#
+# v7.1.0: SKILL.md is now pure data. Skill() invoke reads this file + the
+# referenced procedure/knowledge/constraints files. No code runs.
+#
+# Skill files expected at:
+#   /home/z/my-project/skills/stellar-trails/
+#     ├── SKILL.md (this file)
+#     ├── procedure/phases.md
+#     ├── procedure/templates/*.md
+#     ├── procedure/decision-trees/error-resolution.md
+#     ├── constraints/*.md
+#     ├── knowledge/universal/*.md
+#     └── knowledge/platform/zai-sandbox.md
+#
+# If any critical file is missing, the skill still activates (graceful
+# degradation) — just with reduced capability. The agent loads what's
+# available and proceeds.
+test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
+  && test -f /home/z/my-project/skills/stellar-trails/procedure/phases.md \
+  && echo "stellar-trails: skill files verified"
 ```
-Two-layer fallback (v6.4.3): (1) `.zscripts/stellar-trails/boot.sh` (PRIMARY — survives reset reliably, included in `repo.tar`) → (2) fresh clone from GitHub (last resort, network required). **v6.4.3 change**: collapsed from 5-layer to 2-layer after field-testing proved layers 2/3/4 of v6.4.2 all failed sandbox reset. The platform's `/start.sh` rewrites `.gitignore` to exclude `skills/`, `tar --exclude-vcs-ignores` doesn't honor gitignore negation patterns, and home/project working-tree clones are not in `repo.tar` snapshot. `.zscripts/` is the only location that reliably survives. All actions logged to `~/.stellar-boot.log` with ISO-8601 timestamps. Popup assets (index.html, chibi.png) also live in `.zscripts/` (co-located with the skill). Idempotent — prints "Skill files OK" if everything is current.
+**v7.1.0 change**: removed all shell execution from Step 1. The ZAI platform guarantees `/home/z/my-project/skills/stellar-trails/` is populated from `/home/user_skills/stellar-trails.zip` (PolarFS persistent) at session start. No `boot.sh`, no `git clone`, no fallback chain. The skill is stateless — it just reads its own files when invoked. `boot.sh` is still bundled in the repo for non-ZAI environments (standalone Next.js projects, local dev) but is **never invoked by Skill()** on ZAI.
+
+**Note on boot.sh**: still present in the repo for users who want the optional popup preview on :3000 or who use stellar-trails outside ZAI. To use it, the user must explicitly invoke `bash <path>/boot.sh` themselves — `Skill()` never does this automatically.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -58,7 +61,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.0.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.1.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
