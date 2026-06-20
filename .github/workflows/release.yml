@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  push:
+    tags:
+      # Trigger on any version tag: v7.1.0, v7.1.1, v7.2.0, etc.
+      # Excludes 'latest' (mutable tag, pushed manually or by another workflow).
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'  # pre-releases like v7.1.0-rc.1
+
+permissions:
+  contents: write  # needed to create GitHub release + move 'latest' tag
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1  # shallow clone, we only need the tagged commit
+
+      - name: Verify skill directory exists
+        run: |
+          if [ ! -d skill/stellar-trails ]; then
+            echo "::error::skill/stellar-trails/ directory not found in tag ${{ github.ref_name }}"
+            exit 1
+          fi
+          if [ ! -f skill/stellar-trails/SKILL.md ]; then
+            echo "::error::SKILL.md not found in skill/stellar-trails/"
+            exit 1
+          fi
+          echo "✓ Skill directory verified"
+
+      - name: Extract version from SKILL.md
+        id: version
+        run: |
+          # Extract version from SKILL.md metadata: "- **version**: 7.1.0"
+          VERSION=$(grep -oP '^\*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' skill/stellar-trails/SKILL.md | head -1)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not extract version from SKILL.md"
+            exit 1
+          fi
+          TAG_NAME="${{ github.ref_name }}"
+          # Strip leading 'v' from tag for comparison
+          TAG_VERSION="${TAG_NAME#v}"
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version mismatch: SKILL.md says $VERSION, tag says $TAG_VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "✓ Version verified: $VERSION (tag $TAG_NAME)"
+
+      - name: Build skill zip
+        id: build
+        run: |
+          # Build zip with stellar-trails/ as top-level dir inside zip
+          # (ZAI service expects /home/z/my-project/skills/stellar-trails/ after extraction)
+          cd skill
+          zip -qr ../stellar-trails-${{ steps.version.outputs.version }}.zip stellar-trails/
+          cd ..
+          ZIP_FILE="stellar-trails-${{ steps.version.outputs.version }}.zip"
+          ZIP_SHA=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
+          ZIP_SIZE=$(stat -c%s "$ZIP_FILE")
+          echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
+          echo "zip_sha=$ZIP_SHA" >> $GITHUB_OUTPUT
+          echo "zip_size=$ZIP_SIZE" >> $GITHUB_OUTPUT
+          echo "✓ Built $ZIP_FILE ($ZIP_SIZE bytes, SHA-256: ${ZIP_SHA:0:12}...)"
+
+      - name: Generate SHA256 checksum file
+        run: |
+          sha256sum stellar-trails-${{ steps.version.outputs.version }}.zip > stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+          echo "✓ Checksum file generated"
+          cat stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+
+      - name: Verify zip contents
+        run: |
+          echo "=== Zip contents ==="
+          unzip -l stellar-trails-${{ steps.version.outputs.version }}.zip
+          echo
+          echo "=== SKILL.md version in zip ==="
+          unzip -p stellar-trails-${{ steps.version.outputs.version }}.zip stellar-trails/SKILL.md | grep -E "^\*\*version\*\*:|STELLAR TRAILS ·" | head -3
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: stellar-trails v${{ steps.version.outputs.version }}
+          body: |
+            # stellar-trails v${{ steps.version.outputs.version }}
+
+            ## Install on ZAI platform
+
+            ```bash
+            # Download asset dari release ini (atau pakai gh CLI)
+            gh release download v${{ steps.version.outputs.version }} \
+              --repo hoshiyomiX/stellar-trails \
+              --pattern 'stellar-trails-*.zip' \
+              --dir /tmp/
+
+            # Upload ke ZAI persistent storage
+            cp /tmp/stellar-trails-${{ steps.version.outputs.version }}.zip /home/user_skills/stellar-trails.zip
+            touch /home/user_skills/.stellar-trails.usermark
+            ```
+
+            Next ZAI session akan auto-extract skill ke `/home/z/my-project/skills/stellar-trails/`.
+
+            ## Install standalone (non-ZAI)
+
+            See [README.md](https://github.com/hoshiyomiX/stellar-trails/blob/${{ steps.version.outputs.tag }}/README.md#path-b--standalone-non-zai-optional-bootsh) for Path B instructions.
+
+            ## Checksum
+
+            - File: `stellar-trails-${{ steps.version.outputs.version }}.zip`
+            - Size: ${{ steps.build.outputs.zip_size }} bytes
+            - SHA-256: `${{ steps.build.outputs.zip_sha }}`
+
+            Verify after download:
+            ```bash
+            sha256sum stellar-trails-${{ steps.version.outputs.version }}.zip
+            # Should match: ${{ steps.build.outputs.zip_sha }}
+            ```
+
+            ## Changelog
+
+            See [CHANGELOG.md](https://github.com/hoshiyomiX/stellar-trails/blob/${{ steps.version.outputs.tag }}/skill/stellar-trails/CHANGELOG.md) for full history.
+          files: |
+            stellar-trails-${{ steps.version.outputs.version }}.zip
+            stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+
+      - name: Update 'latest' tag (mutable, points to newest release)
+        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        run: |
+          # Move 'latest' tag to this commit. Force-push because 'latest' is mutable.
+          # Only do this for stable releases (no pre-release suffix).
+          git tag -f latest ${{ github.sha }}
+          git push -f origin refs/tags/latest
+          echo "✓ 'latest' tag moved to ${{ steps.version.outputs.tag }} (${{ github.sha }})"
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | v${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | ${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Zip file | stellar-trails-${{ steps.version.outputs.version }}.zip |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size | ${{ steps.build.outputs.zip_size }} bytes |" >> $GITHUB_STEP_SUMMARY
+          echo "| SHA-256 | \`${{ steps.build.outputs.zip_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release URL | ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Install on ZAI" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "gh release download v${{ steps.version.outputs.version }} --repo ${{ github.repository }} --pattern 'stellar-trails-*.zip' --dir /tmp/" >> $GITHUB_STEP_SUMMARY
+          echo "cp /tmp/stellar-trails-${{ steps.version.outputs.version }}.zip /home/user_skills/stellar-trails.zip" >> $GITHUB_STEP_SUMMARY
+          echo "touch /home/user_skills/.stellar-trails.usermark" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
