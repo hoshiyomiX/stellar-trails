@@ -6,7 +6,7 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.1.0
+- **version**: 7.1.1
 
 ## Activation
 
