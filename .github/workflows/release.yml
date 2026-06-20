@@ -64,9 +64,9 @@ jobs:
           # Build zip with stellar-trails/ as top-level dir inside zip
           # (ZAI service expects /home/z/my-project/skills/stellar-trails/ after extraction)
           cd skill
-          zip -qr ../stellar-trails-${{ steps.version.outputs.version }}.zip stellar-trails/
+          zip -qr ../stellar-trails.zip stellar-trails/
           cd ..
-          ZIP_FILE="stellar-trails-${{ steps.version.outputs.version }}.zip"
+          ZIP_FILE="stellar-trails.zip"
           ZIP_SHA=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
           ZIP_SIZE=$(stat -c%s "$ZIP_FILE")
           echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
@@ -76,17 +76,17 @@ jobs:
 
       - name: Generate SHA256 checksum file
         run: |
-          sha256sum stellar-trails-${{ steps.version.outputs.version }}.zip > stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+          sha256sum stellar-trails.zip > stellar-trails.zip.sha256
           echo "✓ Checksum file generated"
-          cat stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+          cat stellar-trails.zip.sha256
 
       - name: Verify zip contents
         run: |
           echo "=== Zip contents ==="
-          unzip -l stellar-trails-${{ steps.version.outputs.version }}.zip
+          unzip -l stellar-trails.zip
           echo
           echo "=== SKILL.md version in zip ==="
-          unzip -p stellar-trails-${{ steps.version.outputs.version }}.zip stellar-trails/SKILL.md | grep -E "^\*\*version\*\*:|STELLAR TRAILS ·" | head -3
+          unzip -p stellar-trails.zip stellar-trails/SKILL.md | grep -E "^- \*\*version\*\*:|STELLAR TRAILS ·" | head -3
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -102,11 +102,11 @@ jobs:
             # Download asset dari release ini (atau pakai gh CLI)
             gh release download v${{ steps.version.outputs.version }} \
               --repo hoshiyomiX/stellar-trails \
-              --pattern 'stellar-trails-*.zip' \
+              --pattern 'stellar-trails.zip' \
               --dir /tmp/
 
             # Upload ke ZAI persistent storage
-            cp /tmp/stellar-trails-${{ steps.version.outputs.version }}.zip /home/user_skills/stellar-trails.zip
+            cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip
             touch /home/user_skills/.stellar-trails.usermark
             ```
 
@@ -118,13 +118,13 @@ jobs:
 
             ## Checksum
 
-            - File: `stellar-trails-${{ steps.version.outputs.version }}.zip`
+            - File: `stellar-trails.zip`
             - Size: ${{ steps.build.outputs.zip_size }} bytes
             - SHA-256: `${{ steps.build.outputs.zip_sha }}`
 
             Verify after download:
             ```bash
-            sha256sum stellar-trails-${{ steps.version.outputs.version }}.zip
+            sha256sum stellar-trails.zip
             # Should match: ${{ steps.build.outputs.zip_sha }}
             ```
 
@@ -132,8 +132,8 @@ jobs:
 
             See [CHANGELOG.md](https://github.com/hoshiyomiX/stellar-trails/blob/${{ steps.version.outputs.tag }}/skill/stellar-trails/CHANGELOG.md) for full history.
           files: |
-            stellar-trails-${{ steps.version.outputs.version }}.zip
-            stellar-trails-${{ steps.version.outputs.version }}.zip.sha256
+            stellar-trails.zip
+            stellar-trails.zip.sha256
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
@@ -154,7 +154,7 @@ jobs:
           echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | v${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Tag | ${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Zip file | stellar-trails-${{ steps.version.outputs.version }}.zip |" >> $GITHUB_STEP_SUMMARY
+          echo "| Zip file | stellar-trails.zip |" >> $GITHUB_STEP_SUMMARY
           echo "| Size | ${{ steps.build.outputs.zip_size }} bytes |" >> $GITHUB_STEP_SUMMARY
           echo "| SHA-256 | \`${{ steps.build.outputs.zip_sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Release URL | ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
@@ -162,6 +162,6 @@ jobs:
           echo "### Install on ZAI" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "gh release download v${{ steps.version.outputs.version }} --repo ${{ github.repository }} --pattern 'stellar-trails-*.zip' --dir /tmp/" >> $GITHUB_STEP_SUMMARY
-          echo "cp /tmp/stellar-trails-${{ steps.version.outputs.version }}.zip /home/user_skills/stellar-trails.zip" >> $GITHUB_STEP_SUMMARY
+          echo "cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip" >> $GITHUB_STEP_SUMMARY
           echo "touch /home/user_skills/.stellar-trails.usermark" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

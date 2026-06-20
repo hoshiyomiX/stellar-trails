@@ -1,5 +1,38 @@
 # Changelog
 
+## [7.1.2] — 2026-06-20
+
+### Fixed — Asset Naming (Stable Filename Across Releases)
+
+v7.1.1 workflow build zip dengan version-suffixed name (`stellar-trails-7.1.1.zip`), tapi README install command download dari `releases/latest/download/stellar-trails.zip` (tanpa version). Mismatch: download return 404 "Not Found" (9 bytes).
+
+**Fix**: workflow sekarang build zip dengan stable name `stellar-trails.zip` (no version suffix). Version tetap tertulis di:
+- Release tag (v7.1.2)
+- Release name ("stellar-trails v7.1.2")
+- Release body (checksum info)
+- SKILL.md metadata (`- **version**: 7.1.2`)
+
+Setiap release overwrite asset `stellar-trails.zip` di tag tersebut — tidak bentrok karena releases terikat ke git tag.
+
+**Juga fix**: regex `grep -E "^\*\*version\*\*:"` di zip verify step tidak match line format `- **version**: X.Y.Z` (dengan dash prefix). Updated ke `grep -E "^- \*\*version\*\*:"`.
+
+### Files Modified
+
+- `.github/workflows/release.yml` — rename asset `stellar-trails-VERSION.zip` → `stellar-trails.zip`, fix regex verify step
+- `skill/stellar-trails/SKILL.md` — bump version 7.1.1 → 7.1.2
+- `README.md` — bump version badge
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Test
+
+v7.1.2 release test end-to-end:
+1. Push tag v7.1.2 → workflow trigger
+2. Verify release asset `stellar-trails.zip` created (bukan `stellar-trails-7.1.2.zip`)
+3. Test download: `curl -sL https://github.com/.../releases/latest/download/stellar-trails.zip -o /tmp/stellar-trails.zip`
+4. Verify zip size > 1MB (bukan 9 bytes "Not Found")
+5. Verify SHA256 checksum match
+6. Upload ke `/home/user_skills/stellar-trails.zip`
+
 ## [7.1.1] — 2026-06-20
 
 ### Added — CI/CD Workflow + Simplified Install Instructions
