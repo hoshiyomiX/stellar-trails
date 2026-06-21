@@ -2,16 +2,16 @@
 name: stellar-trails
 description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones. Web development (Next.js, UI) is delegated to fullstack-dev; this framework wraps the phase machine around it."
 ---
-<!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) boot.sh header/banner/MINIMUM_VERSION, (5) root README.md badge/invoke/file-structure/version-history, (6) skill/README.md version-history, (7) CHANGELOG.md -->
+<!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) root README.md badge/invoke/file-structure/version-history, (4) skill/README.md version-history, (5) CHANGELOG.md -->
 
 ## Metadata
 
-- **version**: 7.1.4
+- **version**: 7.2.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.1.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.0 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -19,22 +19,26 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 **Step 1 — Verify skill files present (no shell execution, pure file check):**
 ```bash
-# v7.1.0 — Stateless skill. No bootstrap, no shell execution, no self-heal.
+# v7.2.0 — Stateless skill. No bootstrap, no shell execution, no boot.sh.
 #
-# Why this change: forensic investigation revealed that the ZAI platform
-# auto-extracts user skills from /home/user_skills/*.zip (PolarFS persistent
-# mount) on every session start, ~5 seconds after official_skills extraction.
-# The entire bootstrap architecture (boot.sh, .zscripts/ persistent backup,
-# 5-layer fallback chain) was solving a problem that didn't exist on ZAI.
-# Worse, the shell-execution pattern triggered supply-chain attack refusals
-# from security-conscious agents.
+# v7.2.0 change: boot.sh deleted entirely. Audit found 8 red flag patterns:
+#   - Self-re-exec (exec bash ...) — self-propagating pattern
+#   - Submodule purge (rm -rf .git/modules/) — destructive to project git
+#   - Force-sync (git reset --hard) — overwrites user local changes
+#   - 15+ rm -rf destructive operations
+#   - Network ops otomatis (git fetch) — potential exfil/callback
+#   - Touches shell init files (~/.bashrc, ~/.profile)
+#   - Pattern "clone → exec" yang ditolak security-conscious agents
+#   - Project remote URL query — information gathering
 #
-# v7.1.0: SKILL.md is now pure data. Skill() invoke reads this file + the
-# referenced procedure/knowledge/constraints files. No code runs.
+# Skill sekarang pure markdown data. No exec file needed for Skill() invoke.
+# Path B (non-ZAI) pakai dev.sh (standalone, no-cache HTTP server, 60 lines)
+# untuk popup preview — tanpa destructive/git/network ops.
 #
 # Skill files expected at:
 #   /home/z/my-project/skills/stellar-trails/
 #     ├── SKILL.md (this file)
+#     ├── dev.sh (optional, for popup preview Path B)
 #     ├── procedure/phases.md
 #     ├── procedure/templates/*.md
 #     ├── procedure/decision-trees/error-resolution.md
@@ -49,9 +53,7 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
   && test -f /home/z/my-project/skills/stellar-trails/procedure/phases.md \
   && echo "stellar-trails: skill files verified"
 ```
-**v7.1.0 change**: removed all shell execution from Step 1. The ZAI platform guarantees `/home/z/my-project/skills/stellar-trails/` is populated from `/home/user_skills/stellar-trails.zip` (PolarFS persistent) at session start. No `boot.sh`, no `git clone`, no fallback chain. The skill is stateless — it just reads its own files when invoked. `boot.sh` is still bundled in the repo for non-ZAI environments (standalone Next.js projects, local dev) but is **never invoked by Skill()** on ZAI.
-
-**Note on boot.sh**: still present in the repo for users who want the optional popup preview on :3000 or who use stellar-trails outside ZAI. To use it, the user must explicitly invoke `bash <path>/boot.sh` themselves — `Skill()` never does this automatically.
+**v7.2.0 change**: `boot.sh` deleted entirely (was 852 lines, 8 red flag patterns). Skill is pure markdown data — no shell execution needed for Skill() invoke. For popup preview (Path B non-ZAI), use `dev.sh` (standalone 60-line no-cache HTTP server, no destructive/git/network ops). ZAI platform users (Path A) tidak perlu dev.sh — ZAI service auto-extract zip + auto-launch dev.sh dari `.zscripts/`.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -61,7 +63,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.1.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

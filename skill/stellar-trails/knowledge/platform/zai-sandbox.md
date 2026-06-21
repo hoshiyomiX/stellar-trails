@@ -66,7 +66,7 @@ Why: Caddy proxies requests to internal services based on the `XTransformPort` q
 |------|----------|-----|
 | `/home/z/my-project/` | Project root — always use absolute paths | Relative paths can resolve incorrectly depending on the working directory |
 | `/home/z/.stellar-trails-repo/` | Skill framework repo — has its own `.git/` | Git operations for stellar-trails MUST use `git -C $HOME/.stellar-trails-repo/` — never run bare `git` from parent |
-| `skills/` | May be wiped on session reset | Use `boot.sh` to self-heal from git-tracked `skill/`; do not rely on `skills/` for persistence |
+| `skills/` | May be wiped on session reset | ZAI service auto-extracts from `/home/user_skills/stellar-trails.zip` (PolarFS persistent); `skills/` is re-populated each session |
 | `download/` | May persist, but not guaranteed | Use `skills/` when persistence is required |
 | `/tmp/` | Session-scoped — cleaned up between sessions | Temporary files are not safe for cross-session storage |
 

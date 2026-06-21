@@ -1,5 +1,100 @@
 # Changelog
 
+## [7.2.0] — 2026-06-21
+
+### Removed — boot.sh Deleted Entirely (8 red flag patterns)
+
+**boot.sh deleted** dari repo (root + `skill/stellar-trails/boot.sh` co-located copy). Total **852 lines removed**.
+
+#### Reason: Audit Found 8 Red Flag Patterns
+
+Security-conscious agents (seperti yang sebelumnya menolak install command v7.0.0) akan menolak eksekusi boot.sh karena pattern-pattern berikut:
+
+| # | Pattern | Lokasi | Severity |
+|---|---|---|---|
+| 1 | **Self-re-exec**: `exec bash "$SCRIPT_DIR/boot.sh" "$@"` | line 561 | 🔴 Critical — pattern self-propagating malware |
+| 2 | **Submodule purge**: `git submodule deinit --all --force` + `rm -rf .git/modules/` + `git rm --cached` | lines 444-460 | 🔴 Critical — destructive ke project git tanpa consent |
+| 3 | **Force-sync project git**: `git reset --hard origin/$BRANCH` + `git checkout -- .` | lines 530-532 | 🔴 Critical — overwrite local changes user |
+| 4 | **15+ `rm -rf` destructive operations** ke various paths | lines 327, 350, 351, 392, 450, dll | 🟠 High — bulk delete tanpa confirm |
+| 5 | **Network ops otomatis**: `git fetch` pada setiap invoke (kecuali --offline) | lines 479, 521 | 🟠 High — potential exfil/callback |
+| 6 | **Writes/touches shell init files**: `~/.bashrc`, `~/.bash_profile`, `~/.profile` | lines 805-808 | 🟡 Medium — modifies user shell config |
+| 7 | **Install instruction di header**: `git clone ... && bash <path>/boot.sh` | lines 19-20 | 🟡 Medium — pattern clone→exec yang ditolak agent |
+| 8 | **Project remote URL query**: `git remote get-url origin` + regex extract | lines 421, 525 | 🟡 Medium — information gathering |
+
+#### Insight: boot.sh 95% Dead Code di ZAI Environment
+
+Audit juga menemukan bahwa boot.sh adalah **852 lines script yang 95% dead code di ZAI environment**:
+- ZAI platform auto-extract dari `/home/user_skills/stellar-trails.zip` (Path A) — boot.sh tidak pernah dijalankan
+- Skill() invoke (v7.1.0+) tidak execute shell — pure markdown data
+- Sandbox kill child process — boot.sh tidak bisa persist sebagai daemon
+- Hanya `cp` skill files + generate dev.sh yang actually needed
+
+#### Replacement: dev.sh Standalone (60 lines)
+
+**`skill/stellar-trails/dev.sh`** (NEW): standalone custom no-cache HTTP server untuk popup preview. Pure Python 3 stdlib, no dependencies.
+
+| Aspect | boot.sh (v7.1.4, deleted) | dev.sh (v7.2.0, new) |
+|---|---|---|
+| Lines | 852 | 60 |
+| Red flag patterns | 8 | 0 |
+| Self-re-exec | ✓ (red flag) | ❌ |
+| Destructive rm -rf | 15+ instances | ❌ |
+| git reset --hard | ✓ (red flag) | ❌ |
+| Network ops (git fetch) | ✓ (red flag) | ❌ |
+| Touches shell init files | ✓ (red flag) | ❌ |
+| External exec | `exec bash ...` | ❌ |
+| Functionality | Install + heal + sync + popup | Popup preview only |
+
+**dev.sh hanya lakukan satu hal**: serve `.zscripts/` di :3000 dengan `Cache-Control: no-store` headers. Tidak ada destructive ops, tidak ada network, tidak ada git operations, tidak ada writes outside `.zscripts/`.
+
+#### Path B One-Liner Revised
+
+Sebelum (v7.1.4, dengan boot.sh):
+```bash
+git clone ... && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules && rm -rf /tmp/stellar-install
+```
+Pattern: `clone → exec script → cleanup` — ditolak security-conscious agents.
+
+Sesudah (v7.2.0, tanpa boot.sh):
+```bash
+curl -sL .../stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /tmp/stellar-trails/{chibi.png,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/stellar-trails /tmp/st.zip && echo "✓ installed"
+```
+Pattern: `download → extract → cp files → chmod → cleanup` — semua explicit file ops, no shell exec dari URL.
+
+#### Files Modified
+
+- `boot.sh` (root) — **DELETED** (852 lines)
+- `skill/stellar-trails/boot.sh` (co-located copy) — **DELETED** (852 lines, identical to root)
+- `skill/stellar-trails/dev.sh` (NEW, 60 lines) — standalone no-cache HTTP server
+- `skill/stellar-trails/SKILL.md` — Step 1 update: hapus boot.sh mention, document 8 red flag patterns yang dihapus, update file list (dev.sh replaces boot.sh)
+- `README.md` — Path B revisi (one-liner cp + dev.sh, no boot.sh), hapus "boot.sh Flags" section, hapus "Audit Log" section (no more boot.sh logging), update "What's New" dengan v7.2.0 entry, update Persistence Model section
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+- `.checksums` — regenerated (removed boot.sh entries, added dev.sh)
+
+#### Files Deleted
+
+- `boot.sh` — main installer (852 lines, 8 red flag patterns)
+- `skill/stellar-trails/boot.sh` — co-located copy (identical to root)
+
+#### Migration from v7.1.4 → v7.2.0
+
+1. Download zip v7.2.0 dari release (lihat Path A one-liner)
+2. Replace zip lama: `cp stellar-trails.zip /home/user_skills/`
+3. Next session: ZAI auto-extract v7.2.0 (no boot.sh, ada dev.sh)
+4. Optional cleanup (file boot.sh lama yang sekarang dead code):
+   ```bash
+   rm -f /home/z/my-project/skills/stellar-trails/boot.sh
+   rm -f /home/z/my-project/.zscripts/dev.sh  # akan di-replace dengan v7.2.0
+   ```
+
+#### Stats
+
+- 1704 lines deleted (852 × 2 boot.sh copies)
+- 60 lines added (dev.sh standalone)
+- Net: **-1644 lines** (96% reduction in exec code)
+- 8 red flag patterns eliminated
+- 0 red flag patterns remaining (dev.sh audited clean)
+
 ## [7.1.4] — 2026-06-21
 
 ### Added — New Landing Page (cosmic glassmorphism) + Dead Code Cleanup
