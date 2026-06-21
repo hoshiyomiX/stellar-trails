@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-trails — Install, self-heal, audited (git-tracked) v7.0.0
+# stellar-trails — Install, self-heal, audited (git-tracked) v7.1.4
 # Pure skill installer + popup preview provider. No Next.js bootstrap.
 # Self-heal: SKILL.md bootstrap (2-layer fallback) is the ONLY heal mechanism.
 #            No shell init hooks (v6.4.0 removed ~/.bashrc/.bash_profile/.profile hooks).
@@ -676,51 +676,19 @@ if [ -f "$SOURCE_DIR/chibi.png" ]; then
   log_info "Chibi mascot copied"
 fi
 
-# Always overwrite index.html — popup-only artifact
-cat > "$ZSCRIPTS/index.html" << 'SPLASH'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stellar Frameworks</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:#0a0a0f;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.container{text-align:center;padding:2rem;max-width:420px}
-.chibi-wrap{display:inline-block;margin-bottom:1.5rem}
-.chibi-img{height:180px;width:auto;
-  filter:drop-shadow(0 0 24px rgba(139,92,246,0.25)) drop-shadow(0 4px 16px rgba(0,0,0,0.4));
-  animation:float 4s ease-in-out infinite}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-h1{font-size:1.35rem;font-weight:600;color:#f4f4f5;margin-bottom:0.35rem;letter-spacing:-0.01em}
-.version{font-size:0.7rem;color:#71717a;margin-bottom:1rem;letter-spacing:0.04em}
-p{font-size:0.875rem;color:#71717a;line-height:1.6;margin-bottom:1.5rem}
-p span{color:#a78bfa}
-.badge{display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.7rem;
-  border:1px solid #27272a;border-radius:9999px;font-size:0.75rem;color:#a1a1aa}
-.badge .dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="chibi-wrap">
-    <img class="chibi-img" src="chibi.png" alt="Stellar Frameworks mascot"
-         loading="eager"
-         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-    <div style="display:none;font-size:3.5rem;filter:drop-shadow(0 0 20px rgba(139,92,246,0.4))">&#9732;&#65039;</div>
-  </div>
-  <h1>Welcome to Stellar Frameworks</h1>
-  <div class="version">v6.3.0</div>
-  <p><span>Phase State Machine</span> &middot; Traceability IDs &middot; Adaptive Complexity<br>Send a message to start building.</p>
-  <div class="badge"><span class="dot"></span> Dev server running</div>
-</div>
-</body>
-</html>
-SPLASH
-log_info "Landing page created"
+# v7.1.4: Copy landing page from skill source (single source of truth)
+# Previously: inline heredoc with stale v6.3.0 content. Now: cp from
+# skill/stellar-trails/index.html, so updates to landing page don't
+# require boot.sh edits. Source file has no-cache meta tags.
+if [ -f "$SOURCE_DIR/index.html" ]; then
+  cp -- "$SOURCE_DIR/index.html" "$ZSCRIPTS/index.html"
+  log_info "Landing page copied from skill source (v7.1.4+)"
+elif [ -f "$SCRIPT_DIR/skill/stellar-trails/index.html" ]; then
+  cp -- "$SCRIPT_DIR/skill/stellar-trails/index.html" "$ZSCRIPTS/index.html"
+  log_info "Landing page copied from repo source"
+else
+  log_warn "index.html not found in skill source — .zscripts/index.html not updated"
+fi
 
 # ── Ensure .zscripts/dev.sh exists and is up-to-date (v6.3.0: killable) ──
 DEV_SCRIPT_MARKER="# stellar-trails dev server"
@@ -728,10 +696,10 @@ DEV_SCRIPT_MARKER="# stellar-trails dev server"
 write_dev_sh() {
   cat > "$DEV_SCRIPT" << 'DEVSH'
 #!/bin/bash
-# stellar-trails dev server v6.3.0 — persistent + killable
-# Auto-restarts on crash (preserved from v6.2.0).
-# Killable via SIGTERM/SIGINT (NEW in v6.3.0): pkill -f dev.sh now works.
-# All output logged to ~/.stellar-trails.log (audited).
+# stellar-trails dev server v7.1.4 — persistent + killable + no-cache HTTP headers
+# Custom Python server adds Cache-Control: no-store to ALL responses.
+# Fix issue: Python http.server default doesn't set Cache-Control → browser
+# heuristic caching → popup preview stuck showing old index.html.
 # Created by boot.sh — do not edit manually.
 
 DEV_LOG="$HOME/.stellar-trails.log"
@@ -742,20 +710,17 @@ dev_log() {
   echo "[dev.sh $ts] $*" >> "$DEV_LOG" 2>/dev/null || true
 }
 
-# Trap SIGTERM/SIGINT — exit cleanly instead of requiring SIGKILL
 cleanup() {
   dev_log "received signal — exiting cleanly"
   exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# Port guard — exit gracefully if already in use
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   dev_log "Port :3000 already in use — not starting"
   exit 0
 fi
 
-# Detect actual Next.js project
 if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.config.mjs ] || [ -f /home/z/my-project/next.config.ts ]; then
   dev_log "Next.js project detected — running bun run dev (persistent)"
   while true; do
@@ -765,12 +730,25 @@ if [ -f /home/z/my-project/next.config.js ] || [ -f /home/z/my-project/next.conf
   done
 else
   mkdir -p /home/z/my-project/.zscripts
-  dev_log "Static project — running python3 http.server :3000 (persistent)"
-  while true; do
-    cd /home/z/my-project/.zscripts && python3 -m http.server 3000 >> "$DEV_LOG" 2>&1 || true
-    sleep 1
-    dev_log "http.server exited — restarting (crash recovery)"
-  done
+  dev_log "Static project — running custom no-cache server on :3000 (v7.1.4+)"
+  python3 -c '
+import http.server, socketserver, os
+class ReuseTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+    def log_message(self, format, *args):
+        pass
+os.chdir("/home/z/my-project/.zscripts")
+with ReuseTCPServer(("0.0.0.0", 3000), NoCacheHandler) as httpd:
+    httpd.serve_forever()
+  ' >> "$DEV_LOG" 2>&1 || true
+  sleep 1
+  dev_log "http.server exited — restarting (crash recovery)"
 fi
 DEVSH
   chmod +x "$DEV_SCRIPT"

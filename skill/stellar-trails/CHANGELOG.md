@@ -1,5 +1,75 @@
 # Changelog
 
+## [7.1.4] — 2026-06-21
+
+### Added — New Landing Page (cosmic glassmorphism) + Dead Code Cleanup
+
+#### New Landing Page
+
+- **`skill/stellar-trails/index.html`** (NEW): Landing page popup preview v7.1.4. Design:
+  - **Cosmic background**: dark purple/navy gradient nebula + animated starfield (drift 60s)
+  - **Hero**: chibi mascot (float 6s + glow pulse 4s) + gradient title "Stellar Trails" (purple→pink) + tagline + 3 badges (Dev server running / v7.1.4 / Stateless)
+  - **Phase State Machine diagram**: 6 glassmorphism cards horizontal (IDLE→SPECIFY→PLAN→IMPLEMENT→VERIFY→DELIVER) dengan colored top borders (gray/blue/purple/pink/amber/green) + arrows + error loop note
+  - **Features grid**: 6 cards auto-fit (Traceability IDs / Adaptive Complexity / Source Verification / File-based Memory / Error Decision Tree / Stateless by Design)
+  - **Install command**: terminal card dengan syntax highlighting + COPY button (clipboard API)
+  - **Footer**: 4 link cards (GitHub Repo / Latest Release / Changelog / README) + invoke command
+  - **Responsive**: 6-col desktop → 3-col tablet → 2-col mobile
+  - **Animations**: fadeUp sequential 0.2s, mascot float, glow pulse, dot pulse, starfield drift, hover card lift
+  - **No-cache meta tags**: Cache-Control, Pragma, Expires (defense in depth)
+
+#### boot.sh Refactor
+
+- **Replace inline SPLASH heredoc dengan `cp` dari `skill/stellar-trails/index.html`**: single source of truth. Sebelumnya index.html di-generate via 42-baris inline heredoc di boot.sh (lines 680-722 v7.1.3), content stale "v6.3.0 / Stellar Frameworks". Sekarang cp dari skill source — update landing page tinggal edit file, tidak perlu sentuh boot.sh.
+- **Update dev.sh source** (di boot.sh `write_dev_sh()` heredoc): dari `python3 -m http.server 3000` (default, no Cache-Control header → browser heuristic caching) ke custom Python server dengan `Cache-Control: no-store` HTTP headers. Fix issue: popup preview stuck showing old index.html karena browser cache.
+
+#### Dead Code Cleanup (audit result)
+
+Audit exec files di repo menemukan 4 file dead code yang di-delete:
+
+| File | Reason deleted |
+|---|---|
+| `setup.sh` (217 lines) | Legacy installer v6.3.0 — boot.sh preferred sejak v5.4.4. Hanya referenced di CHANGELOG historical + 1 mention di README file structure (removed). 1 mention di SKILL.md VERSION SYNC comment (removed). |
+| `activate.sh` (49 lines) | Mid-session activator v5.4.3 era — output SKILL.md content ke stdout supaya agent bisa baca saat Skill() tidak menemukan skill. Tidak diperlukan lagi karena ZAI platform re-scan skills pada setiap Skill() invoke (v7.1.0+). Hanya referenced di CHANGELOG historical. |
+| `skill/stellar-trails/assets/page.tsx` (118 lines) | Next.js splash page v5.4.5 era — boot.sh tidak generate ini lagi sejak v5.4.4 (removed dev server section). Landing page sekarang pakai `index.html` (v7.1.4+). References di SKILL.md/constraints/knowledge adalah generic Next.js convention mentions (`page.tsx`), bukan actual usage file ini. |
+| `.bashrc` (2 lines, repo root) | v5.x auto-heal hook untuk stellar-frameworks (pakai `--install-only` yang no-op sejak v5.4.4). Path salah (`/home/z/my-project/stellar-frameworks/` — folder lama sebelum rebrand v7.0.0). v6.4.0+ removed shell hooks entirely. DEAD CODE — tidak akan pernah fire. |
+
+**Total removed**: 386 lines dead code (217 + 49 + 118 + 2).
+
+#### Files Kept (after audit)
+
+| File | Reason kept |
+|---|---|
+| `boot.sh` (root) | Main installer Path B (standalone) + dev.sh source generator |
+| `skill/stellar-trails/boot.sh` | Co-located copy for Path B + bootstrap layer 1 (kalau SKILL.md pernah pakai boot.sh lagi) |
+| `.github/workflows/release.yml` | CI/CD workflow (v7.1.1+) — trigger on tag push, build zip, upload ke release |
+| `.checksums` | SHA-256 verification (regenerated — 19 entries, was 20) |
+
+#### Files Modified
+
+- `skill/stellar-trails/index.html` (NEW, 646 lines, 19KB) — cosmic landing page
+- `boot.sh` — replace SPLASH heredoc dengan cp logic (37KB → 36KB), update dev.sh heredoc ke custom no-cache server, bump version ke v7.1.4
+- `skill/stellar-trails/boot.sh` — synced dengan root boot.sh (identical)
+- `skill/stellar-trails/SKILL.md` — bump version 7.1.3 → 7.1.4, banner, update VERSION SYNC comment (remove setup.sh reference)
+- `README.md` — bump version badge, remove setup.sh dari file structure section
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+- `.checksums` — regenerated (19 entries: removed setup.sh, activate.sh, page.tsx; added index.html)
+
+#### Files Deleted
+
+- `setup.sh` — legacy installer
+- `activate.sh` — legacy mid-session activator
+- `skill/stellar-trails/assets/page.tsx` — legacy Next.js splash page
+- `.bashrc` — legacy v5.x auto-heal hook (dead code, path salah)
+
+#### Test Plan
+
+v7.1.4 release akan trigger CI/CD workflow. Setelah release live:
+1. Download zip via one-liner install command
+2. Upload ke `/home/user_skills/stellar-trails.zip`
+3. Next sandbox restart: ZAI auto-extract → `/home/z/my-project/skills/stellar-trails/index.html` ada
+4. Boot.sh (jika dijalankan untuk Path B) akan cp index.html ke `.zscripts/` + generate dev.sh dengan no-cache server
+5. Popup preview akan tampilkan landing page baru dengan Cache-Control: no-store headers
+
 ## [7.1.3] — 2026-06-20
 
 ### Changed — One-Liner Install (agent-friendly)
