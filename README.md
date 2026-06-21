@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.2.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.2.4-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -37,7 +37,7 @@ curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/s
 3. `touch /home/user_skills/.stellar-trails.usermark` → Create marker file "skill approved" (ZAI service uses this untuk allowlist).
 4. `echo "✓ ..."` → Confirmation message.
 
-**Next session:** ZAI service akan auto-extract zip ke `/home/z/my-project/skills/stellar-trails/` (~5 detik after official_skills). Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.2.3 · ACTIVE`.
+**Next session:** ZAI service akan auto-extract zip ke `/home/z/my-project/skills/stellar-trails/` (~5 detik after official_skills). Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.2.4 · ACTIVE`.
 
 **Update ke versi baru:** jalankan ulang command yang sama — overwrite zip lama, next session akan pakai versi baru.
 

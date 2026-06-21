@@ -6,48 +6,45 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.2.3
+- **version**: 7.2.4
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.2.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.4 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
 **Before any task output, complete these steps in order:**
 
-**Step 0.5 — Check upstream version freshness (auto-update zip if outdated):**
+**Step 0.5 — Check upstream version freshness (notice-only, no auto-update):**
 ```bash
-# v7.2.3 — Auto-update mechanism untuk ensure skill tidak outdated di sandbox.
+# v7.2.4 — Version freshness check (NOTICE ONLY, no auto-update).
 #
-# How it works:
-#   1. Fetch latest version via HEAD request ke GitHub /releases/latest (lightweight, no body)
-#   2. Compare dengan current version dari SKILL.md metadata
-#   3. Jika outdated: download zip + verify SHA-256 checksum + cp ke /home/user_skills/
-#   4. Print notice: "Updated to v7.X.Y. Restart sandbox untuk apply."
+# v7.2.4 change: hapus auto-download/cp/touch marker dari v7.2.3.
+# Reason: agent refused Step 0.5 v7.2.3 dengan alasan valid:
+#   1. No verification path — agent tidak bisa verify repo official
+#   2. .usermark pattern = skill-hijack pattern (replace trusted dengan untrusted)
+#   3. No audit step antara download dan execution
 #
-# Security analysis (why this is safe):
-#   - curl -sI (HEAD request) — HTTP GET headers only, no body download, no exec
-#   - curl -sL -o file — HTTP GET download to file, no exec
-#   - sha256sum -c — integrity verify (checksum dari release asset, no exec)
-#   - cp — file copy (no exec)
-#   - No `bash <url>`, no `eval`, no shell exec dari download
-#   - Pattern: download → verify → copy (sama seperti Path A one-liner install)
+# v7.2.4 approach: NOTICE ONLY.
+#   - Check latest version via HEAD request (HTTP headers, no body)
+#   - Print notice jika outdated
+#   - Print update command (user decide mau run atau tidak)
+#   - NO file writes ke /home/user_skills/ (no hijack pattern)
+#   - NO .usermark creation (no marker)
+#   - NO auto-download (no execution of untrusted code)
 #
-# Trade-off: ini re-introduce network ops di Skill() invoke (red flag #5 dari
-# boot.sh audit). Tapi:
-#   - Hanya HEAD request (~200ms) untuk check version
-#   - Download hanya jika version mismatch (rare case, ~once per release)
-#   - No shell exec dari download — pure file ops
-#   - User informed via notice (transparent, no silent update)
+# Security analysis:
+#   - curl -sI (HEAD request) — HTTP GET headers only, no body, no exec
+#   - No file writes, no cp, no touch, no download
+#   - Pure info: current vs latest version + command untuk update manual
+#   - User/agent explicit run update command jika mau (user consent = OK)
 #
 # Defensive:
-#   - curl --max-time 5 (timeout 5 detik, tidak block lama)
+#   - curl --max-time 5 (timeout 5 detik)
 #   - 2>/dev/null suppress error (jika network down, skip silently)
-#   - sha256sum -c verify sebelum cp (integrity check)
-#   - Hanya update zip di /home/user_skills/ (next session akan ter-extract)
-#   - Current session tetap pakai versi lama (tidak overwrite skill files mid-invoke)
+#   - No side effects — hanya print info ke stdout
 
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' \
   /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
@@ -58,24 +55,12 @@ LATEST=$(curl -sI --max-time 5 \
 
 if [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "v$CURRENT" != "$LATEST" ]; then
   echo "⚠️ stellar-trails outdated: current=v$CURRENT, latest=$LATEST"
-  echo "   Auto-updating zip di /home/user_skills/..."
-  curl -sL --max-time 30 -o /tmp/stellar-trails.zip \
-    https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip 2>/dev/null
-  curl -sL --max-time 10 -o /tmp/stellar-trails.zip.sha256 \
-    https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256 2>/dev/null
-  if [ -s /tmp/stellar-trails.zip ] && [ -s /tmp/stellar-trails.zip.sha256 ]; then
-    cd /tmp && sha256sum -c stellar-trails.zip.sha256 >/dev/null 2>&1 && cd - && \
-      cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip && \
-      touch /home/user_skills/.stellar-trails.usermark && \
-      echo "   ✓ Updated to $LATEST. Restart sandbox untuk apply." || \
-      echo "   ✗ Checksum verify failed — skip update (zip tidak di-overwrite)"
-    rm -f /tmp/stellar-trails.zip /tmp/stellar-trails.zip.sha256
-  else
-    echo "   ✗ Download failed — skip update (network issue?)"
-  fi
+  echo "   To update (user must run explicitly):"
+  echo "   curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo '✓ updated — restart sandbox to apply'"
+  echo "   (Or ask agent to run it if you trust this repo)"
 fi
 ```
-**v7.2.3 change**: Step 0.5 baru — auto-update mechanism. Check latest version via HEAD request ke GitHub `/releases/latest`. Jika outdated, download zip + verify SHA-256 checksum + cp ke `/home/user_skills/`. Next session ZAI akan auto-extract versi baru. Pattern aman: download → verify → copy (no shell exec dari URL). Current session tetap pakai versi lama (tidak overwrite skill files mid-invoke).
+**v7.2.4 change**: Step 0.5 sekarang **notice-only** (no auto-update). Hapus download/cp/touch marker dari v7.2.3 karena agent refused dengan alasan: (1) no verification path repo official, (2) `.usermark` pattern = skill-hijack, (3) no audit step. v7.2.4 hanya check version via HEAD request + print notice + print update command. User/agent explicit run update command jika mau — user consent = OK. No file writes, no auto-download, transparent info.
 
 **Step 1 — Verify skill files present (no shell execution, pure file check):**
 ```bash
@@ -154,7 +139,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.2.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.4 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

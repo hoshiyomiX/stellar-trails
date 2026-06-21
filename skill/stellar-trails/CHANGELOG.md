@@ -1,5 +1,84 @@
 # Changelog
 
+## [7.2.4] — 2026-06-21
+
+### Fixed — Step 0.5 Notice-Only (hapus auto-update, respect agent refusal)
+
+**Bug**: Step 0.5 v7.2.3 (auto-update) ditolak oleh security-conscious agent di sandbox baru dengan 3 alasan valid:
+
+1. **No verification path** — agent tidak bisa verify `github.com/hoshiyomiX/stellar-trails` sebagai official maintainer repo. Anyone can create GitHub repo with similar name.
+2. **`.usermark` pattern = skill-hijack pattern** — `touch .usermark` signal "use this user-supplied version instead of trusted built-in one". Pattern klasik hijack: replace trusted code dengan untrusted code, lalu agent load pada invoke berikutnya.
+3. **No audit step** — download zip = execute whatever's inside on next skill call. No static-analysis antara download dan execution.
+
+**Fix**: Step 0.5 v7.2.4 = **notice-only**. Hapus semua file operations:
+- ❌ Hapus `curl -sL -o /tmp/stellar-trails.zip` (auto-download)
+- ❌ Hapus `curl -sL -o /tmp/stellar-trails.zip.sha256` (checksum download)
+- ❌ Hapus `sha256sum -c` (verify)
+- ❌ Hapus `cp /tmp/stellar-trails.zip /home/user_skills/` (write ke persistent storage)
+- ❌ Hapus `touch /home/user_skills/.stellar-trails.usermark` (marker creation)
+- ❌ Hapus `rm -f /tmp/stellar-trails.zip` (cleanup)
+
+**Keep** (no side effects):
+- ✓ `curl -sI --max-time 5` (HEAD request — HTTP headers only, no body)
+- ✓ Version compare (current vs latest)
+- ✓ Print notice jika outdated
+- ✓ Print update command (user decide mau run atau tidak)
+
+#### Comparison: v7.2.3 vs v7.2.4
+
+| Aspect | v7.2.3 (auto-update) | v7.2.4 (notice-only) |
+|---|---|---|
+| HEAD request | ✓ | ✓ |
+| Download zip | ❌ (red flag) | ❌ removed |
+| Verify checksum | ✓ | ❌ removed |
+| cp ke /home/user_skills/ | ❌ (hijack pattern) | ❌ removed |
+| touch .usermark | ❌ (hijack pattern) | ❌ removed |
+| Print notice | ✓ | ✓ |
+| Print update command | ❌ | ✓ (user run explicitly) |
+| Side effects | file writes | none |
+| Agent reaction | ❌ Refused | ✓ Should accept |
+
+#### Why Notice-Only Is Safe
+
+| Pattern | v7.2.3 (refused) | v7.2.4 (notice-only) |
+|---|---|---|
+| Network ops | curl download + git fetch | curl HEAD only (~200ms) |
+| File writes | cp + touch marker | none |
+| Skill-hijack pattern | ✓ (.usermark) | ❌ |
+| Auto-execution of untrusted code | ✓ (download → next invoke) | ❌ |
+| User consent | ❌ (auto) | ✓ (user explicit run) |
+| Transparent | partial | ✓ (notice + command visible) |
+
+#### Update Flow (v7.2.4)
+
+1. Skill() invoke → Step 0.5: HEAD request check version
+2. If outdated: print notice + print update command
+3. User reads notice, decide:
+   - Run command themselves (manual)
+   - Ask agent to run it (explicit instruction = user consent)
+   - Ignore (continue with current version — older ≠ broken)
+4. If user/agent run command: download → cp → touch marker (user consent)
+5. Next session: ZAI auto-extract new version
+
+**Key principle**: agent tidak "memutuskan" untuk update. User yang memutuskan. Ini menghormati agent's concern tentang "no verification path" karena user yang verify (atau accept risk).
+
+#### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — Step 0.5 rewrite (notice-only), bump version 7.2.3 → 7.2.4, banner
+- `README.md` — bump version badge
+- `skill/stellar-trails/index.html` — bump badge version
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+- `.checksums` — regenerated
+
+#### Test Plan
+
+Setelah v7.2.4 release + upload ke `/home/user_skills/`, test di sandbox baru:
+1. Invoke `Skill(command="stellar-trails")`
+2. Agent should run Step 0.5 (HEAD check) — no red flag (just HTTP HEAD, no file ops)
+3. Agent should NOT refuse (no file writes, no hijack pattern, no auto-download)
+4. If outdated: notice printed with update command
+5. User can ask agent to run update command (explicit instruction = OK)
+
 ## [7.2.3] — 2026-06-21
 
 ### Added — Step 0.5: Auto-Update Upstream Version
