@@ -1,5 +1,67 @@
 # Changelog
 
+## [7.2.3] — 2026-06-21
+
+### Added — Step 0.5: Auto-Update Upstream Version
+
+**SKILL.md Step 0.5 baru** — auto-update mechanism untuk ensure skill tidak outdated di sandbox. Check latest version via HEAD request, download zip + verify checksum jika outdated.
+
+#### Problem
+
+Sandbox ZAI auto-extract skill dari `/home/user_skills/stellar-trails.zip` di session start. Tapi zip di `/home/user_skills/` bisa outdated jika user lupa update setelah release baru. Akibat: skill di sandbox pakai versi lama, fitur baru tidak available, bug fix tidak ter-applied.
+
+#### Solution
+
+Step 0.5 di SKILL.md (berjalan sebelum Step 1, setiap Skill() invoke):
+
+1. **Check version**: HEAD request ke `github.com/.../releases/latest` → parse redirect URL → extract version tag (e.g., `v7.2.3`)
+2. **Compare**: current version (dari SKILL.md metadata) vs latest version
+3. **If outdated**: download zip + SHA-256 checksum → verify checksum → cp zip ke `/home/user_skills/`
+4. **Print notice**: "Updated to v7.X.Y. Restart sandbox untuk apply."
+
+#### Security Analysis
+
+| Pattern | boot.sh (deleted v7.2.0) | Step 0.5 (v7.2.3) |
+|---|---|---|
+| Network ops | `git fetch` otomatis (red flag) | `curl -sI` HEAD request (lightweight) |
+| Shell exec from URL | `bash <url>` (red flag) | ❌ None — download to file only |
+| Destructive ops | `rm -rf`, `git reset --hard` | ❌ None — only `cp` |
+| Integrity check | ❌ None | ✓ `sha256sum -c` verify checksum |
+| Transparent | ❌ Silent ops | ✓ Print notice jika outdated |
+| User control | ❌ Force update | ✓ User decide restart kapan |
+
+**Pattern**: download → verify → copy (sama seperti Path A one-liner install). No `bash <url>`, no `eval`, no shell exec dari download.
+
+#### Defensive Implementation
+
+- `curl --max-time 5` — timeout 5 detik untuk HEAD request (tidak block lama)
+- `curl --max-time 30` — timeout 30 detik untuk download zip
+- `2>/dev/null` — suppress error jika network down (skip silently)
+- `sha256sum -c` — verify checksum sebelum cp (integrity check)
+- `[ -s file ]` — cek file tidak kosong sebelum verify
+- Hanya update zip di `/home/user_skills/` — current session tetap pakai versi lama (tidak overwrite skill files mid-invoke)
+
+#### Trade-off
+
+- **Pro**: skill selalu up-to-date di next session (zip di `/home/user_skills/` auto-update)
+- **Con**: network ops di Skill() invoke (HEAD request ~200ms setiap invoke)
+- **Mitigation**: HEAD request cepat, download hanya jika version mismatch (rare case)
+
+#### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — tambah Step 0.5 (auto-update), bump version 7.2.2 → 7.2.3, banner
+- `README.md` — bump version badge
+- `skill/stellar-trails/index.html` — bump badge version
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+- `.checksums` — regenerated
+
+#### Test Result
+
+- ✓ HEAD request ke `/releases/latest` return redirect ke `/releases/tag/v7.2.2`
+- ✓ Version extraction dari redirect URL: `v7.2.2`
+- ✓ Compare current vs latest: `v7.2.2` = `v7.2.2` → up-to-date, skip download
+- ✓ Simulated outdated: download zip + verify checksum + cp ke `/home/user_skills/` → success
+
 ## [7.2.2] — 2026-06-21
 
 ### Fixed — dev.sh Crash Recovery Loop

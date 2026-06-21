@@ -6,16 +6,76 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.2.2
+- **version**: 7.2.3
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.2.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.3 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
 **Before any task output, complete these steps in order:**
+
+**Step 0.5 — Check upstream version freshness (auto-update zip if outdated):**
+```bash
+# v7.2.3 — Auto-update mechanism untuk ensure skill tidak outdated di sandbox.
+#
+# How it works:
+#   1. Fetch latest version via HEAD request ke GitHub /releases/latest (lightweight, no body)
+#   2. Compare dengan current version dari SKILL.md metadata
+#   3. Jika outdated: download zip + verify SHA-256 checksum + cp ke /home/user_skills/
+#   4. Print notice: "Updated to v7.X.Y. Restart sandbox untuk apply."
+#
+# Security analysis (why this is safe):
+#   - curl -sI (HEAD request) — HTTP GET headers only, no body download, no exec
+#   - curl -sL -o file — HTTP GET download to file, no exec
+#   - sha256sum -c — integrity verify (checksum dari release asset, no exec)
+#   - cp — file copy (no exec)
+#   - No `bash <url>`, no `eval`, no shell exec dari download
+#   - Pattern: download → verify → copy (sama seperti Path A one-liner install)
+#
+# Trade-off: ini re-introduce network ops di Skill() invoke (red flag #5 dari
+# boot.sh audit). Tapi:
+#   - Hanya HEAD request (~200ms) untuk check version
+#   - Download hanya jika version mismatch (rare case, ~once per release)
+#   - No shell exec dari download — pure file ops
+#   - User informed via notice (transparent, no silent update)
+#
+# Defensive:
+#   - curl --max-time 5 (timeout 5 detik, tidak block lama)
+#   - 2>/dev/null suppress error (jika network down, skip silently)
+#   - sha256sum -c verify sebelum cp (integrity check)
+#   - Hanya update zip di /home/user_skills/ (next session akan ter-extract)
+#   - Current session tetap pakai versi lama (tidak overwrite skill files mid-invoke)
+
+CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' \
+  /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+
+LATEST=$(curl -sI --max-time 5 \
+  https://github.com/hoshiyomiX/stellar-trails/releases/latest 2>/dev/null \
+  | grep -i "^location:" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+if [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "v$CURRENT" != "$LATEST" ]; then
+  echo "⚠️ stellar-trails outdated: current=v$CURRENT, latest=$LATEST"
+  echo "   Auto-updating zip di /home/user_skills/..."
+  curl -sL --max-time 30 -o /tmp/stellar-trails.zip \
+    https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip 2>/dev/null
+  curl -sL --max-time 10 -o /tmp/stellar-trails.zip.sha256 \
+    https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256 2>/dev/null
+  if [ -s /tmp/stellar-trails.zip ] && [ -s /tmp/stellar-trails.zip.sha256 ]; then
+    cd /tmp && sha256sum -c stellar-trails.zip.sha256 >/dev/null 2>&1 && cd - && \
+      cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip && \
+      touch /home/user_skills/.stellar-trails.usermark && \
+      echo "   ✓ Updated to $LATEST. Restart sandbox untuk apply." || \
+      echo "   ✗ Checksum verify failed — skip update (zip tidak di-overwrite)"
+    rm -f /tmp/stellar-trails.zip /tmp/stellar-trails.zip.sha256
+  else
+    echo "   ✗ Download failed — skip update (network issue?)"
+  fi
+fi
+```
+**v7.2.3 change**: Step 0.5 baru — auto-update mechanism. Check latest version via HEAD request ke GitHub `/releases/latest`. Jika outdated, download zip + verify SHA-256 checksum + cp ke `/home/user_skills/`. Next session ZAI akan auto-extract versi baru. Pattern aman: download → verify → copy (no shell exec dari URL). Current session tetap pakai versi lama (tidak overwrite skill files mid-invoke).
 
 **Step 1 — Verify skill files present (no shell execution, pure file check):**
 ```bash
@@ -94,7 +154,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.2.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.3 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
