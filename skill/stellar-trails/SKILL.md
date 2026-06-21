@@ -6,12 +6,12 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.2.5
+- **version**: 7.2.6
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.2.5 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.6 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -119,14 +119,14 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
 #   v7.2.1: bash /home/z/my-project/.zscripts/dev.sh &  → local file, background
 #
 # Defensive:
-#   - `nohup ... &` agar tidak terkill saat shell exit
-#   - `disown` agar tidak muncul di job table
+#   - Double-fork ( setsid ... & ) & agar process jadi orphan (parent=PID 1) → survive shell exit
+#   - setsid: create new session (detach dari controlling terminal)
 #   - `2>/dev/null` suppress output (silent)
 #   - `|| true` agar skill tetap activates walau dev.sh gagal start
 #   - Cek port :3000 dulu — jika sudah listening, skip (idempotent)
 DEV_SH="/home/z/my-project/.zscripts/dev.sh"
 if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  nohup bash "$DEV_SH" >/dev/null 2>&1 & disown 2>/dev/null || true
+  ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 fi
 ```
 **v7.2.1 change**: Step 1.5 baru — enforce run `dev.sh` background untuk popup preview auto-start. Defensive: port guard (idempotent), `nohup ... & disown` (non-blocking, survive shell exit), `|| true` (skill tetap activates walau dev.sh gagal). dev.sh sendiri sudah audited clean di v7.2.0 (60 lines, 0 red flag patterns, local file dari trusted ZAI zip extraction).
@@ -139,7 +139,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.2.5 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.6 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
