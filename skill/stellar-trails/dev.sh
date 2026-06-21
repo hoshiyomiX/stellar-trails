@@ -1,16 +1,18 @@
 #!/bin/bash
-# stellar-trails dev server v7.2.0 — custom no-cache HTTP server for popup preview
+# stellar-trails dev server v7.2.2 — custom no-cache HTTP server + crash recovery
 #
 # Serves /home/z/my-project/.zscripts/ on port :3000 with Cache-Control: no-store
 # headers (bypass browser heuristic caching).
+#
+# v7.2.2: Added `while true` crash recovery loop. If python3 process dies
+# (OOM, signal, etc), dev.sh auto-restarts after 1 second. Previous v7.2.0
+# had no loop → single python crash = popup preview down forever until
+# session restart.
 #
 # Usage (Path B — non-ZAI standalone):
 #   1. Copy this file to /home/z/my-project/.zscripts/dev.sh
 #   2. chmod +x /home/z/my-project/.zscripts/dev.sh
 #   3. bash /home/z/my-project/.zscripts/dev.sh
-#
-# Or run directly:
-#   bash skill/stellar-trails/dev.sh
 #
 # On ZAI platform, /start.sh auto-launches /home/z/my-project/.zscripts/dev.sh
 # at session start. This file is the source — copy to .zscripts/ to activate.
@@ -32,9 +34,11 @@ if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":$PORT "; th
   exit 0
 fi
 
-echo "[dev.sh] Serving $ZSCRIPTS_DIR on :$PORT with Cache-Control: no-store"
+echo "[dev.sh] Serving $ZSCRIPTS_DIR on :$PORT with Cache-Control: no-store (crash recovery enabled)"
 
-python3 -c "
+# Crash recovery loop — if python3 exits, restart after 1 second
+while true; do
+  python3 -c "
 import http.server, socketserver, os, signal, sys
 
 class ReuseTCPServer(socketserver.TCPServer):
@@ -57,4 +61,7 @@ signal.signal(signal.SIGINT, shutdown)
 
 with ReuseTCPServer(('0.0.0.0', $PORT), NoCacheHandler) as httpd:
     httpd.serve_forever()
-"
+" 2>/dev/null || true
+  echo "[dev.sh] python3 exited — restarting in 1s (crash recovery)"
+  sleep 1
+done

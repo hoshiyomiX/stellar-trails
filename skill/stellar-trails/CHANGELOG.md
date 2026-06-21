@@ -1,5 +1,39 @@
 # Changelog
 
+## [7.2.2] — 2026-06-21
+
+### Fixed — dev.sh Crash Recovery Loop
+
+**Bug**: dev.sh v7.2.0/v7.2.1 tidak punya `while true` crash recovery loop. Jika python3 process mati (OOM, signal, dll), dev.sh exit dan tidak ada yang restart. /start.sh hanya launch dev.sh sekali di session start, tidak monitor. Akibat: popup preview :3000 down sampai session restart.
+
+**Field report**: Session berjalan ~3.2 jam, lalu python3 process mati. dev.sh exit. :3000 down. Caddy :81 return 502 Bad Gateway. Popup preview tidak bisa diakses.
+
+**Fix**: Tambah `while true` crash recovery loop ke dev.sh (sama seperti old v6.3.0 dev.sh yang punya loop):
+
+```bash
+while true; do
+  python3 -c '... serve_forever()' 2>/dev/null || true
+  echo "[dev.sh] python3 exited — restarting in 1s (crash recovery)"
+  sleep 1
+done
+```
+
+Jika python3 exit (apapun alasannya), dev.sh tunggu 1 detik lalu restart python3. Loop berjalan selamanya sampai dev.sh di-kill (SIGTERM/SIGINT).
+
+**Test result**:
+- ✓ Kill python3 PID 6609 → dev.sh restart python3 sebagai PID 6620 dalam ~1 detik
+- ✓ Log: "[dev.sh] python3 exited — restarting in 1s (crash recovery)"
+- ✓ :3000 kembali listening setelah crash
+- ✓ Cache-Control: no-store headers tetap ter-set
+
+**Files Modified**:
+- `skill/stellar-trails/dev.sh` — tambah `while true` crash recovery loop (60 → 70 lines), update header ke v7.2.2
+- `skill/stellar-trails/SKILL.md` — bump version 7.2.1 → 7.2.2, banner
+- `README.md` — bump version badge
+- `skill/stellar-trails/index.html` — bump badge version
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+- `.checksums` — regenerated
+
 ## [7.2.1] — 2026-06-21
 
 ### Added — Step 1.5: Enforce dev.sh Run via SKILL.md
