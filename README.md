@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.2.4-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.2.5-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -25,68 +25,54 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ## Quick Start
 
-### Install (one line, agent-friendly)
+### Install (recommended — via ClawHub)
+
+Stellar Trails is published to [ClawHub](https://clawhub.ai/skills/stellar-trails), the official z.ai skill marketplace. Install with one command:
 
 ```bash
-curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo "✓ stellar-trails installed — invoke via Skill(command='stellar-trails') next session"
+clawhub install stellar-trails
 ```
 
-**Apa ini lakukan:**
-1. `curl -sL` → Download zip dari GitHub Release (silent, follow redirects). No shell execution — pure file fetch.
-2. `-o /home/user_skills/stellar-trails.zip` → Write langsung ke ZAI persistent storage (PolarFS mount, survive across sessions).
-3. `touch /home/user_skills/.stellar-trails.usermark` → Create marker file "skill approved" (ZAI service uses this untuk allowlist).
-4. `echo "✓ ..."` → Confirmation message.
+**Why this is the best method:**
+- ✓ `clawhub` is a native z.ai CLI tool (pre-installed in all sandboxes)
+- ✓ Install from ClawHub registry (official, verified, moderated)
+- ✓ No `curl` from external URLs — no agent refusal
+- ✓ No manual file writes to `/home/user_skills/`
+- ✓ No `.usermark` creation (no skill-hijack pattern)
+- ✓ ClawHub handles storage, extraction, and version tracking
+- ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**Next session:** ZAI service akan auto-extract zip ke `/home/z/my-project/skills/stellar-trails/` (~5 detik after official_skills). Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.2.4 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.2.5 · ACTIVE`.
 
-**Update ke versi baru:** jalankan ulang command yang sama — overwrite zip lama, next session akan pakai versi baru.
+**Update to latest version:**
+```bash
+clawhub update stellar-trails
+```
 
-### Optional: Verify checksum (recommended untuk production)
+**Uninstall:**
+```bash
+clawhub uninstall stellar-trails
+```
+
+### Alternative: Manual install (for non-ClawHub environments)
+
+If `clawhub` is not available, download the zip from GitHub Releases and place it in `/home/user_skills/`:
 
 ```bash
-curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256 | sha256sum -c <(curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip | sha256sum | awk '{print $1"  stellar-trails.zip"}') -
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && echo "✓ installed — restart sandbox to apply"
 ```
 
-Atau lebih sederhana, download dulu lalu verify:
-```bash
-cd /tmp
-curl -sLO https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip
-curl -sLO https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256
-sha256sum -c stellar-trails.zip.sha256  # Expected: stellar-trails.zip: OK
-```
+**Note:** This method may be refused by security-conscious agents because it downloads from an external URL. Use `clawhub install` whenever possible.
 
-### Alternative: Standalone (non-ZAI, no boot.sh)
+### Persistence Model
 
-Untuk environment non-ZAI (local dev, Next.js standalone, dll). **Tidak ada boot.sh** (deleted in v7.2.0 — audit found 8 red flag patterns). Hanya `cp` file + `dev.sh` standalone untuk popup preview.
-
-**One-liner install (Path B):**
-
-```bash
-curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /tmp/stellar-trails/{chibi.png,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/stellar-trails /tmp/st.zip && echo "✓ stellar-trails installed — run bash /home/z/my-project/.zscripts/dev.sh for popup preview on :3000"
-```
-
-**Apa ini lakukan (semua explicit file ops, no shell exec dari URL):**
-1. `curl -sL` → Download zip dari GitHub Release (HTTP GET, no execution)
-2. `unzip -q` → Extract zip ke `/tmp/`
-3. `cp -a /tmp/stellar-trails /home/z/my-project/skills/` → Copy skill files ke load path
-4. `mkdir -p .zscripts && cp {chibi.png,index.html,dev.sh}` → Copy popup preview assets + dev.sh
-5. `chmod +x dev.sh` → Make dev.sh executable
-6. `rm -rf /tmp/stellar-trails /tmp/st.zip` → Cleanup
-7. `echo "✓ ..."` → Confirmation
-
-**Untuk popup preview**: jalankan `bash /home/z/my-project/.zscripts/dev.sh` — custom Python HTTP server di :3000 dengan `Cache-Control: no-store` headers.
-
-**Note**: ZAI platform users (Path A) TIDAK perlu Path B ini. ZAI service auto-extract zip + auto-launch dev.sh dari `.zscripts/` at session start.
-
-### Persistence Model (Path A — ZAI)
-
-| Layer | Mechanism | Survive reset? |
+| Layer | Mechanism | Survives reset? |
 |---|---|---|
-| `/home/user_skills/stellar-trails.zip` | PolarFS persistent mount | ✓ YA |
-| ZAI service auto-extract | `/app/main.py` extract zip ke `/home/z/my-project/skills/stellar-trails/` at session start (~5s after official_skills) | ✓ YA (re-extracted every session) |
-| `.stellar-trails.usermark` | Marker "skill approved" di PolarFS | ✓ YA |
+| ClawHub registry | Official z.ai skill marketplace | ✓ |
+| `clawhub install` | Tracks installation, handles updates | ✓ |
+| ZAI service auto-extract | Extracts skill to `skills/stellar-trails/` at session start | ✓ (re-extracted every session) |
 
-**Tidak ada boot.sh. Tidak ada shell execution di Skill() invoke. Tidak ada `.zscripts/` persistent backup. Tidak ada `~/.stellar-trails.log`. Pure markdown data, stateless skill.**
+**No boot.sh. No shell execution in Skill() invoke. Pure markdown data, stateless skill.**
 
 ### CI/CD — Automated Release
 

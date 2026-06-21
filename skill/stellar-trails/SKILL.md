@@ -6,12 +6,12 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.2.4
+- **version**: 7.2.5
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.2.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.5 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -56,8 +56,8 @@ LATEST=$(curl -sI --max-time 5 \
 if [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "v$CURRENT" != "$LATEST" ]; then
   echo "⚠️ stellar-trails outdated: current=v$CURRENT, latest=$LATEST"
   echo "   To update (user must run explicitly):"
-  echo "   curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo '✓ updated — restart sandbox to apply'"
-  echo "   (Or ask agent to run it if you trust this repo)"
+  echo "   Run: clawhub update stellar-trails"
+  echo "   (Or: clawhub install stellar-trails --force)"
 fi
 ```
 **v7.2.4 change**: Step 0.5 sekarang **notice-only** (no auto-update). Hapus download/cp/touch marker dari v7.2.3 karena agent refused dengan alasan: (1) no verification path repo official, (2) `.usermark` pattern = skill-hijack, (3) no audit step. v7.2.4 hanya check version via HEAD request + print notice + print update command. User/agent explicit run update command jika mau — user consent = OK. No file writes, no auto-download, transparent info.
@@ -139,7 +139,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.2.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.2.5 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
