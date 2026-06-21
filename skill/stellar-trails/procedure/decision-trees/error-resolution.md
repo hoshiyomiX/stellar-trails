@@ -33,7 +33,7 @@ Use the error message and context to classify the error into one of the categori
 
 | Category | Indicators | Reference |
 |----------|-----------|-----------|
-| **Approach Failure** | Fix requires rewriting 50%+ of implementation, same error recurs after 2 fix attempts, required feature doesn't exist in chosen library/framework | See Pivot Assessment below |
+| **Wrong Approach** | Fix requires rewriting 50%+ of implementation, same error recurs after 2 fix attempts, required feature doesn't exist in chosen library/framework | See Pivot Assessment below |
 | **Compilation / Syntax** | `SyntaxError`, `Unexpected token`, `cannot find module`, build fails | `knowledge/universal/conventions.md` (import rules, file extensions) |
 | **Type** | TypeScript error (`TSxxxx`), `Type 'X' is not assignable to type 'Y'`, type mismatch | `knowledge/universal/conventions.md` (type constraints, `unknown` vs `any`) |
 | **Runtime** | `TypeError`, `ReferenceError`, `Cannot read properties of undefined`, function crashes | `knowledge/universal/error-patterns.md` (runtime error patterns) |
@@ -43,35 +43,35 @@ Use the error message and context to classify the error into one of the categori
 | **AI / SDK** | SDK invocation failure, rate limit, timeout, model error, image generation failure, `z-ai-web-dev-sdk` runtime error | See AI/SDK diagnostic path below |
 | **Other** | Error does not match any category above | Isolate minimal reproduction (see below) |
 
-### Pivot Assessment (Approach Failure)
+### Pivot Assessment (Wrong Approach)
 
-Before following any diagnostic path, determine if the error is a **Code Bug** or an **Approach Failure**. This classification changes the entire recovery path.
+Before following any diagnostic path, determine if the error is a **Bug** or an **Wrong Approach**. This classification changes the entire recovery path.
 
 **Pivot Assessment criteria**:
 
 | Signal | Type | Explanation |
 |--------|------|-------------|
-| Fix requires rewriting 50%+ of implementation | Approach Failure | The fundamental design is wrong — patching won't help |
-| Same error recurs after 2 fix attempts | Approach Failure | Fixing symptoms, not root cause — escalation needed |
-| Fix requires changing data model / API contract | Approach Failure | Architecture assumption was invalid |
-| Required library/framework feature doesn't exist | Approach Failure | SADC miss — the chosen approach is infeasible |
-| Simple typo, wrong variable, missing null check | Code Bug | Normal implementation error — proceed to diagnostic path |
-| Type mismatch, import error, lint violation | Code Bug | Normal implementation error — proceed to diagnostic path |
+| Fix requires rewriting 50%+ of implementation | Wrong Approach | The fundamental design is wrong — patching won't help |
+| Same error recurs after 2 fix attempts | Wrong Approach | Fixing symptoms, not root cause — escalation needed |
+| Fix requires changing data model / API contract | Wrong Approach | Architecture assumption was invalid |
+| Required library/framework feature doesn't exist | Wrong Approach | SADC miss — the chosen approach is infeasible |
+| Simple typo, wrong variable, missing null check | Bug | Normal implementation error — proceed to diagnostic path |
+| Type mismatch, import error, lint violation | Bug | Normal implementation error — proceed to diagnostic path |
 
-**If Approach Failure is detected**:
+**If Wrong Approach is detected**:
 
 1. **Stop fixing immediately** — do not attempt a third fix attempt on the same approach.
-2. **Check Scope Commitment fallback** — the implementation plan's Fallback Approach field should have a concrete alternative.
+2. **Check Scope fallback** — the implementation plan's Fallback Approach field should have a concrete alternative.
 3. **Evaluate the fallback** — is it still viable given what was learned from the failure?
 4. **Present pivot to user** — explain what failed, why the fallback is better, and what changes.
 5. **Re-enter PLAN** — create a new implementation plan using the fallback (or a new approach if fallback is not viable).
-6. **Output new Scope Commitment** — update the Scope Commitment with the new approach.
+6. **Output new Scope** — update the Scope with the new approach.
 7. **Re-implement and re-verify** — full cycle from PLAN through DELIVER.
 8. **Record Pivot in delivery report** — the Pivot field documents the approach change for audit trail.
 
-**Output**: Classification as Code Bug or Approach Failure. If Approach Failure, proceed to pivot flow instead of diagnostic path.
+**Output**: Classification as Bug or Wrong Approach. If Wrong Approach, proceed to pivot flow instead of diagnostic path.
 
-**Decision**: If Code Bug → proceed to appropriate diagnostic path below. If Approach Failure → pivot flow above.
+**Decision**: If Bug → proceed to appropriate diagnostic path below. If Wrong Approach → pivot flow above.
 
 ### Diagnostic Paths by Category
 
@@ -220,10 +220,10 @@ After applying a fix, full verification is required to confirm nothing else was 
 |-------------|---------------|---------------|----------|
 | SPECIFY | Incomplete requirements | — | SPECIFY (update spec) |
 | PLAN | Specification gap or wrong approach | — | SPECIFY or PLAN |
-| IMPLEMENT | Code defect | Code Bug | VERIFY (re-verify after fix) |
-| IMPLEMENT | Fundamental design wrong | Approach Failure | PLAN (pivot with fallback or new approach) |
-| IMPLEMENT | Specification gap | Approach Failure | SPECIFY (update spec, re-plan) |
-| VERIFY | Code defect not caught by self-review | Code Bug | IMPLEMENT (fix, then VERIFY) |
-| VERIFY | Specification gap | Approach Failure | SPECIFY (update spec, re-plan, re-implement) |
+| IMPLEMENT | Code defect | Bug | VERIFY (re-verify after fix) |
+| IMPLEMENT | Fundamental design wrong | Wrong Approach | PLAN (pivot with fallback or new approach) |
+| IMPLEMENT | Specification gap | Wrong Approach | SPECIFY (update spec, re-plan) |
+| VERIFY | Code defect not caught by self-review | Bug | IMPLEMENT (fix, then VERIFY) |
+| VERIFY | Specification gap | Wrong Approach | SPECIFY (update spec, re-plan, re-implement) |
 
 When uncertain, return to SPECIFY. It is safer to re-confirm requirements than to fix code against a misunderstood specification.

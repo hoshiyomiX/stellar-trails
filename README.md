@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.3.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.3.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -16,7 +16,7 @@ Structures ALL tasks — coding and non-coding — as a **phase state machine** 
 ```text
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
   ↑                                        │
-  └──── Error Recovery ◄───────────────────┘
+  └──── Recovery ◄───────────────────┘
 ```
 
 </div>
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.3.1 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.3.2 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -181,18 +181,18 @@ File-based memory system inspired by [Hermes](https://github.com/NousResearch/he
 
 ```
 memory/
-├── MEMORY.md          ← Evergreen: preferences, patterns (~3K char budget)
-├── decisions.md       ← Evergreen: architectural decisions with rationale
-├── incidents.md       ← Evergreen: error patterns and fixes
+├── MEMORY.md          ← Permanent: preferences, patterns (~3K char budget)
+├── decisions.md       ← Permanent: architectural decisions with rationale
+├── incidents.md       ← Permanent: error patterns and fixes
 └── YYYY-MM-DD.md      ← Dated: session digest (auto-created daily)
 ```
 
-- **Evergreen files** are permanent — loaded during IDLE for session continuity
+- **Permanent Memory** are permanent — loaded during IDLE for session continuity
 - **Dated files** capture what happened and why — preserving decision rationale across sessions
 - **Bounded budget** (~3,000 chars for MEMORY.md) with agent-driven curation — the LLM decides what to keep/evict
 - **Phase-transition reminders** keep memory active throughout the entire phase machine
 
-### Error Recovery
+### Recovery
 
 Structured 5-step decision tree: **capture → classify → identify actions → fix → re-verify**. Covers Compilation, Type, Runtime, Network/Gateway, Database, Git, AI/SDK errors. Git operations have explicit safety rules — `git fetch` before `git pull`, no force push without user instruction, stop all git ops if infrastructure blocks.
 

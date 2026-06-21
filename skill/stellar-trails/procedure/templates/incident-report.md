@@ -1,6 +1,6 @@
 # Incident Report
 
-This template is used when an error occurs during any phase (SPECIFY, PLAN, IMPLEMENT, or VERIFY). It captures the error context, diagnoses the root cause, and defines the fix before any recovery action is taken. For Approach Failures (where the fundamental approach is wrong rather than a simple code bug), the template supports pivot documentation.
+This template is used when an error occurs during any phase (SPECIFY, PLAN, IMPLEMENT, or VERIFY). It captures the error context, diagnoses the root cause, and defines the fix before any recovery action is taken. For Wrong Approachs (where the fundamental approach is wrong rather than a simple code bug), the template supports pivot documentation.
 
 ## Why Structured Incident Reports Exist
 
@@ -21,7 +21,7 @@ Copy and complete the following when an error is encountered:
 |-------|-------|
 | Phase When Error Occurred | SPECIFY / PLAN / IMPLEMENT / VERIFY |
 | Error Message | [Exact error text — paste verbatim] |
-| Error Classification | Compilation / Runtime / Network / Type / Database / Git / Version Control / Approach Failure / Other |
+| Error Classification | Compilation / Runtime / Network / Type / Database / Git / Version Control / Wrong Approach / Other |
 | Stack Trace | [If available — paste in full] |
 | Context | [What the agent was doing when the error occurred] |
 
@@ -38,14 +38,14 @@ Copy and complete the following when an error is encountered:
 
 | Field | Value |
 |-------|-------|
-| Is Approach Failure? | YES / NO |
+| Is Wrong Approach? | YES / NO |
 | Pivot Signal | [Which signal triggered this: 50%+ rewrite / same error after 2 attempts / missing library feature / data model change / N/A] |
-| Fallback Available? | YES / NO — if YES, reference the Scope Commitment's Fallback Approach |
+| Fallback Available? | YES / NO — if YES, reference the Scope's Fallback Approach |
 | Fallback Viable? | [Is the fallback still viable given what was learned from the failure?]
 | New Approach | [Describe the alternative approach — either the fallback or a new one] |
 | User Approval Required? | YES / NO |
 
-If Approach Failure is YES, stop fixing the current approach and follow the pivot flow in `procedure/decision-trees/error-resolution.md`. If Code Bug, write N/A in all fields above and proceed to Proposed Fix.
+If Wrong Approach is YES, stop fixing the current approach and follow the pivot flow in `procedure/decision-trees/error-resolution.md`. If Bug, write N/A in all fields above and proceed to Proposed Fix.
 
 ## Proposed Fix
 
@@ -74,12 +74,12 @@ If Approach Failure is YES, stop fixing the current approach and follow the pivo
 |-------|----------|
 | **Phase When Error Occurred** | The phase that was active when the error was detected. This determines the return target after the fix. |
 | **Error Message** | Paste the exact error text. Do not summarize or paraphrase — the exact wording often contains diagnostic clues. |
-| **Error Classification** | Use the categories from the error resolution decision tree (`procedure/decision-trees/error-resolution.md`). **Approach Failure** is for cases where the fundamental design/approach is wrong, not just a code bug. This classification triggers the Adaptive Pivot Protocol instead of the normal fix-verify cycle. |
-| **Pivot Assessment** | REQUIRED when error classification is Approach Failure. If Code Bug, write N/A. Documents the alternative approach considered and the pivot rationale. References the Scope Commitment's Fallback Approach when available. |
+| **Error Classification** | Use the categories from the error resolution decision tree (`procedure/decision-trees/error-resolution.md`). **Wrong Approach** is for cases where the fundamental design/approach is wrong, not just a code bug. This classification triggers the Pivot instead of the normal fix-verify cycle. |
+| **Pivot Assessment** | REQUIRED when error classification is Wrong Approach. If Bug, write N/A. Documents the alternative approach considered and the pivot rationale. References the Scope's Fallback Approach when available. |
 | **Context** | What was the agent doing? Which Traceability ID was being implemented? What command was running? |
 | **Root Cause Analysis** | The "Why did it fail?" question should go at least two levels deep. "The function threw because `x` was undefined" is level one. "The function threw because `x` was undefined because the database query returns null for new users" is level two. |
 | **Side Effects** | A side effect is any change that goes beyond fixing the error itself. This includes: deleting files, modifying configuration, changing behavior in unrelated code, dropping database data, or altering git history. If any side effect exists, user approval is required before proceeding. |
-| **Return Phase** | The default return target after a fix is VERIFY. Return to IMPLEMENT if the fix was incomplete. Return to PLAN if this is an Approach Failure (with pivot). Return to SPECIFY if the error reveals a gap in the requirements or a misunderstanding of the problem. |
+| **Return Phase** | The default return target after a fix is VERIFY. Return to IMPLEMENT if the fix was incomplete. Return to PLAN if this is an Wrong Approach (with pivot). Return to SPECIFY if the error reveals a gap in the requirements or a misunderstanding of the problem. |
 | **Re-verification** | Always YES after a fix. Even if the fix was trivial, re-run the verification report to confirm nothing was broken. |
 
 ---

@@ -13,13 +13,13 @@ topics:
 
 ## Metadata
 
-- **version**: 7.3.1
+- **version**: 7.3.2
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.3.1 · ACTIVE
-   Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
+☄️ STELLAR TRAILS · v7.3.2 · ACTIVE
+   Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
 **Before any task output, complete these steps in order:**
@@ -146,7 +146,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.3.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.3.2 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
@@ -167,10 +167,10 @@ This framework is text in a skill file. It cannot guarantee compliance, force be
 ```
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
   ↑                                        │
-  └──── Error Recovery ◄───────────────────┘
+  └──── Recovery ◄───────────────────┘
 ```
 
-On error: assess (code bug or approach failure?), fix or pivot, return to VERIFY. See Adaptive Pivot Protocol.
+On error: assess (code bug or approach failure?), fix or pivot, return to VERIFY. See Pivot.
 
 | Phase | Purpose |
 |-------|---------|
@@ -203,7 +203,7 @@ The most common failure mode in multi-turn sessions: the LLM re-derives a propos
 ```
 Continuation + user approves plan  → skip SPECIFY + PLAN → IMPLEMENT
 Continuation + user asks follow-up → skip SPECIFY → answer in current phase
-Continuation + user reports error  → skip SPECIFY + PLAN → Error Recovery → VERIFY
+Continuation + user reports error  → skip SPECIFY + PLAN → Recovery → VERIFY
 Continuation + context truncation   → read worklog.md → resume from recorded phase
 ```
 
@@ -211,7 +211,7 @@ This is not optional — regenerating proposals the user already approved is a c
 
 ### Worklog Continuity Protocol
 
-Every DELIVER phase appends a **Task State Snapshot** to `worklog.md`. This is the primary continuity mechanism — not the conversation history, not memory files. The worklog is the single source of truth for "what was I doing last."
+Every DELIVER phase appends a **Snapshot** to `worklog.md`. This is the primary continuity mechanism — not the conversation history, not memory files. The worklog is the single source of truth for "what was I doing last."
 
 **On DELIVER (always, all tiers)**: Append to `/home/z/my-project/worklog.md`:
 
@@ -251,7 +251,7 @@ No phases are ever skipped. Non-coding tasks use **Minimal** complexity tier —
 | PLAN | `procedure/templates/implementation-plan.md` | `knowledge/universal/conventions.md` | Start of PLAN |
 | IMPLEMENT | (code/document/chart output) | `constraints/code-standards.md`, `constraints/type-safety.md` | Start of IMPLEMENT (coding tasks) |
 | VERIFY | `procedure/templates/verification-report.md` | `knowledge/universal/error-patterns.md` | Start of VERIFY |
-| Error Recovery | `procedure/templates/incident-report.md` | `procedure/decision-trees/error-resolution.md` | On error detection |
+| Recovery | `procedure/templates/incident-report.md` | `procedure/decision-trees/error-resolution.md` | On error detection |
 
 ## Source State Verification (SSV)
 
@@ -284,18 +284,18 @@ Before planning any implementation, verify that the approach is grounded in real
 
 SADC is the first action in SPECIFY. The problem specification must reference the sources checked. If no existing solution is found, state that explicitly — "searched npm/PyPI/docs, no existing package found" is a valid result. Building from scratch when a library exists is a spec-level defect.
 
-## Adaptive Pivot Protocol
+## Pivot
 
-On every error, classify it as **Code Bug** or **Approach Failure** before attempting a fix. Approach Failure signals (50%+ rewrite needed, same error after 2 attempts, missing library feature, data model change) trigger a pivot to the fallback approach defined in the Scope Commitment. See `procedure/decision-trees/error-resolution.md` for the full Pivot Assessment criteria and recovery flow.
+On every error, classify it as **Bug** or **Wrong Approach** before attempting a fix. Wrong Approach signals (50%+ rewrite needed, same error after 2 attempts, missing library feature, data model change) trigger a pivot to the fallback approach defined in the Scope. See `procedure/decision-trees/error-resolution.md` for the full Pivot Assessment criteria and recovery flow.
 
-**Pivot flow**: Error detected → classify → if Approach Failure: re-enter PLAN with fallback (from Scope Commitment) or new approach → present to user → re-implement → re-verify. Record in the Pivot field of the delivery report.
+**Pivot flow**: Error detected → classify → if Wrong Approach: re-enter PLAN with fallback (from Scope) or new approach → present to user → re-implement → re-verify. Record in the Pivot field of the delivery report.
 
-## Error Recovery
+## Recovery
 
 1. **Stop** — do not continue past errors
-2. **Classify** — code bug or approach failure? (see Adaptive Pivot Protocol above)
+2. **Classify** — code bug or approach failure? (see Pivot above)
 3. If code bug: document the error (incident report template), fix root cause, return to VERIFY
-4. If approach failure: re-enter PLAN, evaluate alternatives (Scope Commitment fallback first), present pivot to user, re-implement
+4. If approach failure: re-enter PLAN, evaluate alternatives (Scope fallback first), present pivot to user, re-implement
 5. Ask the user before any action with side effects (git changes, file deletions, destructive operations)
 
 Git rules (overrides defaults):
@@ -305,24 +305,24 @@ Git rules (overrides defaults):
 
 Full decision tree: `procedure/decision-trees/error-resolution.md`.
 
-## Phase Gate Protocol
+## Gate Protocol
 
 Phase transitions are guarded — each gate has an entry condition. See `procedure/phases.md` for full gate definitions.
 
 | Gate | Condition |
 |------|----------|
 | SPECIFY → PLAN | All problem-spec fields filled, SADC complete |
-| PLAN → IMPLEMENT | Scope Commitment output (Standard/Complex) |
+| PLAN → IMPLEMENT | Scope output (Standard/Complex) |
 | IMPLEMENT → VERIFY | Self-review pass, all IMPL steps done |
 | VERIFY → DELIVER | All verification items PASS |
 
-Any deviation from the Scope Commitment must appear in the delivery report's Scope Drift field.
+Any deviation from the Scope must appear in the delivery report's Scope Drift field.
 
-## Delivery Reports
+## Deliverys
 
-Two structured outputs bookend implementation: **Scope Commitment** (end of PLAN, before IMPLEMENT) and **Delivery Report** (end of DELIVER). The commitment says what will be built. The report says what was actually built and whether it matches.
+Two structured outputs bookend implementation: **Scope** (end of PLAN, before IMPLEMENT) and **Delivery** (end of DELIVER). The commitment says what will be built. The report says what was actually built and whether it matches.
 
-### Scope Commitment (output at end of PLAN)
+### Scope (output at end of PLAN)
 
 Used by Standard and Complex-tier tasks. Simple tasks scope internally (no formal output). This is the implementation contract — the delivery report will be measured against it.
 
@@ -336,14 +336,14 @@ Used by Standard and Complex-tier tasks. Simple tasks scope internally (no forma
 └─ Risk           : LOW / MEDIUM / HIGH
 ```
 
-### Compact Report (Simple)
+### Summary (Simple)
 
 ```
 ☄️ REPORT [Simple]
 SPECIFY→DELIVER : PASS | Evidence: <one-line result> | Defects: 0 | Drift: NONE
 ```
 
-### Delivery Report (Standard / Complex)
+### Delivery (Standard / Complex)
 
 ```
 ☄️ REPORT [Standard]
@@ -370,7 +370,7 @@ Defects found and fixed: 0
 | Deviations | Times implementation diverged from plan (0 = clean) |
 | Quality | Automated checks during implementation |
 | Pivot | NONE, or details of approach change (trigger, from, to) |
-| Scope Drift | NONE, or what changed from Scope Commitment |
+| Scope Drift | NONE, or what changed from Scope |
 
 If Pivot is not NONE, expand it:
 
@@ -396,4 +396,4 @@ Self-graded. The evidence requirement makes fabrication harder but cannot guaran
 
 ## Completion Signal
 
-For interactive web development tasks (Next.js, UI components, dashboards), implementation is delegated to fullstack-dev — the DELIVER phase calls the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize. For non-web coding tasks, DELIVER presents output file paths. **In all cases, DELIVER must append a Task State Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.
+For interactive web development tasks (Next.js, UI components, dashboards), implementation is delegated to fullstack-dev — the DELIVER phase calls the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize. For non-web coding tasks, DELIVER presents output file paths. **In all cases, DELIVER must append a Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.

@@ -22,7 +22,7 @@ Structures ALL tasks as a **6-phase state machine**:
 ```
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
   ↑                                        │
-  └──── Error Recovery ◄───────────────────┘
+  └──── Recovery ◄───────────────────┘
 ```
 
 - **Coding tasks**: full phases with Traceability IDs (IMPL-001, IMPL-002...)
@@ -39,7 +39,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 | Traceability IDs | IMPL-001 chains through every phase — gaps are visible |
 | Adaptive Complexity | Minimal/Simple/Standard/Complex tiers |
 | Source Verification | SSV (git fetch before analysis) + SADC (research before planning) |
-| File-based Memory | Evergreen + dated files for cross-session continuity |
+| File-based Memory | Permanent Memory + dated files for cross-session continuity |
 | Error Decision Tree | 5-step: capture → classify → identify → fix → re-verify |
 | Stateless by Design | No shell execution in Skill() invoke — pure markdown data |
 

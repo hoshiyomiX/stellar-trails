@@ -1080,20 +1080,20 @@ SKILL.md, README.md, boot.sh, setup.sh.
 
 ### Changed
 
-- **Terminology overhaul: PCR → Delivery Reports** — The term "Process Compliance Report" (PCR) was contradictory to the v5.0.0 philosophy that explicitly rejected compliance theater. Every reference to PCR has been replaced with plain-language terminology:
-  - "Scope PCR" → "Scope Commitment" — the pre-implementation contract output at end of PLAN
-  - "Delivery PCR" → "Delivery Report" — the post-implementation record output at end of DELIVER
-  - "Compact PCR" → "Compact Report" — single-line format for Simple tasks
+- **Terminology overhaul: PCR → Deliverys** — The term "Process Compliance Report" (PCR) was contradictory to the v5.0.0 philosophy that explicitly rejected compliance theater. Every reference to PCR has been replaced with plain-language terminology:
+  - "Scope PCR" → "Scope" — the pre-implementation contract output at end of PLAN
+  - "Delivery PCR" → "Delivery" — the post-implementation record output at end of DELIVER
+  - "Compact PCR" → "Summary" — single-line format for Simple tasks
   - "Minimal PCR" → inline `☄️ PASS` — one-line for non-coding tasks
-  - "Full PCR" → "Delivery Report" — the full block for Standard/Complex tasks
+  - "Full PCR" → "Delivery" — the full block for Standard/Complex tasks
   - "PIVOT" → "Pivot" — consistent sentence case
   - "DELTA Scope" → "Scope Drift" — clearer about what it tracks
 
-- **Block format changes** — Scope Commitment now uses `☄️ COMMIT [Standard]` header. Delivery Report uses `☄️ REPORT [Standard]`. Minimal tasks use `☄️ PASS | Evidence: ...` with no tier label. Compact Report uses `Drift: NONE` instead of `Delta: NONE`.
+- **Block format changes** — Scope now uses `☄️ COMMIT [Standard]` header. Delivery uses `☄️ REPORT [Standard]`. Minimal tasks use `☄️ PASS | Evidence: ...` with no tier label. Summary uses `Drift: NONE` instead of `Delta: NONE`.
 
-- **Section renamed** — "Process Compliance Report (PCR v2)" → "Delivery Reports" in SKILL.md. "Complexity Tiers & PCR Format" → "Complexity Tiers & Report Format" in phases.md.
+- **Section renamed** — "Process Compliance Report (PCR v2)" → "Deliverys" in SKILL.md. "Complexity Tiers & PCR Format" → "Complexity Tiers & Report Format" in phases.md.
 
-- **Zero acronyms** — No parent acronym. "Scope Commitment" and "Delivery Report" are self-explanatory without reading docs. This aligns with the framework's design principle: give the LLM tools it wants to use, not compliance mandates.
+- **Zero acronyms** — No parent acronym. "Scope" and "Delivery" are self-explanatory without reading docs. This aligns with the framework's design principle: give the LLM tools it wants to use, not compliance mandates.
 
 ### Why
 
@@ -1109,14 +1109,14 @@ SKILL.md, procedure/phases.md, procedure/decision-trees/error-resolution.md, pro
 
 - **Version sync failure in boot.sh** — header comment and post-install banner still referenced v5.4.8 despite SKILL.md being v5.5.0. Both now correctly show v5.5.1.
 - **Version sync failure in setup.sh** — done banner still referenced v5.4.8. Now correctly shows v5.5.1.
-- **Incident report template missing Pivot Assessment section** — Field guidance referenced a "Pivot Assessment" section as REQUIRED for Approach Failure classifications, but the template markdown block had no such section. Agents following the template would never produce it. Added a formal Pivot Assessment section between Root Cause Analysis and Proposed Fix, with fields for classification, pivot signal, fallback availability, fallback viability, new approach, and user approval.
+- **Incident report template missing Pivot Assessment section** — Field guidance referenced a "Pivot Assessment" section as REQUIRED for Wrong Approach classifications, but the template markdown block had no such section. Agents following the template would never produce it. Added a formal Pivot Assessment section between Root Cause Analysis and Proposed Fix, with fields for classification, pivot signal, fallback availability, fallback viability, new approach, and user approval.
 - **setup.sh version check used fragile grep** — Replaced `grep -q "v5.5.0"` (string match, breaks if version format changes) with semantic version extraction via `grep -oP 'version:\s*\K...'` matching the YAML frontmatter field. Now reports the actual version found on mismatch.
 - **SKILL.md description over-trigger** — Description was 603 chars, keyword-stuffed, and explained HOW the framework works instead of WHEN to activate. Rewritten to 218 chars focusing on trigger conditions: "Activates on every task: coding (features, bugs, refactoring, scripts), documents, charts, data processing, or complex planning." Maintains trigger keyword coverage while reducing noise.
 
 ### Changed
 
-- **SKILL.md: Phase Gate Protocol condensed** — Reduced from 12 lines (full explanation + 3-column table + Simple/Complex paragraph) to 8 lines (summary + 2-column table + cross-reference to phases.md). Details remain in `procedure/phases.md` which already has the full gate definitions.
-- **SKILL.md: Adaptive Pivot Protocol condensed** — Reduced from 14 lines (intro paragraph + rule + 7-row signal table + pivot flow) to 4 lines (summary + cross-reference to error-resolution.md). Details remain in `procedure/decision-trees/error-resolution.md`.
+- **SKILL.md: Gate Protocol condensed** — Reduced from 12 lines (full explanation + 3-column table + Simple/Complex paragraph) to 8 lines (summary + 2-column table + cross-reference to phases.md). Details remain in `procedure/phases.md` which already has the full gate definitions.
+- **SKILL.md: Pivot condensed** — Reduced from 14 lines (intro paragraph + rule + 7-row signal table + pivot flow) to 4 lines (summary + cross-reference to error-resolution.md). Details remain in `procedure/decision-trees/error-resolution.md`.
 - **SKILL.md line count reduced** — 246 → 234 lines (~5% reduction). Well within the 500-line budget.
 - **Version bump to v5.5.1** — All files synchronized: SKILL.md frontmatter, boot.sh header/banner/MINIMUM_VERSION, setup.sh header/banner/version-check, README.md badge/invoke/version-history.
 
@@ -1130,19 +1130,19 @@ Audit via skill-creator revealed: (1) version sync gaps between SKILL.md and she
 
 - **Scope PCR (pre-implementation commitment)** — New PCR variant output at end of PLAN phase (Standard/Complex). Commits to approach, fallback, scope boundaries (IN/OUT), step count, and risk level before IMPLEMENT begins. The delivery PCR's DELTA field measures any deviation from this commitment, making scope drift visible and traceable.
 
-- **Fallback Approach field** — Implementation plan template now requires a fallback approach (1-2 sentences describing what to do if the primary approach fails). This feeds the Adaptive Pivot Protocol — when an Approach Failure is detected during IMPLEMENT, the agent checks this field first before inventing a new approach.
+- **Fallback Approach field** — Implementation plan template now requires a fallback approach (1-2 sentences describing what to do if the primary approach fails). This feeds the Pivot — when an Wrong Approach is detected during IMPLEMENT, the agent checks this field first before inventing a new approach.
 
 - **Scope Boundary field** — Implementation plan template now requires explicit IN/OUT scope definition. The OUT list prevents scope creep by making exclusions visible before implementation starts.
 
 - **Scope OUT field in problem-spec** — Problem specification template now requires explicit exclusions. Feeds the Scope PCR's Scope OUT and the delivery PCR's DELTA comparison.
 
-- **Phase Gate Protocol** — Phase transitions are now guarded with entry conditions. SPECIFY → PLAN requires all spec fields + SADC. PLAN → IMPLEMENT requires Scope PCR. IMPLEMENT → VERIFY requires self-review pass. VERIFY → DELIVER requires all checks PASS. Gates prevent incomplete output from leaking to the next phase.
+- **Gate Protocol** — Phase transitions are now guarded with entry conditions. SPECIFY → PLAN requires all spec fields + SADC. PLAN → IMPLEMENT requires Scope PCR. IMPLEMENT → VERIFY requires self-review pass. VERIFY → DELIVER requires all checks PASS. Gates prevent incomplete output from leaking to the next phase.
 
-- **Adaptive Pivot Protocol** — New error classification: **Approach Failure** (distinct from Code Bug). When the fundamental approach is wrong (50%+ rewrite needed, same error after 2 fix attempts, missing library feature), the agent stops fixing, evaluates the fallback approach, presents a pivot to the user, re-enters PLAN, and re-implements. PIVOT field in delivery PCR records the event.
+- **Pivot** — New error classification: **Wrong Approach** (distinct from Bug). When the fundamental approach is wrong (50%+ rewrite needed, same error after 2 fix attempts, missing library feature), the agent stops fixing, evaluates the fallback approach, presents a pivot to the user, re-enters PLAN, and re-implements. PIVOT field in delivery PCR records the event.
 
-- **Pivot Assessment in error-resolution** — New section in the error decision tree that runs BEFORE diagnostic paths. Classifies errors as Code Bug vs Approach Failure using concrete criteria, then routes to the appropriate recovery path.
+- **Pivot Assessment in error-resolution** — New section in the error decision tree that runs BEFORE diagnostic paths. Classifies errors as Bug vs Wrong Approach using concrete criteria, then routes to the appropriate recovery path.
 
-- **Approach Failure classification** — Incident report template now includes Approach Failure as an error category with dedicated Pivot Assessment field.
+- **Wrong Approach classification** — Incident report template now includes Wrong Approach as an error category with dedicated Pivot Assessment field.
 
 ### Changed
 
@@ -1150,13 +1150,13 @@ Audit via skill-creator revealed: (1) version sync gaps between SKILL.md and she
 
 - **phases.md** — All phase transitions now have explicit gate conditions. PLAN phase action 3 defines fallback, action 10 outputs Scope PCR. IMPLEMENT action 1f tracks deviations. DELIVER action 8 outputs PCR v2.
 
-- **Error Recovery** — Now starts with classification step (code bug vs approach failure) before any fix attempt. Approach failures route to PLAN (not VERIFY).
+- **Recovery** — Now starts with classification step (code bug vs approach failure) before any fix attempt. Approach failures route to PLAN (not VERIFY).
 
 - **Return Phase Decision table** — Now includes Classification column. IMPLEMENT errors can return to PLAN (pivot) instead of only VERIFY or SPECIFY.
 
 ### Why
 
-The original PCR was purely post-mortem — it only reported what happened after the fact, with no commitment beforehand. This made scope drift invisible (you can't measure deviation from a commitment that was never made). The Adaptive Pivot Protocol addresses the "stubborn agent" failure mode: when an approach is fundamentally wrong, the agent should detect it early and switch strategies instead of burning context on failed fix attempts. Phase Gates ensure each phase produces valid output before the next phase consumes it, preventing error compounding.
+The original PCR was purely post-mortem — it only reported what happened after the fact, with no commitment beforehand. This made scope drift invisible (you can't measure deviation from a commitment that was never made). The Pivot addresses the "stubborn agent" failure mode: when an approach is fundamentally wrong, the agent should detect it early and switch strategies instead of burning context on failed fix attempts. Gates ensure each phase produces valid output before the next phase consumes it, preventing error compounding.
 
 ## [5.4.8] — 2026-05-18
 

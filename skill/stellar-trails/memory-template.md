@@ -10,16 +10,16 @@ Memory lives in a `memory/` directory within this skill folder. It uses a file-b
 
 ```
 memory/
-├── MEMORY.md          ← Evergreen: preferences, patterns, key decisions
-├── decisions.md       ← Evergreen: architectural decisions with rationale
-├── incidents.md       ← Evergreen: error patterns and fixes
+├── MEMORY.md          ← Permanent Memory: preferences, patterns, key decisions
+├── decisions.md       ← Permanent Memory: architectural decisions with rationale
+├── incidents.md       ← Permanent Memory: error patterns and fixes
 └── YYYY-MM-DD.md      ← Dated: session digest (one file per active day)
 ```
 
-### Evergreen vs. Dated
+### Permanent Memory vs. Dated
 
-- **Evergreen files** (no date in name) are permanent knowledge. They grow slowly and are curated by the agent. These are loaded during IDLE phase.
-- **Dated files** (`YYYY-MM-DD.md`) are session logs. One file is created per active day and appended to throughout the session. They capture what happened and why, preserving context for future sessions.
+- **Permanent Memory** (no date in name) are permanent knowledge. They grow slowly and are curated by the agent. These are loaded during IDLE phase.
+- **Daily Log** (`YYYY-MM-DD.md`) are session logs. One file is created per active day and appended to throughout the session. They capture what happened and why, preserving context for future sessions.
 
 This convention is borrowed from Memweave: the filename itself determines the lifecycle. No metadata, no tagging, no explicit expiration logic. A file without a date is permanent. A file with a date is a log entry.
 
@@ -48,7 +48,7 @@ Memory is not only loaded in IDLE. At each phase transition, a one-line check en
 | PLAN → IMPLEMENT | Check `memory/MEMORY.md` for workflow patterns |
 | IMPLEMENT → VERIFY | No memory check needed |
 | VERIFY → DELIVER | Check `memory/MEMORY.md` before writing session digest |
-| Error Recovery | Read `memory/incidents.md` for similar past errors |
+| Recovery | Read `memory/incidents.md` for similar past errors |
 
 These reminders are lightweight — a single line of context that keeps memory active throughout the entire phase machine, not just at the start.
 
@@ -56,7 +56,7 @@ These reminders are lightweight — a single line of context that keeps memory a
 
 ## File Templates
 
-### MEMORY.md (Evergreen)
+### MEMORY.md (Permanent Memory)
 
 ```markdown
 # Memory
@@ -75,7 +75,7 @@ These reminders are lightweight — a single line of context that keeps memory a
 budget: ~X/3000 chars
 ```
 
-### decisions.md (Evergreen)
+### decisions.md (Permanent Memory)
 
 ```markdown
 # Decisions
@@ -88,7 +88,7 @@ budget: ~X/3000 chars
 
 ```
 
-### incidents.md (Evergreen)
+### incidents.md (Permanent Memory)
 
 ```markdown
 # Incidents

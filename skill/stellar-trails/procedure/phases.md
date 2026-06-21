@@ -7,26 +7,26 @@ Each phase produces a concrete artifact that the next phase consumes. Skipping a
 ```
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
   ↑                                        │
-  └──── Error Recovery ◄───────────────────┘
+  └──── Recovery ◄───────────────────┘
 ```
 
 On error: stop, assess (code bug or approach failure?), fix or pivot, return to VERIFY.
 
 ---
 
-## Phase Gate Protocol
+## Gate Protocol
 
 Phase transitions are guarded. A phase cannot begin until its entry condition is met. This prevents incomplete output from leaking into the next phase and compounding errors.
 
 | Gate | Condition | Action if not met |
 |------|-----------|-------------------|
 | SPECIFY → PLAN | All problem-spec fields filled, SADC complete | Complete missing fields before proceeding |
-| PLAN → IMPLEMENT | Implementation plan complete + Scope Commitment output (Standard/Complex) | Present plan to user first |
+| PLAN → IMPLEMENT | Implementation plan complete + Scope output (Standard/Complex) | Present plan to user first |
 | IMPLEMENT → VERIFY | Self-review checklist pass, all IMPL steps done | Fix issues before transitioning |
 | VERIFY → DELIVER | All verification items PASS | Return to IMPLEMENT (or SPECIFY if spec gap) |
 
 **Simple tier**: Gates run internally — the agent validates conditions but doesn't produce formal gate output.
-**Standard/Complex tier**: PLAN → IMPLEMENT gate produces a Scope Commitment (see SKILL.md). The delivery report's Scope Drift field tracks any deviation from this commitment.
+**Standard/Complex tier**: PLAN → IMPLEMENT gate produces a Scope (see SKILL.md). The delivery report's Scope Drift field tracks any deviation from this commitment.
 
 ---
 
@@ -129,17 +129,17 @@ Compact report format (use this instead of the full block):
 SPECIFY→DELIVER : PASS | Evidence: <one-line result> | Defects: 0 | Drift: NONE
 ```
 
-### Standard (full report + Scope Commitment)
+### Standard (full report + Scope)
 
 Criteria: multiple files or a schema change.
 
-All phases use their full templates. Traceability IDs required. Output Scope Commitment at end of PLAN. Output full Delivery Report at end of DELIVER.
+All phases use their full templates. Traceability IDs required. Output Scope at end of PLAN. Output full Delivery at end of DELIVER.
 
-### Complex (full report + detailed evidence + Scope Commitment)
+### Complex (full report + detailed evidence + Scope)
 
 Criteria: architectural changes, multi-service, or high risk.
 
-All phases use their full templates with extra detail. Traceability IDs required. Output Scope Commitment at end of PLAN. Output full Delivery Report with expanded evidence at end of DELIVER.
+All phases use their full templates with extra detail. Traceability IDs required. Output Scope at end of PLAN. Output full Delivery with expanded evidence at end of DELIVER.
 
 ---
 
@@ -184,7 +184,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 **Actions**:
 1. Review the problem specification — confirm all requirements are accounted for.
 2. Choose a solution approach (2-3 sentences).
-3. **Define fallback approach** — identify an alternative approach if the primary fails. This is the safety net for the Adaptive Pivot Protocol. If no fallback exists, state "No viable fallback — would require user input."
+3. **Define fallback approach** — identify an alternative approach if the primary fails. This is the safety net for the Pivot. If no fallback exists, state "No viable fallback — would require user input."
 4. Break implementation into ordered steps. Each step gets a Traceability ID (IMPL-001, IMPL-002, etc.).
 5. Define verification strategy — what to check, how, and expected outcome.
 6. Read relevant knowledge files based on task type (see Phase References in SKILL.md).
@@ -195,13 +195,13 @@ All phases use their full templates with extra detail. Traceability IDs required
    - Note: Skill invocations should be delegated to subagents when possible; the main agent orchestrates the chain.
 8. **TodoWrite Sync** (recommended): Sync implementation steps to the platform's native `TodoWrite` tool for real-time visibility. Each IMPL-XXX becomes a TodoWrite item with pending → in_progress → completed status transitions.
 9. Fill out the implementation plan template and present.
-10. **Output Scope Commitment** (Standard/Complex only) — after the plan is approved, output a Scope Commitment block committing to the approach, fallback, scope boundaries, and step count. This becomes the contract that the delivery report will measure against. See SKILL.md for the Scope Commitment format.
+10. **Output Scope** (Standard/Complex only) — after the plan is approved, output a Scope block committing to the approach, fallback, scope boundaries, and step count. This becomes the contract that the delivery report will measure against. See SKILL.md for the Scope format.
 
 **Artifact**: `procedure/templates/implementation-plan.md`
 
-**Exit criteria**: Every requirement maps to at least one step. Every step has a Traceability ID. Verification strategy covers all edge cases. Fallback approach defined. Scope Commitment output (Standard/Complex).
+**Exit criteria**: Every requirement maps to at least one step. Every step has a Traceability ID. Verification strategy covers all edge cases. Fallback approach defined. Scope output (Standard/Complex).
 
-**Gate**: PLAN → IMPLEMENT — Scope Commitment must be output for Standard/Complex tasks. Simple tasks scope internally.
+**Gate**: PLAN → IMPLEMENT — Scope must be output for Standard/Complex tasks. Simple tasks scope internally.
 
 **Transition**: On acceptance → IMPLEMENT. On revision → update and re-present.
 
@@ -231,7 +231,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 
 **Gate**: IMPLEMENT → VERIFY — self-review checklist must pass and all IMPL steps must be done. Track deviations (times implementation diverged from plan) for the report Deviations field.
 
-**Transition**: On completion → VERIFY. On error → classify as code bug or approach failure (see Adaptive Pivot Protocol), follow appropriate recovery path.
+**Transition**: On completion → VERIFY. On error → classify as code bug or approach failure (see Pivot), follow appropriate recovery path.
 
 ---
 
@@ -269,7 +269,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 **Entry criteria**: Verification report shows all checks passing.
 
 **Actions**:
-0. **Append Task State Snapshot to worklog** — this is the FIRST action of DELIVER, before anything else. It fires while attention is still on the task. Append to `/home/z/my-project/worklog.md`:
+0. **Append Snapshot to worklog** — this is the FIRST action of DELIVER, before anything else. It fires while attention is still on the task. Append to `/home/z/my-project/worklog.md`:
 
    For Minimal and Simple tasks:
    ```
@@ -317,10 +317,10 @@ All phases use their full templates with extra detail. Traceability IDs required
 5. Note any dependencies added.
 6. Present verification report summary.
 7. State caveats or follow-up items.
-8. Output **Delivery Report** — use the compact format for Simple tasks, full format for Standard/Complex (see Delivery Reports in SKILL.md). Include Scope Drift (comparison against Scope Commitment) and Pivot (if approach changed) fields.
+8. Output **Delivery** — use the compact format for Simple tasks, full format for Standard/Complex (see Deliverys in SKILL.md). Include Scope Drift (comparison against Scope) and Pivot (if approach changed) fields.
 9. **Completion signal**: For web development tasks (Coding), call `Complete(project_type="web_dev", summary="...")`. For non-coding tasks, present the output file path directly.
 
-**Artifacts**: None new. Consumes verification report. Writes to `worklog.md` (Task State Snapshot) and `memory/YYYY-MM-DD.md` (Session Digest).
+**Artifacts**: None new. Consumes verification report. Writes to `worklog.md` (Snapshot) and `memory/YYYY-MM-DD.md` (Session Digest).
 
 **Transition**: On acceptance → IDLE. On revision → return to appropriate phase.
 
@@ -328,20 +328,20 @@ All phases use their full templates with extra detail. Traceability IDs required
 
 ## Error Handling
 
-### Adaptive Pivot Protocol
+### Pivot
 
 Before attempting any fix, classify the error:
 
 | Signal | Classification | Recovery Path |
 |--------|---------------|---------------|
-| Fix requires rewriting 50%+ of implementation | Approach Failure | Re-enter PLAN with fallback |
-| Same error recurs after 2 fix attempts | Approach Failure | Stop fixing, re-evaluate approach |
-| Fix requires changing data model / API contract | Approach Failure | Re-enter PLAN |
-| Required library/framework feature doesn't exist | Approach Failure | Pivot to Scope Commitment fallback or new approach |
-| Typo, wrong variable, missing null check | Code Bug | Fix → VERIFY |
-| Type mismatch, import error, lint violation | Code Bug | Fix → VERIFY |
+| Fix requires rewriting 50%+ of implementation | Wrong Approach | Re-enter PLAN with fallback |
+| Same error recurs after 2 fix attempts | Wrong Approach | Stop fixing, re-evaluate approach |
+| Fix requires changing data model / API contract | Wrong Approach | Re-enter PLAN |
+| Required library/framework feature doesn't exist | Wrong Approach | Pivot to Scope fallback or new approach |
+| Typo, wrong variable, missing null check | Bug | Fix → VERIFY |
+| Type mismatch, import error, lint violation | Bug | Fix → VERIFY |
 
-**Pivot flow**: Error → classify → if Approach Failure: evaluate alternatives (Scope Commitment fallback first), present pivot to user, re-enter PLAN with new approach, re-implement, re-verify. Record in Pivot field of delivery report.
+**Pivot flow**: Error → classify → if Wrong Approach: evaluate alternatives (Scope fallback first), present pivot to user, re-enter PLAN with new approach, re-implement, re-verify. Record in Pivot field of delivery report.
 
 ### Incident Protocol
 
@@ -364,10 +364,10 @@ Before attempting any fix, classify the error:
 |-------------|---------------|---------------|----------|
 | SPECIFY | Incomplete requirements | — | SPECIFY (update spec) |
 | PLAN | Specification gap or wrong approach | — | SPECIFY or PLAN |
-| IMPLEMENT | Code defect | Code Bug | VERIFY (re-verify after fix) |
-| IMPLEMENT | Fundamental design wrong | Approach Failure | PLAN (pivot with new approach) |
-| IMPLEMENT | Specification gap | Approach Failure | SPECIFY (update spec, re-plan) |
-| VERIFY | Code defect not caught | Code Bug | IMPLEMENT (fix, then VERIFY) |
-| VERIFY | Specification gap | Approach Failure | SPECIFY (update spec, re-plan, re-implement) |
+| IMPLEMENT | Code defect | Bug | VERIFY (re-verify after fix) |
+| IMPLEMENT | Fundamental design wrong | Wrong Approach | PLAN (pivot with new approach) |
+| IMPLEMENT | Specification gap | Wrong Approach | SPECIFY (update spec, re-plan) |
+| VERIFY | Code defect not caught | Bug | IMPLEMENT (fix, then VERIFY) |
+| VERIFY | Specification gap | Wrong Approach | SPECIFY (update spec, re-plan, re-implement) |
 
 When uncertain, return to SPECIFY. It is safer to re-confirm requirements than to fix code against a misunderstood specification.
