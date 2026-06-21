@@ -3,644 +3,154 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-<title>Stellar Trails — Stateless Phase Machine for LLM Agents</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Stellar Trails</title>
 <style>
-  :root {
-    --bg-deep: #050511;
-    --bg-mid: #0a0a1f;
-    --bg-card: rgba(20, 20, 40, 0.6);
-    --border-soft: rgba(139, 92, 246, 0.2);
-    --border-glow: rgba(139, 92, 246, 0.4);
-    --text-primary: #f4f4f5;
-    --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
-    --accent: #a78bfa;
-    --accent-bright: #c4b5fd;
-    --accent-glow: rgba(167, 139, 250, 0.5);
-    --success: #34d399;
-    --phase-idle: #64748b;
-    --phase-specify: #3b82f6;
-    --phase-plan: #8b5cf6;
-    --phase-implement: #ec4899;
-    --phase-verify: #f59e0b;
-    --phase-deliver: #10b981;
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0a0a0f;--fg:#e4e4e7;--muted:#71717a;--dim:#3f3f46;
+    --accent:#a78bfa;--accent2:#c4b5fd;--pink:#ec4899;--green:#34d399;
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--fg);min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:2rem;overflow:hidden;position:relative;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-    background: var(--bg-deep);
-    color: var(--text-primary);
-    min-height: 100vh;
-    overflow-x: hidden;
-    position: relative;
+  /* Single subtle gradient orb — GPU-friendly, no starfield */
+  .orb{
+    position:fixed;width:600px;height:600px;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,92,246,.12) 0%,transparent 60%);
+    top:50%;left:50%;transform:translate(-50%,-50%);
+    animation:breathe 8s ease-in-out infinite;pointer-events:none;z-index:0;
+  }
+  @keyframes breathe{
+    0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.5}
+    50%{transform:translate(-50%,-50%) scale(1.15);opacity:.8}
   }
 
-  /* Animated cosmic background */
-  .cosmos {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background:
-      radial-gradient(ellipse at 20% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, rgba(236, 72, 153, 0.10) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 70%),
-      var(--bg-deep);
+  .content{position:relative;z-index:1;max-width:560px;text-align:center;
+    animation:fadeIn .8s ease-out}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Mascot — small, subtle float */
+  .mascot{
+    height:100px;width:auto;margin-bottom:1.2rem;
+    filter:drop-shadow(0 4px 20px rgba(139,92,246,.3));
+    animation:float 5s ease-in-out infinite;
+  }
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+  h1{
+    font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin-bottom:.4rem;
+    background:linear-gradient(135deg,var(--accent2),var(--accent) 50%,var(--pink));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   }
 
-  .stars {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background-image:
-      radial-gradient(1px 1px at 20% 30%, white, transparent),
-      radial-gradient(1px 1px at 60% 70%, white, transparent),
-      radial-gradient(1px 1px at 80% 10%, white, transparent),
-      radial-gradient(2px 2px at 40% 80%, white, transparent),
-      radial-gradient(1px 1px at 90% 50%, white, transparent),
-      radial-gradient(1px 1px at 10% 60%, white, transparent),
-      radial-gradient(1px 1px at 70% 20%, white, transparent),
-      radial-gradient(2px 2px at 30% 40%, white, transparent);
-    background-size: 200% 200%;
-    background-repeat: repeat;
-    opacity: 0.4;
-    animation: drift 60s linear infinite;
+  .tagline{font-size:.85rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.5}
+
+  .badges{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:2rem}
+  .badge{
+    display:inline-flex;align-items:center;gap:.3rem;
+    padding:.25rem .7rem;border:1px solid var(--dim);border-radius:99px;
+    font-size:.7rem;color:var(--muted);
+  }
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+  .badge .v{color:var(--accent2);font-weight:600}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* Phase flow — minimal text, no cards */
+  .phases{
+    font-size:.75rem;color:var(--dim);letter-spacing:.05em;
+    margin-bottom:2rem;font-family:monospace;
+  }
+  .phases span{transition:color .3s}
+  .phases span:nth-child(1){color:var(--muted)}
+  .phases span:nth-child(3){color:var(--accent)}
+  .phases span:nth-child(5){color:var(--pink)}
+  .phases span:nth-child(7){color:var(--accent2)}
+  .phases span:nth-child(9){color:var(--green)}
+
+  /* Install — minimal terminal style */
+  .install{
+    background:rgba(20,20,35,.8);border:1px solid var(--dim);border-radius:8px;
+    padding:.7rem 1rem;margin-bottom:1.5rem;text-align:left;
+    font-family:'SF Mono',Monaco,monospace;font-size:.7rem;
+    color:var(--muted);overflow-x:auto;cursor:pointer;transition:border-color .2s;
+    position:relative;
+  }
+  .install:hover{border-color:var(--accent)}
+  .install::before{content:'$ ';color:var(--accent)}
+  .install .url{color:var(--green)}
+  .install .copied{
+    position:absolute;right:.7rem;top:50%;transform:translateY(-50%);
+    color:var(--green);opacity:0;transition:opacity .3s;font-size:.65rem;
+  }
+  .install.copied-state .copied{opacity:1}
+
+  /* Footer links — minimal */
+  .links{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+  .links a{
+    color:var(--muted);text-decoration:none;font-size:.75rem;
+    transition:color .2s;padding:.2rem .4rem;
+  }
+  .links a:hover{color:var(--accent2)}
+
+  .invoke{
+    margin-top:1.5rem;font-size:.7rem;color:var(--dim);
+  }
+  .invoke code{
+    color:var(--accent2);background:rgba(139,92,246,.08);
+    padding:.1rem .4rem;border-radius:4px;font-size:.65rem;
   }
 
-  @keyframes drift {
-    from { background-position: 0 0; }
-    to { background-position: 200% 200%; }
-  }
-
-  /* Layout */
-  .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 3rem 1.5rem 4rem;
-  }
-
-  /* Hero */
-  .hero {
-    text-align: center;
-    margin-bottom: 4rem;
-    animation: fadeUp 0.8s ease-out;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .mascot-wrap {
-    display: inline-block;
-    margin-bottom: 1.5rem;
-    position: relative;
-  }
-
-  .mascot-glow {
-    position: absolute;
-    inset: -40px;
-    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-    z-index: -1;
-    animation: pulse-glow 4s ease-in-out infinite;
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-  }
-
-  .mascot {
-    height: 160px;
-    width: auto;
-    animation: float 6s ease-in-out infinite;
-    filter: drop-shadow(0 8px 24px rgba(139, 92, 246, 0.4));
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-12px); }
-  }
-
-  h1 {
-    font-size: clamp(2rem, 5vw, 3rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, var(--accent-bright) 0%, var(--accent) 50%, #ec4899 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .tagline {
-    font-size: 1.05rem;
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-    line-height: 1.6;
-  }
-
-  .tagline strong {
-    color: var(--accent-bright);
-    font-weight: 600;
-  }
-
-  .version-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.9rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 9999px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    backdrop-filter: blur(10px);
-  }
-
-  .badge .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 8px var(--success);
-    animation: pulse-dot 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  .badge-version {
-    color: var(--accent-bright);
-    font-weight: 600;
-  }
-
-  /* Phase Flow Diagram */
-  .phase-flow {
-    margin: 3rem 0 4rem;
-    animation: fadeUp 1s ease-out 0.2s backwards;
-  }
-
-  .section-title {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--text-muted);
-    margin-bottom: 1.5rem;
-    text-align: center;
-  }
-
-  .flow-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .phase-node {
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    padding: 1rem 0.5rem;
-    text-align: center;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-    position: relative;
-    cursor: default;
-  }
-
-  .phase-node:hover {
-    border-color: var(--border-glow);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15);
-  }
-
-  .phase-node::after {
-    content: '→';
-    position: absolute;
-    right: -0.6rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 1rem;
-    z-index: 1;
-  }
-
-  .phase-node:last-child::after { display: none; }
-
-  .phase-icon {
-    font-size: 1.4rem;
-    margin-bottom: 0.4rem;
-    display: block;
-  }
-
-  .phase-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .phase-desc {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    margin-top: 0.2rem;
-    line-height: 1.3;
-  }
-
-  .phase-node.idle { border-top: 2px solid var(--phase-idle); }
-  .phase-node.idle .phase-icon { color: var(--phase-idle); }
-  .phase-node.specify { border-top: 2px solid var(--phase-specify); }
-  .phase-node.specify .phase-icon { color: var(--phase-specify); }
-  .phase-node.plan { border-top: 2px solid var(--phase-plan); }
-  .phase-node.plan .phase-icon { color: var(--phase-plan); }
-  .phase-node.implement { border-top: 2px solid var(--phase-implement); }
-  .phase-node.implement .phase-icon { color: var(--phase-implement); }
-  .phase-node.verify { border-top: 2px solid var(--phase-verify); }
-  .phase-node.verify .phase-icon { color: var(--phase-verify); }
-  .phase-node.deliver { border-top: 2px solid var(--phase-deliver); }
-  .phase-node.deliver .phase-icon { color: var(--phase-deliver); }
-
-  .error-loop {
-    text-align: center;
-    margin-top: 1rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-style: italic;
-  }
-
-  .error-loop span { color: var(--accent); }
-
-  /* Features Grid */
-  .features {
-    margin: 4rem 0;
-    animation: fadeUp 1s ease-out 0.4s backwards;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-  }
-
-  .feature-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 16px;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-  }
-
-  .feature-card:hover {
-    border-color: var(--border-glow);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.1);
-  }
-
-  .feature-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
-    display: block;
-  }
-
-  .feature-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.4rem;
-  }
-
-  .feature-desc {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-
-  /* Install Command */
-  .install {
-    margin: 4rem 0;
-    animation: fadeUp 1s ease-out 0.6s backwards;
-  }
-
-  .install-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 16px;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-  .install-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .install-label::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    background: var(--accent);
-    border-radius: 50%;
-  }
-
-  .command-row {
-    display: flex;
-    align-items: stretch;
-    gap: 0.5rem;
-    background: rgba(5, 5, 17, 0.8);
-    border: 1px solid var(--border-soft);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .command-prompt {
-    display: flex;
-    align-items: center;
-    padding: 0 0.75rem;
-    color: var(--accent);
-    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-    font-size: 0.8rem;
-    border-right: 1px solid var(--border-soft);
-    background: rgba(139, 92, 246, 0.05);
-  }
-
-  .command-text {
-    flex: 1;
-    padding: 0.75rem;
-    color: var(--text-primary);
-    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-    font-size: 0.75rem;
-    overflow-x: auto;
-    white-space: pre;
-    line-height: 1.5;
-  }
-
-  .command-text .op { color: var(--accent); }
-  .command-text .url { color: var(--success); }
-  .command-text .flag { color: #f59e0b; }
-  .command-text .path { color: #60a5fa; }
-
-  .copy-btn {
-    padding: 0.75rem 1rem;
-    background: rgba(139, 92, 246, 0.15);
-    border: none;
-    border-left: 1px solid var(--border-soft);
-    color: var(--accent-bright);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: background 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .copy-btn:hover { background: rgba(139, 92, 246, 0.3); }
-  .copy-btn.copied { background: rgba(52, 211, 153, 0.2); color: var(--success); }
-
-  /* Footer Links */
-  .footer {
-    margin-top: 4rem;
-    text-align: center;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    animation: fadeUp 1s ease-out 0.8s backwards;
-  }
-
-  .footer-links {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .footer-link {
-    color: var(--text-secondary);
-    text-decoration: none;
-    padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border-soft);
-    border-radius: 8px;
-    transition: all 0.2s;
-    backdrop-filter: blur(10px);
-    background: var(--bg-card);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .footer-link:hover {
-    border-color: var(--border-glow);
-    color: var(--accent-bright);
-    transform: translateY(-1px);
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .flow-grid {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem;
-    }
-    .phase-node::after { display: none; }
-    .phase-node:nth-child(3n)::after { display: none; }
-    .phase-node {
-      border-bottom: 2px solid var(--border-soft);
-    }
-    .container { padding: 2rem 1rem 3rem; }
-    .command-text { font-size: 0.65rem; }
-  }
-
-  @media (max-width: 480px) {
-    .flow-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .mascot { height: 120px; }
+  @media(max-width:480px){
+    .mascot{height:80px}
+    h1{font-size:1.3rem}
+    .install{font-size:.6rem}
   }
 </style>
 </head>
 <body>
-<div class="cosmos"></div>
-<div class="stars"></div>
-
-<div class="container">
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="mascot-wrap">
-      <div class="mascot-glow"></div>
-      <img class="mascot" src="chibi.png" alt="Stellar Trails mascot"
-           onerror="this.style.display='none';document.getElementById('fallback-emoji').style.display='block'">
-      <div id="fallback-emoji" style="display:none;font-size:5rem;filter:drop-shadow(0 0 24px var(--accent-glow))">☄️</div>
-    </div>
-    <h1>Stellar Trails</h1>
-    <p class="tagline">
-      <strong>Stateless phase machine</strong> for LLM agents.
-      Traceability IDs, artifact templates, source verification, and file-based memory —
-      without shell execution or persistent hooks.
-    </p>
-    <div class="version-row">
-      <span class="badge"><span class="dot"></span> Dev server running</span>
-      <span class="badge">v<span class="badge-version">7.2.6</span></span>
-      <span class="badge">☄️ Stateless</span>
-    </div>
-  </section>
-
-  <!-- Phase Flow Diagram -->
-  <section class="phase-flow">
-    <h2 class="section-title">Phase State Machine</h2>
-    <div class="flow-grid">
-      <div class="phase-node idle" title="Receive task, classify complexity">
-        <span class="phase-icon">○</span>
-        <div class="phase-name">IDLE</div>
-        <div class="phase-desc">Classify</div>
-      </div>
-      <div class="phase-node specify" title="Research sources, restate problem">
-        <span class="phase-icon">◎</span>
-        <div class="phase-name">SPECIFY</div>
-        <div class="phase-desc">Spec + SSV</div>
-      </div>
-      <div class="phase-node plan" title="Implementation plan with Traceability IDs">
-        <span class="phase-icon">◈</span>
-        <div class="phase-name">PLAN</div>
-        <div class="phase-desc">IMPL-001...</div>
-      </div>
-      <div class="phase-node implement" title="Annotated code referencing Traceability IDs">
-        <span class="phase-icon">◆</span>
-        <div class="phase-name">IMPLEMENT</div>
-        <div class="phase-desc">Code + refs</div>
-      </div>
-      <div class="phase-node verify" title="Evidence-based report">
-        <span class="phase-icon">◉</span>
-        <div class="phase-name">VERIFY</div>
-        <div class="phase-desc">Tests + edges</div>
-      </div>
-      <div class="phase-node deliver" title="Summary + compliance report">
-        <span class="phase-icon">●</span>
-        <div class="phase-name">DELIVER</div>
-        <div class="phase-desc">Report</div>
-      </div>
-    </div>
-    <div class="error-loop">
-      <span>↺</span> Error Recovery loops back from VERIFY to SPECIFY on failure
-    </div>
-  </section>
-
-  <!-- Features Grid -->
-  <section class="features">
-    <h2 class="section-title">What's Inside</h2>
-    <div class="features-grid">
-      <div class="feature-card">
-        <span class="feature-icon">🧭</span>
-        <div class="feature-title">Traceability IDs</div>
-        <div class="feature-desc">IMPL-001, IMPL-002... chain through every phase — requirement → code → verification. Gaps are visible.</div>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🎯</span>
-        <div class="feature-title">Adaptive Complexity</div>
-        <div class="feature-desc">Minimal, Simple, Standard, Complex tiers. All 6 phases always run — only ceremony adjusts.</div>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">📡</span>
-        <div class="feature-title">Source Verification</div>
-        <div class="feature-desc">SSV: git fetch before analysis. SADC: search existing packages + read docs before planning.</div>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🧠</span>
-        <div class="feature-title">File-based Memory</div>
-        <div class="feature-desc">Evergreen + dated files for cross-session continuity. Bounded budget, agent-curated.</div>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">🛡️</span>
-        <div class="feature-title">Error Decision Tree</div>
-        <div class="feature-desc">5-step: capture → classify → identify → fix → re-verify. Covers 7 error categories.</div>
-      </div>
-      <div class="feature-card">
-        <span class="feature-icon">⚡</span>
-        <div class="feature-title">Stateless by Design</div>
-        <div class="feature-desc">No shell execution in Skill() invoke. Pure markdown data — agent-friendly, audit-friendly.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Install Command -->
-  <section class="install">
-    <h2 class="section-title">Install (one line)</h2>
-    <div class="install-card">
-      <div class="install-label">ZAI Platform</div>
-      <div class="command-row">
-        <span class="command-prompt">$</span>
-        <code class="command-text" id="install-cmd"><span class="op">curl</span> <span class="flag">-sL</span> <span class="url">https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip</span> <span class="flag">-o</span> <span class="path">/home/user_skills/stellar-trails.zip</span> <span class="op">&&</span> <span class="op">touch</span> <span class="path">/home/user_skills/.stellar-trails.usermark</span> <span class="op">&&</span> <span class="op">echo</span> "✓ installed"</code>
-        <button class="copy-btn" onclick="copyInstall()" id="copy-btn">
-          <span id="copy-text">COPY</span>
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-links">
-      <a class="footer-link" href="https://github.com/hoshiyomiX/stellar-trails" target="_blank" rel="noopener">
-        📦 GitHub Repo
-      </a>
-      <a class="footer-link" href="https://github.com/hoshiyomiX/stellar-trails/releases/latest" target="_blank" rel="noopener">
-        🚀 Latest Release
-      </a>
-      <a class="footer-link" href="https://github.com/hoshiyomiX/stellar-trails/blob/main/skill/stellar-trails/CHANGELOG.md" target="_blank" rel="noopener">
-        📜 Changelog
-      </a>
-      <a class="footer-link" href="https://github.com/hoshiyomiX/stellar-trails/blob/main/README.md" target="_blank" rel="noopener">
-        📖 README
-      </a>
-    </div>
-    <div>Invoke via <code style="color: var(--accent-bright); background: rgba(139,92,246,0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">Skill(command="stellar-trails")</code></div>
-  </footer>
-
+<div class="orb"></div>
+<div class="content">
+  <img class="mascot" src="chibi.png" alt="Stellar Trails"
+       onerror="this.style.display='none'">
+  <h1>Stellar Trails</h1>
+  <p class="tagline">Stateless phase machine for LLM agents.<br>
+     Traceability IDs · Phase gates · Adaptive complexity · No shell exec.</p>
+  <div class="badges">
+    <span class="badge"><span class="dot"></span> Dev server</span>
+    <span class="badge">v<span class="v">7.3.0</span></span>
+    <span class="badge">☄️ Stateless</span>
+  </div>
+  <div class="phases">
+    <span>IDLE</span> → <span>SPECIFY</span> → <span>PLAN</span> →
+    <span>IMPLEMENT</span> → <span>VERIFY</span> → <span>DELIVER</span>
+  </div>
+  <div class="install" onclick="copyCmd(this)" id="cmd">
+    <span class="url">clawhub install stellar-trails</span>
+    <span class="copied">✓ copied</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/hoshiyomiX/stellar-trails" target="_blank">GitHub</a>
+    <a href="https://clawhub.ai/skills/stellar-trails" target="_blank">ClawHub</a>
+    <a href="https://github.com/hoshiyomiX/stellar-trails/releases/latest" target="_blank">Release</a>
+    <a href="https://github.com/hoshiyomiX/stellar-trails/blob/main/skill/stellar-trails/CHANGELOG.md" target="_blank">Changelog</a>
+  </div>
+  <div class="invoke">Invoke via <code>Skill(command="stellar-trails")</code></div>
 </div>
-
 <script>
-function copyInstall() {
-  const cmd = 'curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo "✓ stellar-trails installed — invoke via Skill(command=\'stellar-trails\') next session"';
-  navigator.clipboard.writeText(cmd).then(() => {
-    const btn = document.getElementById('copy-btn');
-    const txt = document.getElementById('copy-text');
-    btn.classList.add('copied');
-    txt.textContent = 'COPIED ✓';
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      txt.textContent = 'COPY';
-    }, 2000);
+function copyCmd(el){
+  navigator.clipboard.writeText('clawhub install stellar-trails').then(()=>{
+    el.classList.add('copied-state');
+    setTimeout(()=>el.classList.remove('copied-state'),1500);
   });
 }
 </script>
-
 </body>
 </html>

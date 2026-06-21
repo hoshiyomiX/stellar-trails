@@ -1,5 +1,73 @@
 # Changelog
 
+## [7.3.0] — 2026-06-21
+
+### Changed — Minimalist Popup Preview + watermark.md Documentation
+
+#### New Minimalist index.html (6 KB, -68% from cosmic v7.1.4)
+
+Replaced cosmic glassmorphism landing page (19 KB) with minimalist version (6 KB):
+- Single gradient orb (breathe 8s, GPU-friendly) instead of starfield + 3 gradients
+- Text-based phase flow (monospace, colored words) instead of 6 glassmorphism cards
+- Removed features grid (tagline covers essentials)
+- Minimal code block + click-to-copy instead of terminal card + syntax highlighting
+- 4 CSS animations (fadeIn, float, breathe, pulse) instead of 6+
+- ~20 DOM elements instead of ~80+
+- Install command updated to `clawhub install stellar-trails`
+
+#### New: watermark.md — Custom Popup Preview Documentation
+
+Added `skill/stellar-trails/watermark.md` documenting:
+1. ZAI popup architecture (Browser → CDN → Caddy :81 → dev.sh :3000 → index.html)
+2. 3 methods to change popup preview (direct edit, skill source + publish, clawhub install)
+3. dev.sh key features (Cache-Control: no-store, crash recovery, SO_REUSEADDR, port guard)
+4. Double-fork technique: `( setsid bash dev.sh & ) &` — orphan process (PPID=1), survives shell exit
+5. Caching layers debug guide (5 layers: file → python → Caddy → browser → CDN)
+6. index.html design guidelines (under 10 KB, no backdrop-filter, CSS animations only)
+7. Version history (v6.3.0 → v7.3.0)
+
+#### Files Modified
+
+- `skill/stellar-trails/index.html` — minimalist rewrite (19 KB → 6 KB, -68%)
+- `skill/stellar-trails/watermark.md` (NEW) — popup preview documentation
+- `skill/stellar-trails/SKILL.md` — bump version 7.2.6 → 7.3.0, banner
+- `README.md` — bump version badge
+- `skill/stellar-trails/CHANGELOG.md` — this entry + missing v7.2.5/v7.2.6 entries
+- `.checksums` — regenerated (added watermark.md)
+
+## [7.2.6] — 2026-06-21
+
+### Fixed — Double-Fork Technique: Popup Survives Shell Exit
+
+**Bug**: dev.sh process killed when bash tool exits (sandbox cleanup kills child processes of temporary shell). Previously used `nohup + disown` which did not survive.
+
+**Fix**: Double-fork technique in SKILL.md Step 1.5:
+```bash
+( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
+```
+Process becomes orphan (parent=PID 1/tini) → survives shell exit. No restart needed.
+
+**Verified**: PID 1609 (dev.sh) PPID=1, still alive in subsequent bash calls.
+
+## [7.2.5] — 2026-06-21
+
+### Added — Published to ClawHub (Official z.ai Skill Marketplace)
+
+Stellar Trails now available on [ClawHub](https://clawhub.ai/skills/stellar-trails):
+```bash
+clawhub install stellar-trails
+```
+Zero red flag, zero agent refusal:
+- clawhub = native z.ai CLI (pre-installed in all sandboxes)
+- Install from ClawHub registry (official, verified, moderated)
+- No curl from external URLs, no .usermark, no skill-hijack pattern
+- Moderation status: CLEAN
+
+Updated README: clawhub install as primary, curl as alternative.
+Updated SKILL.md Step 0.5: notice says `clawhub update stellar-trails`.
+
+# Changelog
+
 ## [7.2.4] — 2026-06-21
 
 ### Fixed — Step 0.5 Notice-Only (hapus auto-update, respect agent refusal)

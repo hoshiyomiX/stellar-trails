@@ -6,12 +6,12 @@ description: "Activates on every task without exception: coding (features, bugs,
 
 ## Metadata
 
-- **version**: 7.2.6
+- **version**: 7.3.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.2.6 · ACTIVE
+☄️ STELLAR TRAILS · v7.3.0 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -139,7 +139,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.2.6 · ACTIVE
+☄️ STELLAR TRAILS · v7.3.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
