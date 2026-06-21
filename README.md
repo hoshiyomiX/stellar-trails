@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.1.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.1.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -25,79 +25,55 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ## Quick Start
 
-### Path A — ZAI Platform (recommended, no shell execution)
+### Install (one line, agent-friendly)
 
-ZAI platform auto-extracts user skills from `/home/user_skills/*.zip` (PolarFS persistent mount) on every session start. **No `boot.sh` execution required — the skill is pure markdown data.**
+```bash
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo "✓ stellar-trails installed — invoke via Skill(command='stellar-trails') next session"
+```
 
-**To install/update (using GitHub Release asset):**
+**Apa ini lakukan:**
+1. `curl -sL` → Download zip dari GitHub Release (silent, follow redirects). No shell execution — pure file fetch.
+2. `-o /home/user_skills/stellar-trails.zip` → Write langsung ke ZAI persistent storage (PolarFS mount, survive across sessions).
+3. `touch /home/user_skills/.stellar-trails.usermark` → Create marker file "skill approved" (ZAI service uses this untuk allowlist).
+4. `echo "✓ ..."` → Confirmation message.
 
-1. **Download zip** dari GitHub Release (pilih salah satu metode):
+**Next session:** ZAI service akan auto-extract zip ke `/home/z/my-project/skills/stellar-trails/` (~5 detik after official_skills). Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.1.3 · ACTIVE`.
 
-   **Metode 1: gh CLI** (recommended — verify SHA otomatis)
-   ```bash
-   gh release download latest \
-     --repo hoshiyomiX/stellar-trails \
-     --pattern 'stellar-trails-*.zip' \
-     --dir /tmp/
-   ```
+**Update ke versi baru:** jalankan ulang command yang sama — overwrite zip lama, next session akan pakai versi baru.
 
-   **Metode 2: curl** (no auth required untuk public repo)
-   ```bash
-   curl -sL -o /tmp/stellar-trails.zip \
-     https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip
-   ```
+### Optional: Verify checksum (recommended untuk production)
 
-   **Metode 3: Browser** — download manual dari https://github.com/hoshiyomiX/stellar-trails/releases/latest
+```bash
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256 | sha256sum -c <(curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip | sha256sum | awk '{print $1"  stellar-trails.zip"}') -
+```
 
-2. **Verify checksum** (recommended):
-   ```bash
-   # Download SHA256 file
-   curl -sL -o /tmp/stellar-trails.zip.sha256 \
-     https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256
+Atau lebih sederhana, download dulu lalu verify:
+```bash
+cd /tmp
+curl -sLO https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip
+curl -sLO https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip.sha256
+sha256sum -c stellar-trails.zip.sha256  # Expected: stellar-trails.zip: OK
+```
 
-   # Verify (cd karena sha256sum expect filename match)
-   cd /tmp && sha256sum -c stellar-trails.zip.sha256 && cd -
-   # Expected: stellar-trails.zip: OK
-   ```
-
-3. **Upload zip** ke ZAI persistent storage:
-   ```bash
-   cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip
-   touch /home/user_skills/.stellar-trails.usermark  # marker "skill approved"
-   ```
-
-4. **Verify** (next session):
-   ```bash
-   ls /home/z/my-project/skills/stellar-trails/SKILL.md
-   # /home/z/my-project/skills/stellar-trails/SKILL.md
-   ```
-
-**Skill siap dipakai:** `Skill(command="stellar-trails")` — look for `☄️ STELLAR TRAILS · v7.1.2 · ACTIVE`.
-
-**Persistence model:**
-- `/home/user_skills/stellar-trails.zip` → PolarFS persistent mount, survive across sessions
-- ZAI service extracts zip ke `/home/z/my-project/skills/stellar-trails/` at session start (~5s after official_skills)
-- SHA-256 of SKILL.md in zip = SHA-256 of installed SKILL.md (verified — verbatim extraction)
-
-**Update flow:**
-- Untuk update ke versi baru, ulangi langkah 1-3 di atas (download latest release → replace zip di `/home/user_skills/`)
-- Next session akan auto-extract versi baru, menggantikan versi lama
-
-### Path B — Standalone (non-ZAI, optional `boot.sh`)
+### Alternative: Standalone (non-ZAI, optional `boot.sh`)
 
 Untuk environment non-ZAI (local dev, Next.js standalone, dll), gunakan `boot.sh` untuk install skill files + optional popup preview:
 
 ```bash
-git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 \
-  https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-install \
-  && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules \
-  && rm -rf /tmp/stellar-install
+git -c advice.detachedHead=false clone --quiet --branch latest --depth 1 https://github.com/hoshiyomiX/stellar-trails.git /tmp/stellar-install && bash /tmp/stellar-install/boot.sh --audited --offline --keep-submodules && rm -rf /tmp/stellar-install
 ```
 
-**Apa ini lakukan:**
-1. Clone `latest` tag (mutable, always points to newest release) ke `/tmp/stellar-install` — shallow clone, no history
-2. Run `boot.sh` dengan safe flags — installs skill files ke `skills/stellar-trails/` + `.zscripts/stellar-trails/` (persistent backup), launches popup preview di :3000
-3. Cleanup `/tmp/stellar-install`
+**Note**: ZAI platform users TIDAK perlu Path B ini. Path B hanya untuk non-ZAI environments.
+
+### Persistence Model
+
+| Layer | Mechanism | Survive reset? |
+|---|---|---|
+| `/home/user_skills/stellar-trails.zip` | PolarFS persistent mount | ✓ YA |
+| ZAI service auto-extract | `/app/main.py` extract zip ke `/home/z/my-project/skills/stellar-trails/` at session start (~5s after official_skills) | ✓ YA (re-extracted every session) |
+| `.stellar-trails.usermark` | Marker "skill approved" di PolarFS | ✓ YA |
+
+**Tidak ada `boot.sh` execution. Tidak ada `.zscripts/` persistent backup. Tidak ada `~/.stellar-trails.log`. Pure markdown data, stateless skill.**
 
 ### CI/CD — Automated Release
 
@@ -122,45 +98,15 @@ git push origin refs/tags/v7.X.Y
 
 Workflow akan handle sisanya. Release asset + `latest` tag update otomatis dalam ~30 detik.
 
-### Why v7.1.0 changed the install model
+### What's New
 
-Forensic investigation di ZAI sandbox mengungkap:
+- **v7.1.3**: One-liner install (`curl ... -o /home/user_skills/stellar-trails.zip && touch .usermark`). No shell execution, agent-friendly.
+- **v7.1.2**: Stable asset name `stellar-trails.zip` (no version suffix) — `releases/latest/download/stellar-trails.zip` URL work
+- **v7.1.1**: CI/CD GitHub Actions workflow + simplified install (download dari release, bukan build manual)
+- **v7.1.0**: Stateless skill — hapus `bash boot.sh` bootstrap dari SKILL.md, ganti dengan `test -f` check. Fix: v7.0.0 ditolak security-conscious agents
+- **v7.0.0**: Rebrand `stellar-frameworks` → `stellar-trails`
 
-| Klaim lama (v7.0.0) | Realita |
-|---|---|
-| "Bootstrap perlu run `boot.sh` di `.zscripts/`" | Tidak perlu — ZAI service auto-extract dari `/home/user_skills/*.zip` |
-| "Fallback: clone dari GitHub" | Tidak pernah dipakai di ZAI — platform handle, bukan shell |
-| "`.zscripts/` adalah satu-satunya lokasi yang survive reset" | Salah untuk ZAI — `/home/user_skills/` (PolarFS) yang survive |
-| "Layer 2: fresh clone from GitHub (network required)" | Tidak diperlukan network — zip sudah lokal |
-
-**Implikasi**: `boot.sh` di ZAI environment adalah dead code. Lebih buruk lagi, pola "clone → run script → cleanup" di SKILL.md Step 1 bootstrap men-trigger supply-chain attack refusals dari security-conscious agents. v7.1.0 removes the bootstrap entirely.
-
-### Add `--clean` for fresh reinstall (Path B only)
-
-```bash
-bash /tmp/stellar-install/boot.sh --clean --audited --keep-submodules
-```
-
-### What's New in v7.1.0
-
-- **v7.1.0**: Stateless skill. SKILL.md Step 1 bootstrap **dihapus** — ganti dengan pure file-existence check (`test -f`), no shell execution. Persistence di ZAI platform handled by `/home/user_skills/*.zip` PolarFS mount, bukan oleh `boot.sh`. `boot.sh` tetap bundled untuk non-ZAI environments (standalone install via Path B), tapi **tidak pernah di-invoke oleh `Skill()` di ZAI**. CI/CD workflow (`.github/workflows/release.yml`) otomatis build zip + upload ke GitHub Release saat tag push. Fix issue: install command v7.0.0 ditolak oleh security-conscious agents karena pola "clone → run script → cleanup" menyerupai supply-chain attack.
-- **v7.0.0 (BREAKING)**: Rebrand `stellar-frameworks` → `stellar-trails`
-- **v6.4.3**: Collapsed SKILL.md bootstrap dari 5-layer ke 2-layer
-- **v6.4.2**: Dual-location install (skills/ + .zscripts/)
-- **v6.4.0**: Single-clone model, shell init hooks removed
-
-See [CHANGELOG.md](skill/stellar-trails/CHANGELOG.md) untuk full history.
-
-### Migration from v7.0.0 → v7.1.0
-
-1. **Download zip v7.1.0** dari GitHub Release (lihat Path A step 1)
-2. **Replace zip lama**: `cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip`
-3. **Next session**: ZAI akan auto-extract v7.1.0, menggantikan v7.0.0
-4. **Optional cleanup** (file bootstrap lama yang sekarang dead code):
-   ```bash
-   rm -rf /home/z/my-project/.zscripts/stellar-trails  # tidak lagi dipakai
-   rm -f /home/z/.stellar-trails.log                    # log lama, v7.1.0 tidak logging
-   ```
+See [CHANGELOG.md](skill/stellar-trails/CHANGELOG.md) untuk full history & forensic details.
 
 ### boot.sh Flags (Path B — standalone only)
 

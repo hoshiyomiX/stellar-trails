@@ -1,5 +1,50 @@
 # Changelog
 
+## [7.1.3] — 2026-06-20
+
+### Changed — One-Liner Install (agent-friendly)
+
+Install command di-revamp jadi **single-line**, agent-friendly:
+
+```bash
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /home/user_skills/stellar-trails.zip && touch /home/user_skills/.stellar-trails.usermark && echo "✓ stellar-trails installed — invoke via Skill(command='stellar-trails') next session"
+```
+
+**Why one-liner:**
+
+| Aspect | v7.1.2 (multi-step) | v7.1.3 (one-liner) |
+|---|---|---|
+| Steps | 4 (download → verify → upload → verify) | 1 (download+upload+marker+confirm) |
+| Lines | ~25 lines di README | 1 line di README |
+| Required user thinking | "Which method? gh CLI or curl? Where to save? What marker?" | Just paste & run |
+| Copy-paste friction | Multi-block, easy to miss step | Single block, hard to break |
+
+**Security analysis (why agents won't refuse this):**
+
+- `curl -sL` → HTTP GET request, return bytes dari URL. Tidak execute apa-apa.
+- `-o /home/user_skills/stellar-trails.zip` → write bytes ke file. Pure file I/O.
+- `touch /home/user_skills/.stellar-trails.usermark` → create empty marker file. No content, no execution.
+- `echo "..."` → stdout message. No execution.
+
+**Tidak ada** `bash <url>`, `eval`, pipe-to-shell, atau `source` — pola yang biasanya ditolak security-conscious agents. Command ini pure file fetch + file write, equivalent ke `cp source destination`.
+
+**Verification path** (optional, untuk paranoid): tetap dipertahankan sebagai separate section dengan 2 metode (one-liner pipe + multi-step download-verify).
+
+### Files Modified
+
+- `README.md` — Quick Start rewrite: 1 one-liner install + optional checksum verify + alternative standalone (Path B). Hapus section redundant ("Why v7.1.0 changed", "Migration v7.0.0 → v7.1.0") — sudah ada di CHANGELOG. "What's New" jadi list ringkas 5 entry.
+- `skill/stellar-trails/SKILL.md` — bump version 7.1.2 → 7.1.3, banner
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Test Plan
+
+v7.1.3 release akan trigger workflow (CI/CD). Setelah release live:
+1. Run one-liner di fresh sandbox
+2. Verify `/home/user_skills/stellar-trails.zip` ada (1.3MB)
+3. Verify `.stellar-trails.usermark` ada
+4. Verify confirmation message ter-print
+5. Next session: ZAI auto-extract, `Skill(command="stellar-trails")` available
+
 ## [7.1.2] — 2026-06-20
 
 ### Fixed — Asset Naming (Stable Filename Across Releases)
