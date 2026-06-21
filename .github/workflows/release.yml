@@ -146,6 +146,27 @@ jobs:
           git push -f origin refs/tags/latest
           echo "✓ 'latest' tag moved to ${{ steps.version.outputs.tag }} (${{ github.sha }})"
 
+      - name: Publish to ClawHub
+        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "⚠️ CLAWHUB_TOKEN secret not set — skipping ClawHub publish"
+            echo "Set it in: Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: CLAWHUB_TOKEN, Value: your ClawHub API token (clh_...)"
+            exit 0
+          fi
+          npm install -g clawhub 2>/dev/null || true
+          clawhub login --token "$CLAWHUB_TOKEN"
+          clawhub skill publish "$GITHUB_WORKSPACE/skill/stellar-trails" \
+            --slug stellar-trails \
+            --version ${{ steps.version.outputs.version }} \
+            --source-repo ${{ github.server_url }}/${{ github.repository }} \
+            --source-commit ${{ github.sha }} \
+            --changelog "v${{ steps.version.outputs.version }} — see CHANGELOG.md"
+          echo "✓ Published stellar-trails@${{ steps.version.outputs.version }} to ClawHub"
+
       - name: Summary
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
@@ -158,10 +179,11 @@ jobs:
           echo "| Size | ${{ steps.build.outputs.zip_size }} bytes |" >> $GITHUB_STEP_SUMMARY
           echo "| SHA-256 | \`${{ steps.build.outputs.zip_sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Release URL | ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ClawHub | https://clawhub.ai/hoshiyomix/stellar-trails |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Install on ZAI" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "gh release download v${{ steps.version.outputs.version }} --repo ${{ github.repository }} --pattern 'stellar-trails-*.zip' --dir /tmp/" >> $GITHUB_STEP_SUMMARY
+          echo "clawhub install stellar-trails" >> $GITHUB_STEP_SUMMARY
           echo "cp /tmp/stellar-trails.zip /home/user_skills/stellar-trails.zip" >> $GITHUB_STEP_SUMMARY
           echo "touch /home/user_skills/.stellar-trails.usermark" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
