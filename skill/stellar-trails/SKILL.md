@@ -13,12 +13,12 @@ topics:
 
 ## Metadata
 
-- **version**: 7.3.2
+- **version**: 7.3.3
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.3.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.3.3 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -109,34 +109,31 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
 
 **Step 1.5 — Ensure popup preview server running (defensive, non-blocking):**
 ```bash
-# v7.2.1 — Enforce dev.sh run via SKILL.md untuk popup preview auto-start.
+# v7.3.3 — Fix: copy dev.sh + index.html + chibi.png dari skills/ ke .zscripts/
+# sebelum start. Sebelumnya Step 1.5 hanya cek .zscripts/dev.sh — tapi di fresh
+# sandbox, ZAI extract zip ke skills/stellar-trails/, TIDAK ke .zscripts/.
+# /start.sh cek .zscripts/dev.sh → tidak ada → popup tidak pernah start.
 #
-# Why this is safe (unlike v7.0.0 bash boot.sh):
-#   - dev.sh is LOCAL file (already extracted by ZAI service from
-#     /home/user_skills/stellar-trails.zip — trusted source)
-#   - dev.sh is 60 lines, audited clean (0 red flag patterns)
-#   - dev.sh only does: python3 http.server :3000 with no-cache headers
-#   - No network ops, no git ops, no destructive ops, no writes outside .zscripts/
-#   - Background execution (non-blocking) — skill activation tidak tergantung dev.sh
-#   - Port guard: dev.sh exit gracefully jika :3000 sudah digunakan
-#
-# Trade-off: ini re-introduce shell execution di SKILL.md (sebelumnya dihapus
-# di v7.1.0). Tapi pattern berbeda dari v7.0.0:
-#   v7.0.0: bash <url>                          → ditolak agents (clone→exec)
-#   v7.2.1: bash /home/z/my-project/.zscripts/dev.sh &  → local file, background
-#
-# Defensive:
-#   - Double-fork ( setsid ... & ) & agar process jadi orphan (parent=PID 1) → survive shell exit
-#   - setsid: create new session (detach dari controlling terminal)
-#   - `2>/dev/null` suppress output (silent)
-#   - `|| true` agar skill tetap activates walau dev.sh gagal start
-#   - Cek port :3000 dulu — jika sudah listening, skip (idempotent)
-DEV_SH="/home/z/my-project/.zscripts/dev.sh"
+# Fix: Step 1.5 sekarang copy file dari skills/stellar-trails/ ke .zscripts/
+# jika belum ada. Pure file copy — no network, no exec, no destructive ops.
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+ZSCRIPTS="/home/z/my-project/.zscripts"
+
+# Step A: Copy popup preview files dari skill dir ke .zscripts/ jika belum ada
+if [ -d "$SKILL_DIR" ] && [ ! -f "$ZSCRIPTS/dev.sh" ]; then
+  mkdir -p "$ZSCRIPTS"
+  [ -f "$SKILL_DIR/dev.sh" ] && cp "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
+  [ -f "$SKILL_DIR/index.html" ] && cp "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
+  [ -f "$SKILL_DIR/chibi.png" ] && cp "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
+fi
+
+# Step B: Start dev.sh jika :3000 tidak listening (double-fork untuk survive shell exit)
+DEV_SH="$ZSCRIPTS/dev.sh"
 if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 fi
 ```
-**v7.2.1 change**: Step 1.5 baru — enforce run `dev.sh` background untuk popup preview auto-start. Defensive: port guard (idempotent), `nohup ... & disown` (non-blocking, survive shell exit), `|| true` (skill tetap activates walau dev.sh gagal). dev.sh sendiri sudah audited clean di v7.2.0 (60 lines, 0 red flag patterns, local file dari trusted ZAI zip extraction).
+**v7.3.3 fix**: Step 1.5 sekarang copy `dev.sh` + `index.html` + `chibi.png` dari `skills/stellar-trails/` ke `.zscripts/` jika belum ada. Fix issue: di fresh sandbox, ZAI extract zip ke `skills/stellar-trails/` tapi tidak ke `.zscripts/` — sehingga `/start.sh` tidak menemukan `.zscripts/dev.sh` dan popup tidak pernah start. Pure file copy (cp), no network, no exec dari URL, no destructive ops. Setelah copy, start dev.sh dengan double-fork technique (orphan process, survive shell exit).
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -146,7 +143,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.3.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.3.3 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

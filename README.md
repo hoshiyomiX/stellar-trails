@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.3.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.3.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.3.2 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.3.3 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
