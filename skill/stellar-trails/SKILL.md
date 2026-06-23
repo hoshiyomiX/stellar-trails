@@ -13,12 +13,12 @@ topics:
 
 ## Metadata
 
-- **version**: 7.3.3
+- **version**: 7.4.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.3.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.0 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -143,7 +143,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.3.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
@@ -326,7 +326,9 @@ Used by Standard and Complex-tier tasks. Simple tasks scope internally (no forma
 ```
 ☄️ COMMIT [Standard]
 ├─ Approach       : <primary approach, 1-2 sentences>
+├─ Alternatives   : <2+ alternatives considered, 1 sentence each>
 ├─ Fallback       : <alternative if primary fails, 1 sentence>
+├─ Pre-Deploy     : <local verification step before target deployment, or N/A>
 ├─ Scope IN       : <what's included>
 ├─ Scope OUT      : <what's explicitly excluded>
 ├─ IMPL Steps     : X (IMPL-001 to IMPL-XXX)
@@ -379,7 +381,15 @@ If Pivot is not NONE, expand it:
 │  └─ Re-planned : X steps (IMPL-001 to IMPL-XXX)
 ```
 
-Pivot is not a failure marker — it's evidence of professional adaptation. An agent that pivots cleanly is more reliable than one that stubbornly forces a broken approach.
+If 3+ back-to-back pivots occurred, also include:
+```
+├─ Pivot Backlog : YES (3 pivots)
+│  ├─ Meta-Pattern : <Documentation lies / Toolchain drift / Symptom cascade / Environment mismatch / Wrong abstraction level>
+│  ├─ Meta-Review  : <what was re-examined in SPECIFY>
+│  └─ Resolution   : <how the meta-pattern was addressed>
+```
+
+Pivot is not a failure marker — it's evidence of professional adaptation. An agent that pivots cleanly is more reliable than one that stubbornly forces a broken approach. But 3+ pivots on different errors signals a deeper issue — see Pivot Backlog Meta-Review in `procedure/decision-trees/error-resolution.md`.
 
 ### Minimal (non-coding: questions, explanations, recommendations)
 

@@ -237,7 +237,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 
 ## Phase 5: VERIFY
 
-**Purpose**: Confirm implementation satisfies all requirements.
+**Purpose**: Confirm implementation satisfies all requirements — including pre-deployment verification for external targets.
 
 **Entry criteria**: All steps complete. Self-review performed.
 
@@ -247,14 +247,21 @@ All phases use their full templates with extra detail. Traceability IDs required
    - Document: format validation, content completeness check.
    - Visualization: visual accuracy review, data integrity check.
    - Data Processing: output validation, edge case testing.
-2. If analyzing existing code from a git repository, verify analyzed files matched the remote state at time of analysis. If discrepancy found, return to SPECIFY.
-3. Traceability verification — confirm every Traceability ID has a corresponding implementation.
-4. Edge case verification — test input, expected behavior, actual behavior for each edge case from the spec.
-5. Fill out the verification report template (use Compact variant for Simple tasks, full template for Standard/Complex).
+2. **Pre-Deployment Verification** — If the task targets an external system (Android device, remote server, cloud, production environment), run a local verification step that exercises the same code path as deployment BEFORE declaring VERIFY complete. Examples:
+   - Android init daemon: `secilc` local compile test on CIL policy
+   - Cloud function: local emulator/sandbox (SAM, LocalStack)
+   - Config file: syntax validation with parser
+   - Database migration: dry-run on local copy
+   - Cross-compiled binary: QEMU emulation test
+   If Scope's `Pre-Deploy` field is "N/A" (no external target), skip this step. Otherwise, the named pre-deploy verification MUST pass before VERIFY → DELIVER gate.
+3. If analyzing existing code from a git repository, verify analyzed files matched the remote state at time of analysis. If discrepancy found, return to SPECIFY.
+4. Traceability verification — confirm every Traceability ID has a corresponding implementation.
+5. Edge case verification — test input, expected behavior, actual behavior for each edge case from the spec.
+6. Fill out the verification report template (use Summary variant for Simple tasks, full template for Standard/Complex).
 
 **Artifact**: `procedure/templates/verification-report.md`
 
-**Exit criteria**: All checks pass (or failures documented). Every Traceability ID verified. Every edge case confirmed.
+**Exit criteria**: All checks pass (or failures documented). Every Traceability ID verified. Every edge case confirmed. Pre-Deploy verification passed (if applicable).
 
 **Gate**: VERIFY → DELIVER — all verification items must show PASS. If any FAIL, delivery is blocked.
 

@@ -69,9 +69,29 @@ Before following any diagnostic path, determine if the error is a **Bug** or an 
 7. **Re-implement and re-verify** — full cycle from PLAN through DELIVER.
 8. **Record Pivot in delivery report** — the Pivot field documents the approach change for audit trail.
 
-**Output**: Classification as Bug or Wrong Approach. If Wrong Approach, proceed to pivot flow instead of diagnostic path.
+### Pivot Backlog Meta-Review (after 3+ back-to-back pivots)
 
-**Decision**: If Bug → proceed to appropriate diagnostic path below. If Wrong Approach → pivot flow above.
+If this is the **3rd or more** back-to-back pivot on the same task (each triggered by a different error), STOP and perform a meta-review before attempting another pivot:
+
+1. **Stop** — do not attempt a 4th pivot yet.
+2. **Tally all pivots** with their trigger errors:
+   - Pivot 1: <trigger>
+   - Pivot 2: <trigger>
+   - Pivot 3: <trigger>
+3. **Identify meta-pattern** — which pattern best describes the cascade?
+   - **Documentation lies** — target system doesn't behave per its documentation
+   - **Toolchain drift** — local toolchain doesn't match target environment
+   - **Symptom cascade** — each pivot fixes a symptom of a deeper, unaddressed issue
+   - **Environment mismatch** — sandbox/local doesn't match production constraints
+   - **Wrong abstraction level** — pivoting at code level, but the issue is architectural
+4. **Re-enter SPECIFY** (not PLAN) — the problem specification itself may be wrong. The meta-pattern suggests the original approach was built on incorrect assumptions.
+5. **Surface to user**: "I've pivoted 3 times, each on a different error. The pattern suggests [meta-pattern]. Should we reconsider [higher-level change]?"
+
+**Rationale**: 3+ pivots on different errors is a signal that the overall approach is wrong, not that individual fixes are failing. Continuing to pivot at the same level wastes time. Stepping back to SPECIFY allows re-examining assumptions, not just swapping implementations.
+
+**Output**: Classification as Bug or Wrong Approach. If Wrong Approach, proceed to pivot flow instead of diagnostic path. If 3+ pivots, perform meta-review above.
+
+**Decision**: If Bug → proceed to appropriate diagnostic path below. If Wrong Approach → pivot flow above. If 3+ pivots → meta-review → re-enter SPECIFY.
 
 ### Diagnostic Paths by Category
 
