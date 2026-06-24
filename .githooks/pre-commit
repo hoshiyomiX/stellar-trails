@@ -1,0 +1,33 @@
+#!/bin/bash
+# Pre-commit hook: prevent commits on diverged branch
+# Ensures local main is up-to-date with origin/main before committing
+
+BRANCH=$(git branch --show-current 2>/dev/null)
+if [ "$BRANCH" != "main" ]; then
+  exit 0  # Only enforce on main branch
+fi
+
+# Fetch latest (silently)
+git fetch origin --quiet 2>/dev/null
+
+LOCAL=$(git rev-parse HEAD 2>/dev/null)
+REMOTE=$(git rev-parse origin/main 2>/dev/null)
+BEHIND=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+
+if [ "$BEHIND" -gt 0 ] && [ "$AHEAD" -gt 0 ]; then
+  echo "❌ FATAL: Branch diverged!"
+  echo "   Local is $AHEAD commit(s) ahead, $BEHIND commit(s) behind origin/main."
+  echo "   Run: git fetch origin && git reset --hard origin/main"
+  echo "   Then re-apply your changes and commit again."
+  exit 1
+fi
+
+if [ "$BEHIND" -gt 0 ]; then
+  echo "❌ FATAL: Local main is $BEHIND commit(s) behind origin/main."
+  echo "   Run: git fetch origin && git pull --ff-only"
+  echo "   Then commit again."
+  exit 1
+fi
+
+exit 0
