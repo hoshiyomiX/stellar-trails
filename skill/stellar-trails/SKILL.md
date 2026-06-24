@@ -13,12 +13,12 @@ topics:
 
 ## Metadata
 
-- **version**: 7.4.0
+- **version**: 7.4.1
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.4.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.1 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -109,22 +109,23 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
 
 **Step 1.5 — Ensure popup preview server running (defensive, non-blocking):**
 ```bash
-# v7.3.3 — Fix: copy dev.sh + index.html + chibi.png dari skills/ ke .zscripts/
-# sebelum start. Sebelumnya Step 1.5 hanya cek .zscripts/dev.sh — tapi di fresh
-# sandbox, ZAI extract zip ke skills/stellar-trails/, TIDAK ke .zscripts/.
-# /start.sh cek .zscripts/dev.sh → tidak ada → popup tidak pernah start.
+# v7.4.1 — Fix: always sync .zscripts/ dari skills/stellar-trails/ (overwrite outdated).
+# v7.3.3 bug: hanya copy jika .zscripts/dev.sh TIDAK ada. Tapi kalau sudah ada
+# versi lama (outdated), Step A skip → popup pakai index.html lama.
+# Juga: clawhub install --force tidak trigger ZAI auto-extract, jadi .zscripts/
+# tidak di-create oleh siapapun selain Step 1.5 ini.
 #
-# Fix: Step 1.5 sekarang copy file dari skills/stellar-trails/ ke .zscripts/
-# jika belum ada. Pure file copy — no network, no exec, no destructive ops.
+# Fix v7.4.1: selalu sync (cp --update) dari skills/ ke .zscripts/. Jika file
+# source lebih baru, overwrite. Jika .zscripts/ belum ada, create + copy.
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"
 ZSCRIPTS="/home/z/my-project/.zscripts"
 
-# Step A: Copy popup preview files dari skill dir ke .zscripts/ jika belum ada
-if [ -d "$SKILL_DIR" ] && [ ! -f "$ZSCRIPTS/dev.sh" ]; then
+# Step A: Sync popup preview files dari skill dir ke .zscripts/ (always, overwrite if source newer)
+if [ -d "$SKILL_DIR" ]; then
   mkdir -p "$ZSCRIPTS"
-  [ -f "$SKILL_DIR/dev.sh" ] && cp "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
-  [ -f "$SKILL_DIR/index.html" ] && cp "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.png" ] && cp "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
+  [ -f "$SKILL_DIR/dev.sh" ] && cp -u "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
+  [ -f "$SKILL_DIR/index.html" ] && cp -u "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
+  [ -f "$SKILL_DIR/chibi.png" ] && cp -u "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
 fi
 
 # Step B: Start dev.sh jika :3000 tidak listening (double-fork untuk survive shell exit)
@@ -133,7 +134,7 @@ if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 fi
 ```
-**v7.3.3 fix**: Step 1.5 sekarang copy `dev.sh` + `index.html` + `chibi.png` dari `skills/stellar-trails/` ke `.zscripts/` jika belum ada. Fix issue: di fresh sandbox, ZAI extract zip ke `skills/stellar-trails/` tapi tidak ke `.zscripts/` — sehingga `/start.sh` tidak menemukan `.zscripts/dev.sh` dan popup tidak pernah start. Pure file copy (cp), no network, no exec dari URL, no destructive ops. Setelah copy, start dev.sh dengan double-fork technique (orphan process, survive shell exit).
+**v7.4.1 fix**: Step A sekarang pakai `cp -u` (copy only if source is newer) — selalu sync dari `skills/stellar-trails/` ke `.zscripts/`, overwrite jika source lebih baru. Fix v7.3.3 bug: kalau `.zscripts/dev.sh` sudah ada versi lama, Step A skip dan popup pakai index.html outdated. Sekarang: setiap Skill() invoke, Step 1.5 sync file terbaru dari skills/ ke .zscripts/, lalu start dev.sh jika :3000 tidak listening. Pure file copy (cp -u), no network, no exec dari URL, no destructive ops.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -143,7 +144,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.4.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.1 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
