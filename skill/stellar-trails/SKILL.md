@@ -1,24 +1,26 @@
 ---
 name: stellar-trails
 description: "Activates on every task without exception: coding (features, bugs, refactoring, scripts), documents (reports, proposals, DOCX, PDF), charts and visualizations, data processing, complex multi-step planning, or even simple questions. Provides a phase machine with traceability IDs, phase gates, and scope commitment that adapts complexity automatically. Use this skill whenever the user asks to build, fix, analyze, create, plan, or process anything — the framework runs internally for trivial tasks and fully for complex ones. Web development (Next.js, UI) is delegated to fullstack-dev; this framework wraps the phase machine around it."
-topics:
-  - agent-workflow
-  - phase-machine
-  - llm-agents
-  - task-management
-  - traceability
-  - zai
+license: MIT-0
+metadata:
+  topics:
+    - agent-workflow
+    - phase-machine
+    - llm-agents
+    - task-management
+    - traceability
+    - zai
 ---
 <!-- VERSION SYNC: on bump, update (1) metadata section below, (2) activation banner below, (3) root README.md badge/invoke/file-structure/version-history, (4) skill/README.md version-history, (5) CHANGELOG.md -->
 
 ## Metadata
 
-- **version**: 7.4.2
+- **version**: 7.4.3
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.4.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.3 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -136,7 +138,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.4.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.3 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

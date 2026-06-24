@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.4.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.4.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.4.2 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.4.3 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -198,80 +198,12 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 ---
 
-## Persistence & Recovery
-
-The platform reads `SKILL.md` from disk on every `Skill()` call — updates are effective immediately without restart. The challenge is that the z.ai platform periodically **resets the sandbox**, wiping both the project directory (`/home/z/my-project/`) and the home directory (`$HOME/`).
-
-The framework survives resets through a layered recovery chain (v6.4.0 simplified model — no more shell init hooks):
-
-| Layer | Mechanism | Survives reset? |
-|-------|-----------|-----------------|
-| **skill/** (git-tracked source in stellar repo) | Platform creates `repo.tar` from working tree before reset, extracts after | Yes |
-| **skills/stellar-trails/** (project repo, git-tracked) | v6.4.0: `.gitignore` exception (`skills/*` + `!skills/stellar-trails/`) makes 18 load-path files git-tracked — survives via git tree AND `repo.tar` | Yes (dual-guarantee) |
-| **boot.sh** (co-located in `skills/`) | Copied alongside SKILL.md during install, baked into `repo.tar` AND git tree | Yes |
-| **SKILL.md 4-layer bootstrap** | Sole heal mechanism (v6.4.0): co-located `boot.sh` → project-local repo `boot.sh` → home repo → GitHub fresh clone | Yes (layer 1 always fires) |
-| **$HOME/ repo & shell hooks** | v6.3.0 used `.bashrc` hooks — **REMOVED in v6.4.0**. No more shell init file modifications. | N/A (mechanism deleted) |
-
-**Recovery in practice:**
-
-| Scenario | What happens |
-|----------|-------------|
-| **Fresh sandbox** (first time) | User runs Quick Start commands. Repo cloned to a single location, `boot.sh` installs `skills/stellar-trails/` via `cp -a`. No shell hooks written. |
-| **Sandbox reset** | `skill/` and `skills/stellar-trails/` restored from `repo.tar` (working-tree snapshot). Additionally, `skills/stellar-trails/` is in the project git tree (v6.4.0 dual-guarantee). On next `Skill()` invoke, SKILL.md bootstrap layer 1 fires: runs `skills/stellar-trails/boot.sh --fast --audited` (~50ms) to verify and sync files. Falls back to layers 2-4 only if layer 1 fails. |
-| **v6.3.0 → v6.4.0 migration** | First `boot.sh` run after upgrade detects legacy `.bashrc/.bash_profile/.profile` hooks and strips them via `python3` in-place edit. Logged as `Cleaned N legacy shell hook(s)`. Shell startup becomes faster post-migration. |
-| **Stale snapshot contamination** | `boot.sh --offline` skips upstream check entirely. Without `--offline`, `boot.sh` force-syncs via `git reset --hard origin/main` if upstream diverged AND no unpushed commits exist. All operations audited. |
-
-The key insight: **the framework is self-healing via the SKILL.md 4-layer bootstrap alone**. The git-tracked `skills/stellar-trails/` directory and the co-located `boot.sh` together guarantee recovery even when all volatile state (home dir, shell init files) is wiped.
 
 ---
 
-## File Structure
-
-```
-stellar-trails/                   # The stellar-trails repo itself
-├── boot.sh                           # Install + self-heal + force-sync (single entry point)
-├── README.md                         # This file
-├── .gitignore                        # Excludes /skills/ (runtime-generated in stellar repo for testing)
-├── .checksums                        # SHA-256 of 20 critical files (verified by --verify)
-│
-├── skill/stellar-trails/         # Git-tracked source of truth (19 files)
-│   ├── SKILL.md                      # Core framework (activation, phases, SSV, error recovery)
-│   ├── boot.sh                       # Co-located copy — ensures boot.sh is always discoverable
-│   ├── CHANGELOG.md                  # Version history (all 25+ versions)
-│   ├── README.md                     # Quick-reference README
-│   ├── memory-template.md            # Memory system docs & file templates
-│   ├── procedure/
-│   │   ├── phases.md                 # Phase definitions with entry/exit criteria
-│   │   ├── templates/                # Artifact templates (SPECIFY, PLAN, VERIFY, incidents)
-│   │   └── decision-trees/
-│   │       └── error-resolution.md   # 5-step structured error decision tree
-│   ├── constraints/                  # Code quality & type safety standards
-│   ├── knowledge/
-│   │   ├── universal/                # Platform-agnostic patterns & error catalog
-│   │   └── platform/                 # z.ai sandbox constraints
-│   └── ...
-│
-└── skills/stellar-trails/        # ⚠️ Gitignored IN STELLAR REPO (runtime copy)
-                                    # Populated by boot.sh (cp -a from skill/)
-                                    #
-                                    # IN PROJECT REPO (where skill is installed):
-                                    # This dir IS git-tracked via .gitignore exception:
-                                    #   skills/*
-                                    #   !skills/stellar-trails/
-                                    # That's the v6.4.0 dual-guarantee persistence model.
-```
-
-**Note on dual `.gitignore`**: The stellar repo's own `.gitignore` excludes `/skills/` (because `skills/` is runtime-generated when boot.sh is tested inside the stellar repo). The **project repo's** `.gitignore` (where the skill is installed for actual use) uses `skills/*` + `!skills/stellar-trails/` exception to git-track the 18 load-path files. Both behaviors are correct for their respective contexts.
 
 ---
 
-## Philosophy
-
-> **Stop telling the LLM what it MUST do. Start giving it tools it WANTS to use.**
-
-- **What works**: Traceability IDs, templates, SSV, error decision tree — they work because they're useful, not because they're mandatory
-- **What doesn't work**: Compliance enforcement language ("must", "mandatory", "do not skip") — has no measurable effect on LLM behavior regardless of wording
-- **What's honest**: The framework cannot guarantee compliance, force behavior, or persist across sessions. It's text in a skill file. The user is the final judge of quality.
 
 ---
 

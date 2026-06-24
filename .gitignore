@@ -1,6 +1,5 @@
-# stellar-frameworks — skill framework repository
-# Only skill/ (source), boot.sh, setup.sh, README.md are tracked.
-# Everything else is platform scaffolding from z.ai my-project.
+# stellar-trails — skill repository
+# Only skill/ (source), README.md, .github/, .githooks/ are tracked.
 
 # Platform infrastructure (not part of this skill)
 .zscripts/
@@ -29,7 +28,7 @@ upload/
 dev.log
 server.log
 
-# Platform skill runtime (gitignored — healed by boot.sh)
+# Platform skill runtime
 /skills/
 
 # Generated output

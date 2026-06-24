@@ -4,7 +4,7 @@
 
 # Stellar Trails
 
-Stateless phase machine for LLM agents — traceability IDs, phase gates, scope commitment, and adaptive complexity. No shell execution, no boot.sh, pure markdown data.
+Stateless phase machine for LLM agents — traceability IDs, phase gates, scope commitment, and adaptive complexity. No shell execution, pure markdown data.
 
 </div>
 
@@ -81,7 +81,7 @@ stellar-trails/                   (repo root)
 - **Source Availability & Documentation Check (SADC)**: research before planning
 - **File-based Memory**: evergreen + dated files, bounded budget
 - **Error Decision Tree**: 5-step capture → classify → identify → fix → re-verify
-- **Stateless by Design**: no shell execution in Skill() invoke, no boot.sh, pure markdown data
+- **Stateless by Design**: no shell execution in Skill() invoke, pure markdown data
 
 ## Persistence Model (ZAI Platform)
 
@@ -91,4 +91,4 @@ stellar-trails/                   (repo root)
 | ZAI service auto-extract | `/app/main.py` extracts zip to `skills/stellar-trails/` at session start | ✓ (re-extracted every session) |
 | `.stellar-trails.usermark` | Marker "skill approved" in PolarFS | ✓ |
 
-No boot.sh. No shell execution in Skill() invoke. No `.zscripts/` persistent backup. No `~/.stellar-trails.log`. Pure markdown data, stateless skill.
+No shell execution in Skill() invoke. No `.zscripts/` persistent backup. No `~/.stellar-trails.log`. Pure markdown data, stateless skill.
