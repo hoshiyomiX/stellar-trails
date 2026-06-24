@@ -39,6 +39,14 @@ Copy and complete the following after the IMPLEMENT phase:
 | Type Check | `bunx tsc --noEmit` | No type errors | [Paste relevant output] | PASS / FAIL |
 | Tests | `bun test` | All tests pass | [Paste relevant output] | PASS / FAIL |
 
+## Pre-Deploy Verification
+
+| Check | Method | Expected Result | Actual Result | Status |
+|-------|--------|-----------------|---------------|--------|
+| [Pre-Deploy step from Scope, or N/A] | [e.g., `secilc` local compile, SAM emulator] | [Expected outcome] | [Actual outcome] | PASS / FAIL / N/A |
+
+If Scope's Pre-Deploy field is "N/A" (no external target), mark this entire section as N/A and skip.
+
 ## Traceability Verification
 
 | Traceability ID | Implementation Verified | Verification Method | Status |

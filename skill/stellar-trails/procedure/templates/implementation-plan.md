@@ -19,6 +19,17 @@ Copy and complete the following for every task:
 
 [2-3 sentences describing the solution strategy. Explain the high-level design decision and why it was chosen over alternatives.]
 
+## Alternatives Considered
+
+[List 2+ alternative approaches that were considered but not chosen. 1 sentence each. Why were they rejected? This prevents binary thinking (primary OR fallback only) and encourages exploring options before committing.]
+
+- Alt 1: [Alternative approach] — [Why rejected]
+- Alt 2: [Alternative approach] — [Why rejected]
+
+## Pre-Deploy Verification
+
+[If this task targets an external system (Android device, remote server, cloud, production), name a local verification step that exercises the same code path before deployment. Example: "secilc local compile test on CIL policy" or "SAM local emulator test". If no external target, state "N/A".]
+
 ## Fallback Approach
 
 [Alternative approach if the primary fails. 1-2 sentences. If no viable fallback exists, state "No viable fallback — would require user input." This feeds the Pivot's pivot recovery path.]

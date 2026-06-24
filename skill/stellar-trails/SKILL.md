@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.4.3
+- **version**: 7.4.4
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.4.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.4 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -28,26 +28,24 @@ metadata:
 
 **Step 0.5 — Auto-update via ClawHub (if outdated):**
 ```bash
-# v7.4.2 — Auto-update skill via clawhub update (native z.ai CLI, official registry).
+# v7.4.4 — Auto-update skill via clawhub (native z.ai CLI, official registry).
 #
 # Why this is safe (unlike v7.2.3 curl approach yang ditolak agents):
 #   - clawhub = native z.ai binary (pre-installed in all sandboxes)
 #   - Install dari ClawHub registry (official, verified, moderated: CLEAN)
 #   - No curl dari external URL
 #   - No .usermark creation (no skill-hijack pattern)
-#   - No manual file writes ke /home/user_skills/ — clawhub handle semuanya
-#   - clawhub update = seperti npm update / pip install --upgrade
+#   - No manual file writes — clawhub handle semuanya
 #
 # How it works:
 #   1. Check current version dari SKILL.md metadata
 #   2. Check latest version dari ClawHub registry via clawhub inspect
-#   3. If outdated: run clawhub update stellar-trails (silent)
+#   3. If outdated: run clawhub --no-input update stellar-trails
 #   4. Print notice: "Updated to vX.Y.Z"
 #
 # Defensive:
-#   - clawhub inspect --max-time 5 (timeout, tidak block lama)
-#   - 2>/dev/null suppress error (jika network down, skip silently)
-#   - clawhub update --no-input (non-interactive, no prompt)
+#   - 2>/dev/null suppress error (jika network down atau not logged in, skip silently)
+#   - --no-input is a GLOBAL clawhub flag (disable prompts)
 #   - || true (skill tetap activates walau update gagal)
 
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' \
@@ -57,11 +55,11 @@ LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-
 
 if [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ]; then
   echo "stellar-trails: updating v$CURRENT → v$LATEST via ClawHub..."
-  clawhub update stellar-trails --no-input 2>/dev/null && \
+  clawhub --no-input update stellar-trails 2>/dev/null && \
     echo "stellar-trails: updated to v$LATEST. Restart sandbox for full effect." || true
 fi
 ```
-**v7.4.2 change**: Step 0.5 sekarang **auto-update via `clawhub update`** (bukan notice-only lagi). Aman dari red flag karena `clawhub` adalah native z.ai CLI dari official ClawHub registry — bukan curl dari external URL, bukan .usermark creation, bukan manual file write. Seperti `npm update` atau `pip install --upgrade`. Skill tetap activates walau update gagal (`|| true`).
+**v7.4.4 fix**: `--no-input` is a global clawhub flag, not per-command. Fixed: `clawhub --no-input update stellar-trails` (was `clawhub update stellar-trails --no-input` which fails with "unknown option"). Removed misleading `--max-time` comment (clawhub doesn't support timeout flags).
 
 **Step 1 — Verify skill files present (no shell execution, pure file check):**
 ```bash
@@ -109,7 +107,7 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
 # Juga: clawhub install --force tidak trigger ZAI auto-extract, jadi .zscripts/
 # tidak di-create oleh siapapun selain Step 1.5 ini.
 #
-# Fix v7.4.1: selalu sync (cp --update) dari skills/ ke .zscripts/. Jika file
+# Fix v7.4.1: selalu sync (cp -f) dari skills/ ke .zscripts/. Jika file
 # source lebih baru, overwrite. Jika .zscripts/ belum ada, create + copy.
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"
 ZSCRIPTS="/home/z/my-project/.zscripts"
@@ -117,9 +115,9 @@ ZSCRIPTS="/home/z/my-project/.zscripts"
 # Step A: Sync popup preview files dari skill dir ke .zscripts/ (always, overwrite if source newer)
 if [ -d "$SKILL_DIR" ]; then
   mkdir -p "$ZSCRIPTS"
-  [ -f "$SKILL_DIR/dev.sh" ] && cp -u "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
-  [ -f "$SKILL_DIR/index.html" ] && cp -u "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.png" ] && cp -u "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
+  [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
+  [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
+  [ -f "$SKILL_DIR/chibi.png" ] && cp -f "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
 fi
 
 # Step B: Start dev.sh jika :3000 tidak listening (double-fork untuk survive shell exit)
@@ -128,7 +126,7 @@ if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
   ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 fi
 ```
-**v7.4.1 fix**: Step A sekarang pakai `cp -u` (copy only if source is newer) — selalu sync dari `skills/stellar-trails/` ke `.zscripts/`, overwrite jika source lebih baru. Fix v7.3.3 bug: kalau `.zscripts/dev.sh` sudah ada versi lama, Step A skip dan popup pakai index.html outdated. Sekarang: setiap Skill() invoke, Step 1.5 sync file terbaru dari skills/ ke .zscripts/, lalu start dev.sh jika :3000 tidak listening. Pure file copy (cp -u), no network, no exec dari URL, no destructive ops.
+**v7.4.1 fix**: Step A sekarang pakai `cp -f` (copy only if source is newer) — selalu sync dari `skills/stellar-trails/` ke `.zscripts/`, overwrite selalu. Fix v7.3.3 bug: kalau `.zscripts/dev.sh` sudah ada versi lama, Step A skip dan popup pakai index.html outdated. Sekarang: setiap Skill() invoke, Step 1.5 sync file terbaru dari skills/ ke .zscripts/, lalu start dev.sh jika :3000 tidak listening. Pure file copy (cp -f), no network, no exec dari URL, no destructive ops.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -138,7 +136,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.4.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.4.4 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
