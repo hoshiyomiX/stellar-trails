@@ -1,5 +1,37 @@
 # Changelog
 
+## [7.5.0] — 2026-06-24
+
+### Added — Denial Delta Analysis (feedback from RSC project)
+
+Based on real-world feedback from the RSC project (Android MTK battery daemon, 5 debug rounds, 2 hours wasted — all from 1 missing SELinux permission that a 10-second comparison would have caught).
+
+#### New: STEP 1.5 — Denial Delta Analysis (error-resolution.md)
+
+Inserted between STEP 1 (Capture) and STEP 2 (Classify). When an error is a **denial-type** (permission denied, EPERM, AccessDenied, forbidden, etc.), perform systematic comparison:
+
+1. **Extract** denied fields from error message (capability, source, target, class)
+2. **Find** corresponding config/policy rule that controls this capability
+3. **Compute delta**: denied - configured = missing
+4. **Act**: if delta non-empty → Bug (add missing capability, skip Pivot). If empty → deployment issue (proceed to STEP 2).
+
+#### Generalized for 9 domains
+
+SELinux, Linux capabilities, File permissions (DAC), Firewall, AppArmor, Database grants, IAM (AWS/GCP), CORS, Kubernetes RBAC.
+
+#### Updates to existing protocol
+
+- Pivot section (SKILL.md): references Denial Delta Analysis for denial-type errors
+- Pivot Backlog Meta-Review: new meta-pattern — "Skipped delta analysis"
+
+#### Cost-Benefit (from RSC incident)
+
+- Cost: 10-30 seconds per denial error
+- Benefit: 4 debug rounds saved, ~2 hours saved, 3 false pivots prevented
+- ROI: ~720:1
+
+# Changelog
+
 ## [7.3.0] — 2026-06-21
 
 ### Changed — Minimalist Popup Preview + watermark.md Documentation
