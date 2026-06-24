@@ -21,7 +21,96 @@ When any error is detected, stop all work and complete these actions before atte
 
 **Output:** A completed Error Capture section in the incident report.
 
-**Decision:** Proceed to STEP 2.
+**Decision:** Proceed to STEP 1.5.
+
+---
+
+## STEP 1.5: Denial Delta Analysis
+
+Before classifying the error, check if it's a **denial-type error** — an error message that explicitly names a missing capability, permission, or resource. If so, perform a systematic comparison between what was denied and what is currently configured. The difference IS the fix.
+
+**Why this step exists:** Without delta analysis, agents pattern-match symptoms to assumed solutions, guess at fixes, and burn debug cycles. A 10-second field-by-field comparison can prevent hours of trial-and-error.
+
+### When to Apply
+
+Apply delta analysis when the error message fits this pattern:
+
+> "X was denied because Y is missing/not granted/not configured"
+
+Common indicators:
+- `denied`, `EPERM`, `EACCES`, `Permission denied`
+- `not allowed`, `forbidden`, `unauthorized`
+- `missing`, `not found` (in policy/config context)
+- `ERROR 1142` (database), `DENIED` (AppArmor), `avc: denied` (SELinux)
+
+If the error does NOT fit this pattern (e.g., `TypeError`, `SyntaxError`, crash), skip to STEP 2.
+
+### How to Perform Delta Analysis
+
+1. **Extract denied fields** from the error message:
+   - What capability/permission/resource was denied?
+   - Who is the source (user, process, domain, role)?
+   - What is the target (file, directory, service, table)?
+   - What class/type/category is involved?
+
+2. **Find the corresponding configuration** that controls this capability:
+   - Search the config file, policy file, or permission system that grants or denies this capability
+   - Use the source + target + class fields to locate the specific rule
+
+3. **Compute the delta** — compare what was denied vs what is configured:
+   ```
+   Denied:     { permission_A, permission_B }
+   Config has: { permission_A, permission_C }
+   Delta:      { permission_B }  ← THIS IS THE FIX
+   ```
+
+4. **Act on the delta**:
+   - **Delta is non-empty** → The fix is to add the missing capability to the existing config. This is a **Bug** (incomplete configuration), NOT a Wrong Approach. Skip Pivot protocol. Go directly to STEP 3 with the specific missing item.
+   - **Delta is empty** (all denied capabilities ARE in the config) → The config exists but isn't being applied. This is a **deployment issue** (stale cache, precompiled policy, wrong config loaded, etc.). Proceed to STEP 2 for normal classification.
+
+### Domain Examples
+
+| Domain | Error Pattern | Config Source | Delta = Fix |
+|--------|--------------|---------------|-------------|
+| SELinux | `avc: denied { create }` | CIL allow rules, `sesearch` | Missing permission in allow rule |
+| Linux capabilities | `EPERM` on syscall | `capsh --print`, Docker `--cap-add` | Missing capability |
+| File permissions (DAC) | `Permission denied` | `ls -l`, `stat`, ACL | Missing rwx bit or ACL entry |
+| Firewall | Connection refused/timeout | `iptables -L -n`, `ufw status` | Missing ACCEPT rule |
+| AppArmor | `DENIED` in audit log | AppArmor profile | Missing rule in profile |
+| Database grants | `ERROR 1142: SELECT denied` | `SHOW GRANTS FOR user` | Missing GRANT statement |
+| IAM (AWS/GCP) | `AccessDenied` | IAM policy JSON | Missing action in policy statement |
+| CORS | `blocked by CORS policy` | Server CORS headers config | Missing origin/header/method |
+| Kubernetes RBAC | `forbidden: User cannot X` | Role/ClusterRole YAML | Missing verb in rule |
+
+### Example (SELinux)
+
+```
+Error: avc: denied { create } for comm="rsc" scontext=u:r:rsc:s0 tcontext=u:object_r:adb_data_file:s0 tclass=dir
+
+Step 1: Extract
+  Denied:     { create }
+  Source:     rsc
+  Target:     adb_data_file
+  Class:      dir
+
+Step 2: Find rule
+  grep "allow.*rsc.*adb_data_file" vendor_sepolicy.cil
+  → (allow rsc adb_data_file_30_0 (dir (search write add_name)))
+
+Step 3: Delta
+  Denied:     { create }
+  Rule has:   { search, write, add_name }
+  Delta:      { create }  ← MISSING
+
+Step 4: Delta non-empty → Bug (incomplete rule). Fix: add 'create' to dir permissions.
+  Skip Pivot. Go to STEP 3.
+```
+
+**Cost**: 10-30 seconds. **Benefit**: prevents guessing, false pivots, and multi-hour debug sessions.
+
+**Output:** Either (a) a specific missing capability to add (go to STEP 3), or (b) confirmation that config is correct but not applied (go to STEP 2).
+
+**Decision:** If delta found → STEP 3 (Recovery Actions with specific fix). If delta empty or N/A → STEP 2 (Classify).
 
 ---
 
@@ -79,6 +168,7 @@ If this is the **3rd or more** back-to-back pivot on the same task (each trigger
    - Pivot 2: <trigger>
    - Pivot 3: <trigger>
 3. **Identify meta-pattern** — which pattern best describes the cascade?
+   - **Skipped delta analysis** — pivots happened without comparing denied vs configured capabilities (STEP 1.5 was skipped). Ask: "did you compare what was denied against the actual config?"
    - **Documentation lies** — target system doesn't behave per its documentation
    - **Toolchain drift** — local toolchain doesn't match target environment
    - **Symptom cascade** — each pivot fixes a symptom of a deeper, unaddressed issue

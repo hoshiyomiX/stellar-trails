@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.4.4
+- **version**: 7.5.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.4.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.5.0 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -136,7 +136,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.4.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.5.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
@@ -276,7 +276,7 @@ SADC is the first action in SPECIFY. The problem specification must reference th
 
 ## Pivot
 
-On every error, classify it as **Bug** or **Wrong Approach** before attempting a fix. Wrong Approach signals (50%+ rewrite needed, same error after 2 attempts, missing library feature, data model change) trigger a pivot to the fallback approach defined in the Scope. See `procedure/decision-trees/error-resolution.md` for the full Pivot Assessment criteria and recovery flow.
+On every error, classify it as **Bug** or **Wrong Approach** before attempting a fix. For denial-type errors (permission denied, EPERM, AccessDenied, forbidden), perform **Denial Delta Analysis** (STEP 1.5 in error-resolution.md) before classifying — compare what was denied against what is configured. The difference IS the fix. Wrong Approach signals (50%+ rewrite needed, same error after 2 attempts, missing library feature, data model change) trigger a pivot to the fallback approach defined in the Scope. See `procedure/decision-trees/error-resolution.md` for the full Pivot Assessment criteria and recovery flow.
 
 **Pivot flow**: Error detected → classify → if Wrong Approach: re-enter PLAN with fallback (from Scope) or new approach → present to user → re-implement → re-verify. Record in the Pivot field of the delivery report.
 
