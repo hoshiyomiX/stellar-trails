@@ -1,5 +1,47 @@
 # Changelog
 
+## [7.5.1] — 2026-06-26
+
+### Fixed — Register chibi.png in .checksums manifest
+
+**Bug**: `chibi.png` (mascot image, 1.2 MB PNG) was missing from the `.checksums` SHA-256 manifest. Install tooling that validates files against the manifest silently filtered out the binary asset, causing the popup preview at `:3000` to show no mascot — `index.html`'s `onerror="this.style.display='none'"` silently hid the broken `<img>`.
+
+**Root cause**: `.checksums` was last regenerated when `chibi.png` was added in v6.0.0, but the entry was forgotten in subsequent regenerations (v7.0.0 rebrand, v7.2.x, v7.3.0).
+
+**Fix**: Added `chibi.png` SHA-256 entry to `.checksums`:
+```
+2e468b1e1fcb191ca324f24fb14fbea06b2984700cb899b832e7b093e506dd52  skill/stellar-trails/chibi.png
+```
+
+### Audit — 6 documentation leftovers cleaned
+
+| IMPL-ID | File | Before → After |
+|---------|------|----------------|
+| IMPL-002 | `README.md:3` | alt `"Stellar Frameworks mascot"` → `"Stellar Trails mascot"` (old branding from v7.0.0 rebrand) |
+| IMPL-003 | `README.md:200-208` | Removed 4 empty `---` separators stacked between Recovery and Version History (artifacts from deleted sections) |
+| IMPL-004 | `skill/stellar-trails/README.md:70` | Removed `assets/ (legacy, empty after v7.1.4 cleanup)` line (directory does not exist) |
+| IMPL-005 | `skill/stellar-trails/README.md:53` | `.checksums (18 files)` → `(21 files)` |
+| IMPL-006 | `skill/stellar-trails/README.md:59` | `index.html (cosmic glassmorphism, v7.1.4+)` → `(minimalist, v7.5.0+)` |
+| IMPL-007 | `README.md:100-110` | Added v7.2.5, v7.2.6, v7.3.0, v7.5.0 entries to "What's New" section (5-version documentation gap closed) |
+
+### Preserved (NOT modified)
+
+- All "stellar-frameworks" mentions inside `CHANGELOG.md` and `README.md` version-history sections — these are legitimate historical context documenting the v7.0.0 rebrand, not leftovers.
+
+### Known Issues (out of scope)
+
+- `CHANGELOG.md` is still missing entries for v7.3.3, v7.4.0, v7.4.1, v7.4.2, v7.4.3, v7.4.4 (6 commits exist in git log with `feat(v7.4.x)` / `fix(v7.4.x)` messages but no matching CHANGELOG headings). Backfill pending.
+
+### Files Modified
+
+- `.checksums` — added 1 entry (chibi.png)
+- `README.md` — alt text fix, 4 empty `---` removed, 4 entries added to "What's New"
+- `skill/stellar-trails/README.md` — `assets/` line removed, `.checksums` count updated, `index.html` description updated
+- `skill/stellar-trails/SKILL.md` — version bump 7.5.0 → 7.5.1 (metadata + 2 activation banners)
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+---
+
 ## [7.5.0] — 2026-06-24
 
 ### Added — Denial Delta Analysis (feedback from RSC project)
