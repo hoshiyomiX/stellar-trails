@@ -50,13 +50,13 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 ```
 stellar-trails/                   (repo root)
 ├── .github/workflows/release.yml # CI/CD: build zip + create release on tag push
-├── .checksums                    # SHA-256 verification (18 files)
+├── .checksums                    # SHA-256 verification (21 files)
 ├── .gitignore
 ├── README.md                     # Root README (this file's parent)
 └── skill/stellar-trails/         # Git-tracked source of truth
     ├── SKILL.md                  # Skill definition (activation + framework reference)
     ├── dev.sh                    # Standalone no-cache HTTP server (60 lines, popup preview)
-    ├── index.html                # Landing page (cosmic glassmorphism, v7.1.4+)
+    ├── index.html                # Landing page (minimalist, v7.5.0+)
     ├── chibi.png                 # Mascot
     ├── memory-template.md        # Memory system templates & storage rules
     ├── procedure/
@@ -67,7 +67,6 @@ stellar-trails/                   (repo root)
     │   ├── platform/             # Z.ai sandbox constraints
     │   └── universal/            # Architecture, conventions, error patterns
     ├── constraints/              # Code standards + type safety rules
-    ├── assets/                   # (legacy, empty after v7.1.4 cleanup)
     ├── CHANGELOG.md              # Full version history
     └── README.md                 # This file
 ```
