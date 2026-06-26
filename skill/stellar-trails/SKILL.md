@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.5.1
+- **version**: 7.5.2
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.5.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.5.2 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -128,6 +128,34 @@ fi
 ```
 **v7.4.1 fix**: Step A sekarang pakai `cp -f` (copy only if source is newer) — selalu sync dari `skills/stellar-trails/` ke `.zscripts/`, overwrite selalu. Fix v7.3.3 bug: kalau `.zscripts/dev.sh` sudah ada versi lama, Step A skip dan popup pakai index.html outdated. Sekarang: setiap Skill() invoke, Step 1.5 sync file terbaru dari skills/ ke .zscripts/, lalu start dev.sh jika :3000 tidak listening. Pure file copy (cp -f), no network, no exec dari URL, no destructive ops.
 
+**Step 1.6 — Defensive chibi.png restoration (ClawHub install path filter):**
+```bash
+# v7.5.2 — ClawHub publish strips binary files + dotfiles from the install.
+# After `clawhub update`, chibi.png is missing from the skill dir, causing
+# the popup preview to silently hide the mascot (index.html onerror handler).
+#
+# This step restores chibi.png from the local repo clone if it exists.
+# Pure local file copy — no network, no curl, no agent refusal triggers.
+# If the local repo clone doesn't exist (fresh sandbox with only clawhub
+# install), this step is a no-op and the popup gracefully degrades.
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+
+if [ ! -f "$SKILL_DIR/chibi.png" ]; then
+  # Try common local repo clone locations
+  for REPO_CLONE in \
+    "/home/z/my-project/stellar-trails/skill/stellar-trails" \
+    "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" \
+    "$HOME/.stellar-trails-repo/skill/stellar-trails"; do
+    if [ -f "$REPO_CLONE/chibi.png" ]; then
+      cp -f "$REPO_CLONE/chibi.png" "$SKILL_DIR/chibi.png"
+      echo "stellar-trails: chibi.png restored from $REPO_CLONE (ClawHub filter workaround)"
+      break
+    fi
+  done
+fi
+```
+**v7.5.2 fix**: ClawHub's publish mechanism filters out binary files (chibi.png, 1.2 MB) and dotfiles (.checksums) from the registry-stored skill. After `clawhub update --force`, the skill dir is missing chibi.png — `index.html`'s `onerror="this.style.display='none'"` silently hides the broken mascot. Step 1.6 checks common local repo clone paths and restores chibi.png if found. This is a **local file copy only** (no network, no curl) — safe for security-conscious agents. If no local clone exists, the step is a no-op and the popup gracefully degrades (no mascot, but skill still functions).
+
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
 
@@ -136,7 +164,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.5.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.5.2 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

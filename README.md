@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.5.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.5.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.5.1 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.5.2 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,6 +99,7 @@ Workflow akan handle sisanya. Release asset + `latest` tag update otomatis dalam
 
 ### What's New
 
+- **v7.5.2**: Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binary files (1.2 MB mascot) + dotfiles (.checksums) from registry-stored skill. Pure local file copy, no network, no agent refusal triggers.
 - **v7.5.1**: Patch — register `chibi.png` in `.checksums` manifest (root-cause fix for mascot not appearing in popup preview after install). Audit: cleaned 6 documentation leftovers (old branding alt text, 4 empty separators, legacy `assets/` dir ref, outdated `.checksums` count, outdated `index.html` description, 5-version gap in What's New).
 - **v7.5.0**: Denial Delta Analysis (STEP 1.5 in error-resolution.md) — for denial-type errors (permission denied, EPERM, AccessDenied), compute denied-vs-configured delta before classifying as Bug vs Wrong Approach. Generalized for 9 domains (SELinux, Linux capabilities, DAC, firewall, AppArmor, DB grants, IAM, CORS, K8s RBAC). ROI ~720:1 based on real incident.
 - **v7.3.0**: Minimalist popup preview — index.html rewritten from 19 KB cosmic glassmorphism to 6 KB minimalist (−68%). New `watermark.md` documenting popup architecture, 3 customization methods, caching layer debug guide, and design guidelines.
@@ -207,6 +208,7 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
+| [**v7.5.2**](skill/stellar-trails/CHANGELOG.md) | Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binaries + dotfiles. |
 | [**v7.5.1**](skill/stellar-trails/CHANGELOG.md) | Patch — register `chibi.png` in `.checksums` manifest (root-cause fix for mascot not appearing in popup preview). Audit: 6 documentation leftovers cleaned (old branding alt text, empty separators, legacy `assets/` ref, outdated counts/descriptions, 5-version What's New gap). |
 | [**v7.1.0**](skill/stellar-trails/CHANGELOG.md) | Stateless skill. SKILL.md bootstrap dihapus (no shell execution). Install jadi 2-path: Path A (ZAI platform, zip upload) + Path B (standalone, optional boot.sh). Fix: v7.0.0 install command ditolak security-conscious agents karena pola supply-chain attack. |
 | [**v7.0.0**](skill/stellar-trails/CHANGELOG.md) | **BREAKING** — Rebrand `stellar-frameworks` → `stellar-trails`. Repo renamed di GitHub (soft migration via auto-redirect). Skill name, directory names, log file path semua berubah. Existing user perlu manual migration. |

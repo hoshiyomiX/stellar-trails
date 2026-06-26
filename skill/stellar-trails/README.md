@@ -34,6 +34,7 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
 | 7.5.1 | 2026-06-26 | Patch — register chibi.png in .checksums manifest (root-cause fix for mascot missing in popup preview). Audit: 6 documentation leftovers cleaned. |
 | 7.2.0 | 2026-06-21 | boot.sh deleted (8 red flag patterns), replaced with dev.sh standalone (60 lines, no-cache HTTP server) |
 | 7.1.4 | 2026-06-21 | New landing page (cosmic glassmorphism + phase flow diagram), dead code cleanup (386 lines removed) |

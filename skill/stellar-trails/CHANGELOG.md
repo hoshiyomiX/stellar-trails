@@ -1,5 +1,56 @@
 # Changelog
 
+## [7.5.2] — 2026-06-26
+
+### Added — Defensive Step 1.6: chibi.png auto-restoration (ClawHub filter workaround)
+
+**Problem**: `clawhub update --force` strips binary files + dotfiles from the installed skill. After updating from v7.5.0 → v7.5.1, the local skill install was missing `chibi.png` (1.2 MB mascot) and `.checksums` (dotfile manifest). The v7.5.1 `.checksums` fix only solved the **Path B** (GitHub Release zip) install path — the **Path A** (ClawHub install) was still broken because ClawHub's registry never stored the binary in the first place.
+
+**Root cause**: `clawhub skill publish` (invoked by `.github/workflows/release.yml` line 168) submits the entire `skill/stellar-trails/` directory, but ClawHub's storage layer filters out:
+- Binary files (chibi.png — 1.2 MB PNG)
+- Dotfiles (.checksums, .gitignore, .gitattributes)
+- Possibly other file types (skill-card.md was also missing)
+
+Confirmed via `clawhub inspect stellar-trails` — only 16 text/markdown files stored in registry; chibi.png absent.
+
+**Fix**: Added **Step 1.6** to SKILL.md activation sequence (runs after Step 1.5, before Step 2). If `chibi.png` is missing from the skill dir, search common local repo clone paths and restore it via local file copy:
+
+```bash
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+if [ ! -f "$SKILL_DIR/chibi.png" ]; then
+  for REPO_CLONE in \
+    "/home/z/my-project/stellar-trails/skill/stellar-trails" \
+    "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" \
+    "$HOME/.stellar-trails-repo/skill/stellar-trails"; do
+    if [ -f "$REPO_CLONE/chibi.png" ]; then
+      cp -f "$REPO_CLONE/chibi.png" "$SKILL_DIR/chibi.png"
+      echo "stellar-trails: chibi.png restored from $REPO_CLONE (ClawHub filter workaround)"
+      break
+    fi
+  done
+fi
+```
+
+**Why this is safe** (no agent refusal triggers):
+- Pure local file copy (`cp -f`) — no `curl`, no network ops
+- No `.usermark` creation (no skill-hijack pattern)
+- No shell init hooks (~/.bashrc, ~/.profile)
+- No destructive ops (just copy if missing)
+- Graceful no-op if no local clone exists (popup degrades silently via `onerror`)
+
+**Limitations**:
+- Only works if user has cloned the GitHub repo locally. Fresh sandboxes with only `clawhub install` will still miss chibi.png. Future fix could add a `curl` fallback to GitHub release URL, but that would re-introduce the agent-refusal patterns removed in v7.2.4.
+- `.checksums` and `skill-card.md` are still missing from ClawHub install. Not critical (`.checksums` is for Path B validation; `skill-card.md` is for ClawHub UI which has its own `_meta.json`).
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — added Step 1.6 block + v7.5.2 explanation; version bump 7.5.1 → 7.5.2 (metadata + 2 activation banners)
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+---
+
 ## [7.5.1] — 2026-06-26
 
 ### Fixed — Register chibi.png in .checksums manifest
