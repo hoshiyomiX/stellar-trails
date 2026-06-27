@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.8.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.8.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.8.0 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.8.1 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.8.0**: Two SPECIFY phase integrations — (1) AskUserQuestion gate: mandatory for Document/Visualization tasks, batches 6-8 clarifying questions (audience/style/length/format/etc.) before problem-spec writing. Skip conditions documented. (2) SADC subagent delegation: Standard/Complex tasks delegate research to `Task` subagent (web-search + web-reader), keeping main agent's context clean. Both integrations close the 83% platform-feature underusage gap identified in v7.7.5 audit.
+- **v7.8.1**: skill-creator audit fixes — P0: fixed 'Deliverys' typo → 'Deliveries'; refactored SADC subagent template + AskUserQuestion template to `references/` dir (SKILL.md dropped from 499 → ~440 lines, comfortable margin under 500). P1: added Worked Example section (illustrates PDF report task end-to-end). P2: added `evals/evals.json` with 4 verifiable assertions (banner printed, worklog appended, report format, AskUserQuestion invoked); added `phase-workflow` + `task-workflow` topic tag aliases alongside `phase-machine`. Description kept pushy + trigger-focused per user design.
+- **v7.8.0**: AskUserQuestion gate + SADC subagent delegation.
 - **v7.7.5**: Banner → vertical checklist + mandatory execution + print mandate (4 places).
 - **v7.7.4**: Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─).
 - **v7.7.3**: Added 9-step sequence to activation banner (top + Step 8 confirm).
@@ -218,7 +219,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.8.0**](skill/stellar-trails/CHANGELOG.md) | Two SPECIFY integrations: (1) AskUserQuestion gate — mandatory for Document/Visualization, batches clarifying questions before problem-spec. (2) SADC subagent delegation — Standard/Complex tasks delegate web-search + web-reader research to Task subagent. Closes 83% platform underusage gap. |
+| [**v7.8.1**](skill/stellar-trails/CHANGELOG.md) | skill-creator audit fixes: P0 typo fix (Deliverys→Deliveries) + refactor to references/ dir (499→~440 lines). P1 Worked Example section. P2 evals/evals.json (4 verifiable assertions) + topic tag aliases (phase-workflow, task-workflow). Description kept pushy per user design. |
+| [**v7.8.0**](skill/stellar-trails/CHANGELOG.md) | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
 | [**v7.7.5**](skill/stellar-trails/CHANGELOG.md) | Banner → vertical checklist + mandatory execution + print mandate (4 places). |
 | [**v7.7.4**](skill/stellar-trails/CHANGELOG.md) | Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─). |
 | [**v7.7.3**](skill/stellar-trails/CHANGELOG.md) | Added 9-step sequence to activation banner (top + Step 8 confirm). |

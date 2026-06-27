@@ -1,5 +1,92 @@
 # Changelog
 
+## [7.8.1] — 2026-06-27
+
+### Fixed — skill-creator audit findings (P0 + P1 + P2)
+
+**Context**: v7.8.0 was audited using skill-creator methodology. Audit found 2 P0 issues (line count borderline + typo), 2 P1 improvements (no task examples + description too broad), 2 P2 notes (no evals/ + topic tag aliases). This release fixes all of them EXCEPT the description revision (user explicitly kept description pushy + trigger-focused per original design).
+
+#### P0-1: Fixed "Deliverys" typo
+
+**Issue**: Section heading `## Deliverys` was a spelling error (should be `## Deliveries`).
+
+**Fix**: Single Edit tool call, renamed `## Deliverys` → `## Deliveries`.
+
+**Why this matters**: Spelling errors in section headings undermine the skill's authority. The framework preaches precision (Traceability IDs, gate protocol, scope commitment) but had a typo in its own structure.
+
+#### P0-2: Refactored templates to references/ directory
+
+**Issue**: SKILL.md was 499/500 lines — at the cliff edge. skill-creator says: "Keep SKILL.md under 500 lines; if approaching this limit, add an additional layer of hierarchy with clear pointers."
+
+**Fix**: Moved 2 large template sections to new `references/` directory:
+
+1. **SADC Subagent Delegation** (~45 lines) → `references/sadc-subagent-delegation.md`
+   - Full mandate, workflow, why-subagent explanation, example Task invocation, Simple/Minimal tier guidance
+2. **AskUserQuestion Gate** (~30 lines) → `references/askuserquestion-gate.md`
+   - Full 8-question template, question construction rules, skip conditions, call cadence, why-this-matters
+
+SKILL.md now contains 5-line summaries of each, pointing to the reference files. SKILL.md dropped from 499 → ~440 lines (comfortable margin under 500).
+
+**Progressive disclosure now properly 3-level**:
+- Level 1: Metadata (name + description, ~90 words)
+- Level 2: SKILL.md body (~440 lines, routing + summaries)
+- Level 3: `references/` + `procedure/templates/` + `knowledge/` + `constraints/` (full templates, loaded as needed)
+
+#### P1-2: Added Worked Example section
+
+**Issue**: skill-creator suggests Input/Output examples so agents see how the workflow handles a sample task. Stellar Trails had banner format examples but no "here's a user prompt → here's how Stellar Trails handles it" example.
+
+**Fix**: Added new "## Worked Example" section near end of SKILL.md (~15 lines). Illustrates a PDF report task end-to-end:
+- User prompt: "Build me a PDF report summarizing Q4 sales"
+- Stellar Trails handling: 6-step walkthrough (Activation → SPECIFY with AskUserQuestion + SADC → PLAN → IMPLEMENT with pdf skill → VERIFY → DELIVER)
+- "Without Stellar Trails" vs "With Stellar Trails" comparison
+
+#### P2-1: Added evals/ directory with 4 verifiable assertions
+
+**Issue**: skill-creator says skills with verifiable outputs benefit from test cases. Stellar Trails is mostly subjective (process discipline), but has narrow verifiable signals.
+
+**Fix**: Created `evals/evals.json` with 4 eval cases, each with programmatically-checkable assertions:
+
+1. **activation-banner-printed**: banner with `☄️ STELLAR TRAILS · vX.Y.Z · ACTIVE` + `Activation checklist` line + ≥8 `✓` marks appears in agent's first/second message
+2. **worklog-snapshot-appended**: `/home/z/my-project/worklog.md` exists, last `---` block contains `last_phase: DELIVER` + `task:` + `complexity:` fields
+3. **report-format-matches-template**: final message contains `☄️ REPORT [Standard|Simple|Complex]` + tree-style `├─`/`└─` chars + `Outcome` field
+4. **askuserquestion-invoked-for-document-task**: agent invokes AskUserQuestion OR prints clarifying questions before generating document content
+
+Assertion types include `transcript_grep`, `transcript_count`, `file_exists`, `file_grep_last_block`. These can be checked programmatically without subjective judgment.
+
+#### P2-2: Added topic tag aliases
+
+**Issue**: `metadata.topics` only had `phase-machine` — the buzzword we cleaned from prose in v7.6.2 but kept as search tag. Users searching for "phase workflow" or "task workflow" wouldn't find the skill.
+
+**Fix**: Added `phase-workflow` and `task-workflow` as topic tag aliases alongside `phase-machine`. Now users searching any of these terms find stellar-trails.
+
+#### NOT fixed (per user design decision)
+
+**P1-1: Description too broad** — audit recommended narrowing "every task" → "every non-trivial task" and adding "Skip for pure one-shot questions". User explicitly said: "keep description pushy + trigger-focused because following from my design". Description left unchanged at original 88-word pushy version.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — P0-1 typo fix + P0-2 refactor (SADC + AskUserQuestion sections replaced with summaries + pointers) + P1-2 Worked Example section + P2-2 topic tag aliases + version bump 7.8.0 → 7.8.1 (metadata + 2 banners)
+- `skill/stellar-trails/references/sadc-subagent-delegation.md` — NEW file (full SADC subagent template moved here)
+- `skill/stellar-trails/references/askuserquestion-gate.md` — NEW file (full AskUserQuestion template moved here)
+- `skill/stellar-trails/evals/evals.json` — NEW file (4 verifiable assertions)
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Line count improvement
+
+| Version | SKILL.md lines | Margin under 500 |
+|---------|----------------|------------------|
+| v7.8.0 | 499 | 1 (cliff edge) |
+| v7.8.1 | ~440 | ~60 (comfortable) |
+
+### Version bump
+
+7.8.0 → 7.8.1 (patch — audit fixes, no new functional integrations, no breaking changes)
+
+---
+
 ## [7.8.0] — 2026-06-27
 
 ### Added — Two SPECIFY phase integrations (platform feature utilization)

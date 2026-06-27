@@ -6,6 +6,8 @@ metadata:
   topics:
     - agent-workflow
     - phase-machine
+    - phase-workflow
+    - task-workflow
     - llm-agents
     - task-management
     - traceability
@@ -15,14 +17,14 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.8.0
+- **version**: 7.8.1
 
 ## Activation
 
 **Mandatory: execute all 9 steps below in order, then print the banner checklist as confirmation.** Skipping any step or failing to print the banner is a correctness bug.
 
 ```
-☄️ STELLAR TRAILS · v7.8.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.8.1 · ACTIVE
 ├─ Six-phase workflow · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity
 └─ Activation checklist (1–9, every invoke) — execute all, then print this banner:
    ├─ 1  Refresh context from disk
@@ -153,7 +155,7 @@ Print the activation checklist banner below. This is the mandatory banner print 
 
 Output this banner verbatim (vertical checklist format):
 ```
-☄️ STELLAR TRAILS · v7.8.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.8.1 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–9, every invoke) — executed:
@@ -306,41 +308,13 @@ Before planning any implementation, verify that the approach is grounded in real
 
 For Standard and Complex tasks, delegate SADC research to a subagent via the `Task` tool. This keeps the main agent's context clean for problem-spec writing while the subagent does the heavy research in parallel.
 
-**Mandate**: For Standard/Complex tier tasks, launch a `Task` subagent (subagent_type: `general-purpose`) BEFORE writing the problem specification. The subagent performs:
+**Mandate**: For Standard/Complex tier tasks, launch a `Task` subagent (subagent_type: `general-purpose`) BEFORE writing the problem specification.
 
-1. **`Skill(command="web-search")`** — search for existing packages, libraries, or patterns matching the task domain. Examples:
-   - "Python library for PDF text extraction"
-   - "Next.js 16 authentication middleware patterns"
-   - "matplotlib Chinese font configuration"
-2. **`Skill(command="web-reader")`** — extract full content from the top 3-5 most relevant URLs returned by web-search. Focus on: official docs, README, getting-started guides.
-3. **Return to main agent**: a concise summary (≤500 words) covering:
-   - Existing solutions found (name + URL + 1-line description)
-   - Recommended approach based on official docs
-   - Any gotchas or anti-patterns noted in the docs
-   - If no existing solution: explicit statement "searched <sources>, no existing package found"
+**Workflow**: Subagent invokes `Skill(command="web-search")` → `Skill(command="web-reader")` → returns ≤500-word summary (existing solutions, recommended approach, gotchas, or "no existing package found").
 
-**Why subagent (not inline)**:
-- Subagent runs in its own context window — doesn't pollute main agent's context with raw search results
-- Main agent can begin drafting problem-spec.md while subagent researches (parallel work)
-- Subagent's research output becomes part of the problem-spec's "Sources checked" section
-- If subagent finds an existing library that solves the task, the main agent can pivot BEFORE writing any code — saves hours of wasted implementation
+**Simple / Minimal tier**: Skip subagent delegation. Inline research is fine for these tiers.
 
-**Example Task invocation**:
-```
-Task(
-  description: "SADC research for <task>",
-  subagent_type: "general-purpose",
-  prompt: "Research existing solutions for <task description>. 
-    1. Invoke Skill(command='web-search') with query: '<domain-specific query>'
-    2. From the top 5 results, invoke Skill(command='web-reader') on the 3 most relevant URLs
-    3. Return a summary (≤500 words): existing solutions found, recommended approach, gotchas.
-    If no existing solution, state explicitly: 'searched <sources>, no existing package found'.
-    Pass Task ID: SADC-001. Read /home/z/my-project/worklog.md before starting. 
-    Append your work record to /home/z/my-project/worklog.md when done."
-)
-```
-
-**Simple / Minimal tier**: Skip subagent delegation. Inline research is fine for these tiers — the task is small enough that context pollution is minimal.
+**Full template + example Task invocation**: Read `references/sadc-subagent-delegation.md` when launching the subagent.
 
 SADC is the first action in SPECIFY. The problem specification must reference the sources checked (either inline research or subagent summary). If no existing solution is found, state that explicitly — "searched npm/PyPI/docs, no existing package found" is a valid result. Building from scratch when a library exists is a spec-level defect.
 
@@ -348,31 +322,13 @@ SADC is the first action in SPECIFY. The problem specification must reference th
 
 For deliverable-creation tasks (Document, Visualization, or any task producing PPT/Word/PDF/Excel/dashboard/poster/script/chart), the agent MUST invoke `AskUserQuestion` BEFORE writing the problem specification. This is the "preferences confirmation dialog" — it batches clarifying questions so the user can confirm audience, style, length, format, and must-include content before the agent commits to an approach.
 
-**Mandate**: In SPECIFY phase, if task type is Document or Visualization AND the user's original request does NOT already explicitly pin audience + style + length, invoke `AskUserQuestion` with 6-8 questions covering:
+**Mandate**: In SPECIFY phase, if task type is Document or Visualization AND the user's original request does NOT already explicitly pin audience + style + length, invoke `AskUserQuestion` with 6-8 questions.
 
-1. **Audience** — who is this for (students / colleagues / clients / investors / executives / general public / domain reviewers)
-2. **Purpose** — what should the audience do after consuming (inform / decide / pitch / sell / teach / review / launch / align on strategy)
-3. **Length / Size** — calibrated to artifact type (e.g., PPT: short 1-8 / medium 8-12 / long 12+ slides; Doc: short ~500 / medium ~1,500 / long ~3,000+ words)
-4. **Design Style** — primary look & feel (business formal / tech & futuristic / education & warm / minimal whitespace / editorial / dark premium)
-5. **Must-include content** — multi-select: required sections, data points, citations, case studies, screenshots
-6. **Format constraints** — page header/footer needs, speaker notes, info density (per-page word count)
-7. **Deliverable shape** — cover/TOC/Q&A/appendix inclusion
-8. **Language** — only ask if not inferable from user's input
+**Full 6-8 question template + skip conditions + call cadence**: Read `references/askuserquestion-gate.md` before invoking.
 
-**Each question**: 3-4 concrete options (not vague "formal / casual" — give specific palettes, style references, sample headlines). Mark exactly one option as `recommended` (the default if user doesn't answer). User is free to type their own answer — options are suggestions, not a closed list.
+**Skip conditions (summary)**: user says skip / all 3 dimensions explicit / trivial edit / Coding/Non-Coding / continuation. AT MOST ONCE per run, before any content-producing tool. After answers return, proceed straight to PLAN (no loop-back).
 
-**Skip conditions** (do NOT invoke AskUserQuestion):
-- User explicitly says "skip questions" / "just do it" / "don't ask"
-- User's original request already pinned audience AND style AND length (all three explicit)
-- Task is trivial one-shot edit (single typo, single number change)
-- Task type is Coding or Non-Coding (questions only for deliverable creation)
-- Continuation of previous work where preferences were already confirmed
-
-**Call cadence**: AT MOST ONCE per run, very early — before any content-producing tool (Outline, Write, subagent delegation, file generation). Do NOT call any other tool in the same turn as AskUserQuestion.
-
-**After answers return**: proceed straight to PLAN phase (or SADC if not yet done). Do NOT loop back for more questions — one round is enough. The answers become authoritative requirements for the rest of the run.
-
-**Why this matters**: Without AskUserQuestion, the agent guesses audience/style/length and often produces a deliverable that mismatches the user's mental model. Rework cost is high (regenerate entire document). With AskUserQuestion, one batched round of questions up front prevents hours of rework downstream. The user explicitly invoked Stellar Trails to enforce this discipline.
+**Why this matters**: Without AskUserQuestion, the agent guesses audience/style/length and often produces a deliverable that mismatches the user's mental model. Rework cost is high (regenerate entire document). One batched round up front prevents hours of rework downstream.
 
 ## Pivot
 
@@ -408,7 +364,7 @@ Phase transitions are guarded — each gate has an entry condition. See `procedu
 
 Any deviation from the Scope must appear in the delivery report's Scope Drift field.
 
-## Deliverys
+## Deliveries
 
 Two structured outputs bookend implementation: **Scope** (end of PLAN, before IMPLEMENT) and **Delivery** (end of DELIVER). The commitment says what will be built. The report says what was actually built and whether it matches.
 
@@ -497,3 +453,23 @@ Self-graded. The evidence requirement makes fabrication harder but cannot guaran
 ## Completion Signal
 
 For interactive web development tasks (Next.js, UI components, dashboards), implementation is delegated to fullstack-dev — the DELIVER phase calls the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize. For non-web coding tasks, DELIVER presents output file paths. **In all cases, DELIVER must append a Snapshot to `worklog.md`** — see Worklog Continuity Protocol in Session Continuity above.
+
+## Worked Example
+
+To illustrate how Stellar Trails handles a real task, here is a typical prompt and the workflow it triggers:
+
+**User prompt**: "Build me a PDF report summarizing Q4 sales"
+
+**Stellar Trails handling**:
+1. **Activation Steps 1–9 run** (banner printed with ✓ marks)
+2. **SPECIFY**:
+   - AskUserQuestion (audience? length? style? — skip only if user pinned all 3)
+   - SADC subagent (search "Python PDF report libraries" → web-reader → returns: reportlab + fpdf2 + gotchas)
+3. **PLAN**: implementation-plan.md with IMPL-001..005 (Scope: reportlab approach, fallback fpdf2)
+4. **IMPLEMENT**: invoke `Skill(command="pdf")` to generate the report
+5. **VERIFY**: format check (PDF opens, page count matches spec) + completeness check (all required sections present)
+6. **DELIVER**: `☄️ REPORT [Standard]` + worklog snapshot appended
+
+**Without Stellar Trails**: agent would skip clarification (guess audience), skip research (use first library it remembers), generate PDF with mismatched parameters, often requiring full regeneration after user feedback.
+
+**With Stellar Trails**: one AskUserQuestion round + one SADC subagent round up front → report matches user intent first time. Total overhead: ~30 seconds questions + ~2 minutes research. Saved: hours of rework.
