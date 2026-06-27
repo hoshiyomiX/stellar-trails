@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.7.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.7.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.7.2 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.7.3 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.7.2**: Corrected frequency guidance — all 9 activation steps now run on every `Skill()` invoke (was incorrectly "Steps 1-5 once per session, 6-9 every invoke"). Running all steps every invoke guarantees fresh environment (latest skill version, popup server up, zip in sync) even after context truncation. Cost is ~3-5 seconds of cheap file ops; correctness benefit outweighs latency.
+- **v7.7.3**: Added 9-step sequence to activation banner — both the top banner (shown on skill load) and Step 8 confirm banner now display the full step list (1 Refresh context · 2 Auto-update · 3 Verify files · 4 Start server · 5 Sync zip · 6 Load phases · 7 Classify · 8 Confirm · 9 Enter workflow). Improves user visibility — agents and users can see the activation sequence at a glance without scrolling through step bodies.
+- **v7.7.2**: Corrected frequency guidance — all 9 activation steps run on every `Skill()` invoke.
 - **v7.7.1**: Restructure activation — merged Step 5 (Verify chibi.svg) into Step 4. Added new Step 5: Sync persistent zip.
 - **v7.7.0**: Fix 8 bugs causing LLM to skip activation steps. Bug #1: replaced stale v7.5.0 zip with v7.6.2 zip. Bugs #2-8: rewrote activation section with imperative framing, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance.
 - **v7.6.2**: Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8.
@@ -214,7 +215,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.7.2**](skill/stellar-trails/CHANGELOG.md) | Corrected frequency guidance — all 9 activation steps run on every `Skill()` invoke (was incorrectly "1-5 per session, 6-9 per invoke"). Guarantees fresh environment after context truncation. |
+| [**v7.7.3**](skill/stellar-trails/CHANGELOG.md) | Added 9-step sequence to activation banner (top banner + Step 8 confirm banner). Improves user visibility — agents and users see the full step list at a glance. |
+| [**v7.7.2**](skill/stellar-trails/CHANGELOG.md) | Corrected frequency guidance — all 9 activation steps run on every `Skill()` invoke. |
 | [**v7.7.1**](skill/stellar-trails/CHANGELOG.md) | Restructure activation: merged Step 5 (Verify chibi.svg) into Step 4. Added new Step 5: Sync persistent zip. |
 | [**v7.7.0**](skill/stellar-trails/CHANGELOG.md) | Fix 8 bugs causing LLM to skip activation steps. Replaced stale zip (root cause), rewrote activation section with imperative framing, expected-output checkpoints, session-frequency guidance, and Step 1 context-refresh workaround. |
 | [**v7.6.2**](skill/stellar-trails/CHANGELOG.md) | Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/... → 1/2/3/4/5/6/7/8. |

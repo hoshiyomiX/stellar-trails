@@ -1,5 +1,43 @@
 # Changelog
 
+## [7.7.3] — 2026-06-27
+
+### Added — 9-step sequence in activation banner
+
+**Enhancement**: Both activation banners now display the full 9-step sequence so users and agents can see the activation flow at a glance without scrolling through step bodies.
+
+**What changed**: Two banner locations updated:
+
+1. **Top Activation banner** (shown when skill loads) — added "Activation steps (1–9, every invoke):" block with 3×3 grid of step names.
+
+2. **Step 8 Confirm activation banner** (output by agent when confirming activation) — same 9-step block added below the existing Phase/Complexity/Continuity line.
+
+**Banner format** (used in both locations):
+```
+☄️ STELLAR TRAILS · v7.7.3 · ACTIVE
+   ...feature list...
+
+   Activation steps (1–9, every invoke):
+   1 Refresh context  ·  2 Auto-update   ·  3 Verify files
+   4 Start server     ·  5 Sync zip      ·  6 Load phases
+   7 Classify         ·  8 Confirm       ·  9 Enter workflow
+```
+
+**Why this matters**: Previously, the banner only showed the version + feature list. Users had to scroll through 9 step bodies to see what the activation sequence does. Now the full sequence is visible at a glance — improves transparency, helps users understand what the agent is doing during activation, and helps the agent itself stay oriented (the step list acts as a checklist reminder).
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — top Activation banner + Step 8 confirm banner both extended with 9-step block + version bump 7.7.2 → 7.7.3
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.2 → 7.7.3 (patch — banner enhancement, no functional code changes)
+
+---
+
 ## [7.7.2] — 2026-06-27
 
 ### Fixed — Corrected frequency guidance: all 9 steps run on every Skill() invoke
