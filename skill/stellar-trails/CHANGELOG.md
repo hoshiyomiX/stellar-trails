@@ -1,5 +1,59 @@
 # Changelog
 
+## [7.6.1] — 2026-06-27
+
+### Fixed — Popup mascot cropping (CSS fix)
+
+**Bug**: Mascot `chibi.svg` appeared cropped to a circle in the popup preview at `:3000`. The full SVG artwork (818×900 px, ~0.909 aspect ratio) was being clipped both vertically (to fit a forced 200×200 square via `object-fit:cover`) AND at the corners (clipped to a circle via `border-radius:50%`). User reported: "chibi.svg nampak cropped round di html popup preview, gambar jangan di crop!"
+
+**Root cause**: Three CSS properties on `.mascot` class in `index.html:61-66`:
+```css
+.mascot{
+    width:200px;height:200px;border-radius:50%;object-fit:cover;
+    ↑ forces square   ↑ clips to circle  ↑ fill-crops overflow
+```
+
+1. `width:200px;height:200px` — forced square box, ignoring SVG's portrait aspect ratio
+2. `object-fit:cover` — scaled SVG to fill square, cropping ~10px top+bottom
+3. `border-radius:50%` — further clipped square to circle, removing 4 corners
+
+**Fix**: Replaced with proportional sizing:
+```css
+.mascot{
+    width:200px;height:auto;max-height:240px;
+    margin:0 auto 1.5rem;display:block;
+    filter:drop-shadow(0 0 40px rgba(139,92,246,.3));
+    animation:float 5s ease-in-out infinite;
+}
+```
+
+- `width:200px;height:auto` — browser preserves SVG intrinsic aspect ratio (818:900 → 200×220px)
+- `max-height:240px` — safety net for unusually tall SVGs (current 220px < 240px, not active)
+- Removed `border-radius:50%` — no circular clipping
+- Removed `object-fit:cover` — no fill-cropping
+- Kept `filter:drop-shadow`, `animation:float`, `margin`, `display:block` — visual style preserved
+
+#### Why this happened
+
+The `.mascot` CSS was written in v6.0.0 (2026-05-25) for the original chibi.png which was a 1024×1024 square PNG — `border-radius:50%` + `object-fit:cover` on a square source produced a clean circular avatar with no visible cropping. When v7.6.0 replaced PNG with SVG (818×900, non-square), the same CSS silently cropped the new asset. The aspect ratio difference (~10% taller than wide) was small enough to escape visual notice during v7.6.0 testing.
+
+#### Files Modified
+
+- `skill/stellar-trails/index.html` — `.mascot` CSS rule (1 line changed)
+- `skill/stellar-trails/SKILL.md` — version bump 7.6.0 → 7.6.1 (metadata + 2 activation banners)
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+#### Verification
+
+- Popup `GET /` → HTTP 200
+- Popup `GET /chibi.svg` → HTTP 200, 757,180 bytes
+- Computed rendered dimensions: 200×220px (no cropping, no clipping)
+- CSS grep confirms no `border-radius` or `object-fit` in `.mascot` rule
+
+---
+
 ## [7.6.0] — 2026-06-27
 
 ### Changed — BREAKING: chibi.png → chibi.svg mascot format migration

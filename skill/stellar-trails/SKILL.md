@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.6.0
+- **version**: 7.6.1
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.6.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.6.1 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -165,7 +165,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.6.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.6.1 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

@@ -34,6 +34,7 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 7.6.1 | 2026-06-27 | Fix popup mascot cropping — .mascot CSS had border-radius:50% + object-fit:cover + forced square. Replaced with width:200px;height:auto. SVG renders at native aspect ratio, no cropping. |
 | 7.6.0 | 2026-06-27 | BREAKING — mascot format change: chibi.png (binary, 1.2 MB) → chibi.svg (text SVG, 757 KB). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively. |
 | 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
 | 7.5.1 | 2026-06-26 | Patch — register chibi.png in .checksums manifest (root-cause fix for mascot missing in popup preview). Audit: 6 documentation leftovers cleaned. |

@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.6.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.6.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.6.0 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.6.1 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,6 +99,7 @@ Workflow akan handle sisanya. Release asset + `latest` tag update otomatis dalam
 
 ### What's New
 
+- **v7.6.1**: Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` (circular clip) + `object-fit:cover` (fill-crop) + `height:200px` (forced square). Replaced with `width:200px;height:auto;max-height:240px` — SVG now renders at native aspect ratio (200×220px) with no cropping. Mascot visible in full.
 - **v7.6.0**: **BREAKING** mascot format change — `chibi.png` (binary, 1.2 MB) replaced with `chibi.svg` (text, 757 KB ASCII SVG). SVG passes ClawHub's text-file filter natively, eliminating the v7.5.2 Step 1.6 workaround for fresh installs. Updates: index.html `src`, SKILL.md Step 1.5/1.6, .checksums, README/skill-README/watermark references. Step 1.6 retained as backward-compat for v7.5.x→v7.6.0 upgrades.
 - **v7.5.2**: Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binary files (1.2 MB mascot) + dotfiles (.checksums) from registry-stored skill. Pure local file copy, no network, no agent refusal triggers.
 - **v7.5.1**: Patch — register `chibi.png` in `.checksums` manifest (root-cause fix for mascot not appearing in popup preview after install). Audit: cleaned 6 documentation leftovers (old branding alt text, 4 empty separators, legacy `assets/` dir ref, outdated `.checksums` count, outdated `index.html` description, 5-version gap in What's New).
@@ -209,7 +210,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.6.0**](skill/stellar-trails/CHANGELOG.md) | **BREAKING** mascot format change — `chibi.png` (binary) → `chibi.svg` (text SVG). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively; Step 1.6 becomes mostly no-op for fresh installs. |
+| [**v7.6.1**](skill/stellar-trails/CHANGELOG.md) | Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` + `object-fit:cover` + forced square. Replaced with `width:200px;height:auto` — SVG renders at native aspect ratio, no cropping. |
+| [**v7.6.0**](skill/stellar-trails/CHANGELOG.md) | **BREAKING** mascot format change — `chibi.png` (binary) → `chibi.svg` (text SVG). Solves ClawHub binary-file-filter issue at the source. |
 | [**v7.5.2**](skill/stellar-trails/CHANGELOG.md) | Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binaries + dotfiles. |
 | [**v7.5.1**](skill/stellar-trails/CHANGELOG.md) | Patch — register `chibi.png` in `.checksums` manifest (root-cause fix for mascot not appearing in popup preview). Audit: 6 documentation leftovers cleaned (old branding alt text, empty separators, legacy `assets/` ref, outdated counts/descriptions, 5-version What's New gap). |
 | [**v7.1.0**](skill/stellar-trails/CHANGELOG.md) | Stateless skill. SKILL.md bootstrap dihapus (no shell execution). Install jadi 2-path: Path A (ZAI platform, zip upload) + Path B (standalone, optional boot.sh). Fix: v7.0.0 install command ditolak security-conscious agents karena pola supply-chain attack. |
