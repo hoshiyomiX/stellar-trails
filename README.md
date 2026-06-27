@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.6.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.7.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.6.2 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.7.0 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.6.2**: Language audit — fixed codeswitching (Indonesian-in-English) across README.md + SKILL.md + watermark.md. Replaced buzzword "stateless phase machine" / "phase state machine" / "phase machine" with "six-phase workflow" / "workflow" throughout active prose. Removed hyperbole ("8 red flag patterns" → "multiple security issues", "ROI ~720:1" → "saved ~2 hours", "zero red flags, zero agent refusal" → "no red flags, no agent refusal"). Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8 (sequential integers). Historical CHANGELOG entries preserved unchanged.
+- **v7.7.0**: Fix 8 bugs causing LLM to skip activation steps. Bug #1: replaced stale v7.5.0 zip at `/home/user_skills/` with v7.6.2 zip (root cause of version reversion on session restart). Bugs #2-8: rewrote SKILL.md activation section — added Step 1 (refresh context from disk), imperative framing on all steps, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance, clarified 'no shell execution' comment.
+- **v7.6.2**: Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8.
 - **v7.6.1**: Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` (circular clip) + `object-fit:cover` (fill-crop) + `height:200px` (forced square). Replaced with `width:200px;height:auto;max-height:240px` — SVG now renders at native aspect ratio (200×220px) with no cropping. Mascot visible in full.
 - **v7.6.0**: **BREAKING** mascot format change — `chibi.png` (binary, 1.2 MB) replaced with `chibi.svg` (text, 757 KB ASCII SVG). SVG passes ClawHub's text-file filter natively, eliminating the v7.5.2 Step 1.6 workaround for fresh installs. Updates: index.html `src`, SKILL.md Step 1.5/1.6, .checksums, README/skill-README/watermark references. Step 1.6 retained as backward-compat for v7.5.x→v7.6.0 upgrades.
 - **v7.5.2**: Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binary files (1.2 MB mascot) + dotfiles (.checksums) from registry-stored skill. Pure local file copy, no network, no agent refusal triggers.
@@ -211,7 +212,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.6.2**](skill/stellar-trails/CHANGELOG.md) | Language audit — fixed codeswitching (Indonesian-in-English) across 5 files. Replaced buzzword "stateless phase machine" / "phase machine" with "six-phase workflow" / "workflow" throughout active prose. Removed hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8. Historical CHANGELOG entries preserved. |
+| [**v7.7.0**](skill/stellar-trails/CHANGELOG.md) | Fix 8 bugs causing LLM to skip activation steps. Replaced stale zip (root cause), rewrote activation section with imperative framing, expected-output checkpoints, session-frequency guidance, and Step 1 context-refresh workaround. |
+| [**v7.6.2**](skill/stellar-trails/CHANGELOG.md) | Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/... → 1/2/3/4/5/6/7/8. |
 | [**v7.6.1**](skill/stellar-trails/CHANGELOG.md) | Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` + `object-fit:cover` + forced square. Replaced with `width:200px;height:auto` — SVG renders at native aspect ratio, no cropping. |
 | [**v7.6.0**](skill/stellar-trails/CHANGELOG.md) | **BREAKING** mascot format change — `chibi.png` (binary) → `chibi.svg` (text SVG). Solves ClawHub binary-file-filter issue at the source. |
 | [**v7.5.2**](skill/stellar-trails/CHANGELOG.md) | Defensive Step 1.6 — auto-restores `chibi.png` from local repo clone if missing after `clawhub update`. Workaround for ClawHub publish filter that strips binaries + dotfiles. |

@@ -1,5 +1,63 @@
 # Changelog
 
+## [7.7.0] — 2026-06-27
+
+### Fixed — 8 bugs causing LLM to skip activation steps
+
+**Problem**: The LLM was not reliably executing the activation steps (version check, dev.sh server start, chibi.svg verification). A skill-creator audit found 8 bugs — 1 critical platform-level bug + 7 SKILL.md design bugs.
+
+#### Bug #1 (CRITICAL — platform-level): Stale zip auto-extracts on session restart
+
+**Root cause**: `/home/user_skills/stellar-trails.zip` contained v7.5.0 (with chibi.png, codeswitching, "phase machine" buzzword). The ZAI service auto-extracts this zip at session start if `.stellar-trails.usermark` exists, overwriting any `clawhub update` changes. Result: even after updating to v7.6.2, the next session restart reverted the file to v7.5.0.
+
+**Fix**: Replaced `/home/user_skills/stellar-trails.zip` with a v7.6.2 zip built from the local repo. Old zip backed up as `.bak-v7.5.0`. New zip is 404 KB (was 1.3 MB — smaller because chibi.svg replaces chibi.png).
+
+#### Bugs #2-8 (SKILL.md design): Activation section rewritten
+
+**Bug #2 — Documentation framing → imperative**: Steps were framed as documentation ("Step 1 — Auto-update via ClawHub:") rather than commands. Added imperative lead-ins: "Run this bash command to...", "Read this file now."
+
+**Bug #3 — Mixed signals**: Step 3 (formerly Step 2) comment said "No shell execution needed for Skill() invoke" — LLM over-generalized this to mean "don't run ANY bash blocks." Reworded to clarify: "no shell execution" refers to the deleted boot.sh auto-runner, NOT the activation steps (which DO require bash execution — that's intentional and safe).
+
+**Bug #4 — Dismissive parentheticals**: Step 4 (formerly Step 3) was titled "(defensive, non-blocking)" and Step 5 (formerly Step 4) was "(legacy, post-v7.6.0 mostly no-op)." These told the LLM to skip them. Removed the parentheticals; the "why" is now explained in the body text instead.
+
+**Bug #5 — No execution feedback**: Steps showed bash blocks but never said what success looks like. Added "Expected output:" checkpoints after each bash block so the LLM can confirm execution.
+
+**Bug #6 — Comment-heavy blocks**: Bash blocks were 80% comments (historical context). LLMs may read comments, feel they understood, and skip execution. Split each step into: (a) minimal executable block first, (b) "Why this is safe" / "Why this step matters" explanation separately.
+
+**Bug #7 — Frequency ambiguity**: "Before any task output, complete these steps in order" didn't specify frequency. Added: "Steps 1–5 run once per session (environment setup). Steps 6–9 run on every Skill() invoke (task routing). If continuing from a previous message, skip Steps 1–5."
+
+**Bug #8 — Skill() context staleness**: Added new Step 1 "Refresh Skill() context from disk" — instructs the LLM to re-read SKILL.md from disk at the start of each session, in case the Skill() tool loaded a stale cached version. (This is defense-in-depth; Bug #1 fix addresses the root cause, but Step 1 provides a workaround if the zip becomes stale again.)
+
+#### Step structure change
+
+| Old (v7.6.2) | New (v7.7.0) |
+|--------------|--------------|
+| Step 1: Auto-update via ClawHub | Step 1: Refresh Skill() context from disk (NEW) |
+| Step 2: Verify skill files present | Step 2: Auto-update via ClawHub |
+| Step 3: Ensure popup preview server running | Step 3: Verify skill files present |
+| Step 4: Defensive chibi.svg restoration | Step 4: Start popup preview server |
+| Step 5: Load phase intelligence | Step 5: Verify chibi.svg present |
+| Step 6: Classify | Step 6: Load phase intelligence |
+| Step 7: Confirm activation | Step 7: Classify |
+| Step 8: Enter the workflow | Step 8: Confirm activation |
+| — | Step 9: Enter the workflow |
+
+Internal reference updated: "Step 5 of Activation" → "Step 6 of Activation" (in the Phase State Machine section).
+
+### Files Modified
+
+- `/home/user_skills/stellar-trails.zip` — replaced v7.5.0 zip with v7.6.2 zip (Bug #1)
+- `skill/stellar-trails/SKILL.md` — full activation section rewrite (Bugs #2-8) + version bump 7.6.2 → 7.7.0
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.6.2 → 7.7.0 (minor — significant activation section rewrite, but no breaking changes to the workflow itself)
+
+---
+
 ## [7.6.2] — 2026-06-27
 
 ### Changed — Language audit: codeswitching + buzzword + hyperbole cleanup

@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.6.2 | 2026-06-27 | Language audit — fixed codeswitching (Indonesian-in-English) across 5 files. Replaced buzzword "stateless phase machine" / "phase machine" with "six-phase workflow" / "workflow" throughout active prose. Removed hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8. Historical CHANGELOG entries preserved. |
+| 7.7.0 | 2026-06-27 | Fix 8 bugs causing LLM to skip activation steps. Replaced stale v7.5.0 zip at /home/user_skills/ with v7.6.2 zip (root cause of version reversion). Rewrote SKILL.md activation section: added Step 1 (refresh context), imperative framing, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance. |
+| 7.6.2 | 2026-06-27 | Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8. |
 | 7.6.1 | 2026-06-27 | Fix popup mascot cropping — .mascot CSS had border-radius:50% + object-fit:cover + forced square. Replaced with width:200px;height:auto. SVG renders at native aspect ratio, no cropping. |
 | 7.6.0 | 2026-06-27 | BREAKING — mascot format change: chibi.png (binary, 1.2 MB) → chibi.svg (text SVG, 757 KB). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively. |
 | 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
