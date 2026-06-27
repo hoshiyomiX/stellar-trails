@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.7.5 | 2026-06-27 | Banner layout → vertical checklist (was 3×3 grid). Added mandate: execute all 9 steps + print banner checklist — skipping is a correctness bug. Step 8 banner shows ✓ marks + → for next action. |
+| 7.8.0 | 2026-06-27 | Two SPECIFY integrations: (1) AskUserQuestion gate — mandatory for Document/Visualization, batches clarifying questions before problem-spec. (2) SADC subagent delegation — Standard/Complex tasks delegate web-search + web-reader research to Task subagent. Closes 83% platform underusage gap. |
+| 7.7.5 | 2026-06-27 | Banner → vertical checklist + mandatory execution + print mandate (4 places). |
 | 7.7.4 | 2026-06-27 | Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─). |
 | 7.7.3 | 2026-06-27 | Added 9-step sequence to activation banner (top + Step 8 confirm). |
 | 7.7.2 | 2026-06-27 | Corrected frequency guidance — all 9 activation steps run on every Skill() invoke. |

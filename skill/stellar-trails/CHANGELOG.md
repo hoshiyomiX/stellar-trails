@@ -1,5 +1,77 @@
 # Changelog
 
+## [7.8.0] — 2026-06-27
+
+### Added — Two SPECIFY phase integrations (platform feature utilization)
+
+**Context**: v7.7.5 audit found that Stellar Trails used only 5 of 29 available platform features (83% underused). This release closes the gap by integrating two high-impact platform features into the SPECIFY phase.
+
+#### Integration 1: AskUserQuestion Gate (preferences confirmation dialog)
+
+**What**: Added new "AskUserQuestion Gate (SPECIFY phase)" section mandating that deliverable-creation tasks (Document, Visualization, or any task producing PPT/Word/PDF/Excel/dashboard/poster/script/chart) invoke `AskUserQuestion` BEFORE writing the problem specification.
+
+**Why**: AskUserQuestion IS the platform's "Confirm Preferences dialog" — it batches 6-8 clarifying questions (audience / purpose / length / design style / must-include content / format constraints / deliverable shape / language) with 3-4 concrete options each. Without it, the agent guesses these dimensions and often produces a deliverable that mismatches the user's mental model. Rework cost is high (regenerate entire document).
+
+**Mandate**:
+- IF task type = Document OR Visualization
+- AND user's original request does NOT already explicitly pin audience + style + length
+- THEN invoke `AskUserQuestion` with 6-8 questions BEFORE writing problem-spec.md
+
+**Skip conditions** (do NOT invoke):
+- User says "skip questions" / "just do it" / "don't ask"
+- User's request already pinned audience AND style AND length (all three explicit)
+- Trivial one-shot edit (single typo, single number change)
+- Task type is Coding or Non-Coding (questions only for deliverable creation)
+- Continuation of previous work where preferences were already confirmed
+
+**Call cadence**: AT MOST ONCE per run, very early — before any content-producing tool. Do NOT call any other tool in the same turn as AskUserQuestion.
+
+**After answers return**: proceed straight to PLAN phase (or SADC if not yet done). Do NOT loop back — one round is enough.
+
+**Outline tool NOT integrated**: User explicitly decided to skip Outline integration. AskUserQuestion alone is sufficient for preferences confirmation.
+
+#### Integration 2: SADC Subagent Delegation
+
+**What**: Added new "SADC Subagent Delegation (Standard / Complex tasks)" subsection mandating that Standard and Complex tier tasks delegate SADC research to a `Task` subagent (subagent_type: `general-purpose`) BEFORE writing the problem specification.
+
+**Why**: Previously SADC said "research available solutions" but the agent often did it inline (or skipped it due to context pressure). Subagent delegation:
+- Keeps main agent's context clean for problem-spec writing
+- Enables parallel work (main agent drafts spec while subagent researches)
+- Makes research output explicit (subagent returns ≤500-word summary)
+- Catches "existing library already solves this" BEFORE any code is written — saves hours
+
+**Subagent workflow**:
+1. `Skill(command="web-search")` — search for existing packages, libraries, patterns
+2. `Skill(command="web-reader")` — extract content from top 3-5 most relevant URLs
+3. Return ≤500-word summary: existing solutions found, recommended approach, gotchas, or explicit "no existing package found"
+
+**Example Task invocation** included in SKILL.md with proper subagent prompt structure (Task ID, worklog protocol, ≤500 word summary constraint).
+
+**Simple / Minimal tier**: Skip subagent delegation. Inline research is fine for these tiers.
+
+#### Platform feature utilization before/after
+
+| Metric | v7.7.5 | v7.8.0 |
+|--------|--------|--------|
+| Platform features used | 5 / 29 (17%) | 7 / 29 (24%) |
+| Underused | 24 (83%) | 22 (76%) |
+| New integrations | — | AskUserQuestion, Task (subagent), web-search, web-reader |
+
+Note: web-search and web-reader are invoked BY the subagent, so they count as transitively used by Stellar Trails.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — added "SADC Subagent Delegation" subsection + new "AskUserQuestion Gate (SPECIFY phase)" section + version bump 7.7.5 → 7.8.0 (metadata + 2 activation banners)
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.5 → 7.8.0 (minor — new functional integrations in SPECIFY phase, no breaking changes to existing workflow)
+
+---
+
 ## [7.7.5] — 2026-06-27
 
 ### Changed — Banner layout: vertical checklist + mandatory execution + print mandate
