@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.7.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.7.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.7.0 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.7.1 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.7.0**: Fix 8 bugs causing LLM to skip activation steps. Bug #1: replaced stale v7.5.0 zip at `/home/user_skills/` with v7.6.2 zip (root cause of version reversion on session restart). Bugs #2-8: rewrote SKILL.md activation section — added Step 1 (refresh context from disk), imperative framing on all steps, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance, clarified 'no shell execution' comment.
+- **v7.7.1**: Restructure activation steps — merged Step 5 (Verify chibi.svg) into Step 4 (Start popup preview server + verify mascot). Added new Step 5: Sync persistent zip — rebuilds `/home/user_skills/stellar-trails.zip` from install dir to prevent version reversion on session restart. Step count stays at 9 (sequential 1–9). Prevents recurrence of v7.7.0 Bug #1 (stale zip overwrote clawhub update on restart).
+- **v7.7.0**: Fix 8 bugs causing LLM to skip activation steps. Bug #1: replaced stale v7.5.0 zip with v7.6.2 zip. Bugs #2-8: rewrote activation section with imperative framing, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance.
 - **v7.6.2**: Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8.
 - **v7.6.1**: Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` (circular clip) + `object-fit:cover` (fill-crop) + `height:200px` (forced square). Replaced with `width:200px;height:auto;max-height:240px` — SVG now renders at native aspect ratio (200×220px) with no cropping. Mascot visible in full.
 - **v7.6.0**: **BREAKING** mascot format change — `chibi.png` (binary, 1.2 MB) replaced with `chibi.svg` (text, 757 KB ASCII SVG). SVG passes ClawHub's text-file filter natively, eliminating the v7.5.2 Step 1.6 workaround for fresh installs. Updates: index.html `src`, SKILL.md Step 1.5/1.6, .checksums, README/skill-README/watermark references. Step 1.6 retained as backward-compat for v7.5.x→v7.6.0 upgrades.
@@ -212,6 +213,7 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
+| [**v7.7.1**](skill/stellar-trails/CHANGELOG.md) | Restructure activation: merged Step 5 (Verify chibi.svg) into Step 4. Added new Step 5: Sync persistent zip — rebuilds `/home/user_skills/stellar-trails.zip` from install dir to prevent version reversion on session restart. Prevents recurrence of v7.7.0 Bug #1. |
 | [**v7.7.0**](skill/stellar-trails/CHANGELOG.md) | Fix 8 bugs causing LLM to skip activation steps. Replaced stale zip (root cause), rewrote activation section with imperative framing, expected-output checkpoints, session-frequency guidance, and Step 1 context-refresh workaround. |
 | [**v7.6.2**](skill/stellar-trails/CHANGELOG.md) | Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/... → 1/2/3/4/5/6/7/8. |
 | [**v7.6.1**](skill/stellar-trails/CHANGELOG.md) | Fix popup mascot cropping — `.mascot` CSS had `border-radius:50%` + `object-fit:cover` + forced square. Replaced with `width:200px;height:auto` — SVG renders at native aspect ratio, no cropping. |

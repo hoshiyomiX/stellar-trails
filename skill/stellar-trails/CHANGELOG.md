@@ -1,5 +1,66 @@
 # Changelog
 
+## [7.7.1] — 2026-06-27
+
+### Changed — Restructure activation: merge Step 5 into Step 4, add Step 5 Sync persistent zip
+
+**Two changes requested by user after v7.7.0 deployment:**
+
+#### Change 1: Merged Step 5 (Verify chibi.svg present) into Step 4
+
+**Reasoning**: Step 5 was a separate "verify mascot exists" step that ran after Step 4 (popup server start). Both steps operated on chibi.svg — Step 5 restored it if missing, Step 4 copied it to the served directory. Folding Step 5 into Step 4 makes the mascot handling atomic: restore-if-missing → copy-to-served → start-server, all in one step.
+
+**What changed in Step 4:**
+- Old title: "Step 4 — Start popup preview server"
+- New title: "Step 4 — Start popup preview server and verify mascot"
+- Step 4 bash block now includes the chibi.svg restoration loop (from old Step 5) BEFORE the file sync + server start
+- "Expected output" checkpoint updated to include `curl /chibi.svg` verification
+- "Why this step matters" explanation now covers both popup server + mascot backward-compat
+
+#### Change 2: Added new Step 5 — Sync persistent zip
+
+**Reasoning**: v7.7.0 fixed Bug #1 (stale zip at `/home/user_skills/stellar-trails.zip` containing v7.5.0) by manually replacing the zip. But this was a one-time fix — the zip would become stale again on the next `clawhub update`. The new Step 5 automates the sync: after `clawhub update` (Step 2) updates the install directory, Step 5 rebuilds the persistent zip from that install directory.
+
+**What Step 5 does:**
+```bash
+cd /home/z/my-project/skills && \
+  zip -qr /home/user_skills/stellar-trails.zip stellar-trails/
+```
+Pure local file operation — `zip` packages the install directory into the persistent zip. No curl, no network, no external URLs.
+
+**Why this prevents Bug #1 recurrence:**
+- Without Step 5: `clawhub update` updates install → zip stays stale → session restart extracts stale zip → install reverts to old version
+- With Step 5: `clawhub update` updates install → Step 5 rebuilds zip from install → session restart extracts current zip → install stays current
+
+#### Step structure (still 9 steps, sequential 1–9)
+
+| v7.7.0 | v7.7.1 |
+|--------|--------|
+| Step 1: Refresh Skill() context from disk | Step 1: Refresh Skill() context from disk (unchanged) |
+| Step 2: Auto-update via ClawHub | Step 2: Auto-update via ClawHub (unchanged) |
+| Step 3: Verify skill files present | Step 3: Verify skill files present (unchanged) |
+| Step 4: Start popup preview server | Step 4: Start popup preview server and verify mascot (merged old Step 5) |
+| Step 5: Verify chibi.svg present | Step 5: Sync persistent zip (NEW) |
+| Step 6: Load phase intelligence | Step 6: Load phase intelligence (unchanged) |
+| Step 7: Classify | Step 7: Classify (unchanged) |
+| Step 8: Confirm activation | Step 8: Confirm activation (unchanged) |
+| Step 9: Enter the workflow | Step 9: Enter the workflow (unchanged) |
+
+Frequency guidance unchanged: "Steps 1–5 run once per session (environment setup). Steps 6–9 run on every Skill() invoke (task routing)."
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — Step 4 expanded (merged Step 5 content), new Step 5 added, version bump 7.7.0 → 7.7.1
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.0 → 7.7.1 (patch — activation step restructure, no functional workflow changes)
+
+---
+
 ## [7.7.0] — 2026-06-27
 
 ### Fixed — 8 bugs causing LLM to skip activation steps

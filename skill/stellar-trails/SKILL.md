@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.7.0
+- **version**: 7.7.1
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.7.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.1 · ACTIVE
    Six-phase workflow · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -63,33 +63,14 @@ test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
 
 **Why this check exists:** The skill is pure markdown data — no boot.sh, no shell execution during Skill() invoke. (The deleted boot.sh from v7.2.0 was a separate auto-runner that security-conscious agents refused; that deletion does NOT affect the activation steps in this section, which DO require the agent to run bash commands. That's intentional and safe — all commands here are pure file operations with no network or destructive ops.)
 
-**Step 4 — Start popup preview server:**
+**Step 4 — Start popup preview server and verify mascot:**
 
-Run this bash command to sync popup preview files and start the dev.sh HTTP server on port :3000:
+Run this bash command to sync popup preview files (including chibi.svg mascot), restore chibi.svg from a local repo clone if missing, and start the dev.sh HTTP server on port :3000:
 ```bash
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"
 ZSCRIPTS="/home/z/my-project/.zscripts"
-if [ -d "$SKILL_DIR" ]; then
-  mkdir -p "$ZSCRIPTS"
-  [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
-  [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
-fi
-DEV_SH="$ZSCRIPTS/dev.sh"
-if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
-fi
-```
 
-**Expected output:** No output (silent). The popup preview server runs in the background. Verify it started by checking: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` — expect HTTP 200.
-
-**Why this step matters:** The popup preview at `:3000` is how users see the skill's landing page. Without this step, the popup shows stale content or nothing. The `cp -f` commands sync the latest files from the skill directory to the served directory. The double-fork technique `( setsid bash "$DEV_SH" ... & ) &` ensures the server survives shell exit (parent becomes PID 1).
-
-**Step 5 — Verify chibi.svg present:**
-
-Run this bash command to ensure the mascot image exists in the skill directory. If missing (e.g., after upgrading from v7.5.x which used chibi.png), restore from a local repo clone:
-```bash
-SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+# Restore chibi.svg from local repo clone if missing (backward compat for v7.5.x → v7.6.0 upgrades)
 if [ ! -f "$SKILL_DIR/chibi.svg" ]; then
   for REPO_CLONE in \
     "/home/z/my-project/stellar-trails/skill/stellar-trails" \
@@ -102,11 +83,47 @@ if [ ! -f "$SKILL_DIR/chibi.svg" ]; then
     fi
   done
 fi
+
+# Sync popup preview files to .zscripts/ (served directory)
+if [ -d "$SKILL_DIR" ]; then
+  mkdir -p "$ZSCRIPTS"
+  [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
+  [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
+  [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
+fi
+
+# Start dev.sh if :3000 is not listening (double-fork to survive shell exit)
+DEV_SH="$ZSCRIPTS/dev.sh"
+if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+  ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
+fi
 ```
 
-**Expected output:** No output if chibi.svg already exists (the common case since v7.6.0). If missing and a local repo clone is found, you'll see `stellar-trails: chibi.svg restored from /home/z/my-project/stellar-trails/skill/stellar-trails`. If missing and no clone is found, no output — the popup will silently hide the mascot via the `onerror` handler (graceful degradation).
+**Expected output:** Usually no output (silent). If chibi.svg was missing and a local repo clone was found, you'll see `stellar-trails: chibi.svg restored from /home/z/my-project/stellar-trails/skill/stellar-trails`. Verify the popup server started by checking: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` — expect HTTP 200. Verify the mascot is served: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg` — expect HTTP 200.
 
-**Why this step exists:** Since v7.6.0, chibi.svg (text format) passes the ClawHub filter natively, so this step is usually a no-op. It's retained for backward compatibility with sandboxes upgrading from v7.5.x (which used chibi.png, a binary file that ClawHub stripped). Pure local file copy — no network, no curl, no agent refusal triggers.
+**Why this step matters:** The popup preview at `:3000` is how users see the skill's landing page. Without this step, the popup shows stale content or nothing. The chibi.svg restoration block handles backward compatibility with sandboxes upgrading from v7.5.x (which used chibi.png, a binary file that ClawHub stripped). Since v7.6.0, chibi.svg (text format) passes the ClawHub filter natively, so the restoration is usually a no-op — but it's kept as a safety net. Pure local file copy — no network, no curl, no agent refusal triggers. The double-fork technique `( setsid bash "$DEV_SH" ... & ) &` ensures the server survives shell exit (parent becomes PID 1).
+
+**Step 5 — Sync persistent zip:**
+
+Run this bash command to rebuild `/home/user_skills/stellar-trails.zip` from the current install directory. This prevents version reversion on session restart (the ZAI service auto-extracts this zip at session start, so it must stay in sync with the ClawHub-installed version):
+```bash
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+USER_SKILLS_DIR="/home/user_skills"
+if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
+  cd "$(dirname "$SKILL_DIR")" && \
+    zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/"
+fi
+```
+
+**Expected output:** No output (silent). The zip is rebuilt in the background. Verify it succeeded by checking the zip contains the current version: `unzip -p /home/user_skills/stellar-trails.zip stellar-trails/SKILL.md | grep '^- \*\*version\*\*:'` — expect the same version as the installed SKILL.md.
+
+**Why this step matters:** There are two sources of truth for the skill install:
+1. ClawHub registry → `clawhub update` pulls to `/home/z/my-project/skills/stellar-trails/` (current session)
+2. Persistent zip at `/home/user_skills/stellar-trails.zip` → ZAI service auto-extracts this at session restart
+
+Without this sync step, the zip becomes stale after a `clawhub update`. On the next session restart, the ZAI service extracts the stale zip and **overwrites** the updated install — reverting to the old version. This was the root cause of Bug #1 in v7.7.0 (the zip was stuck at v7.5.0 even though `clawhub update` had updated the install to v7.6.2). This step keeps the zip in sync with the install, preventing recurrence.
+
+**Why this is safe:** Pure local file operation — `zip` packages the install directory into the persistent zip. No curl, no network, no external URLs. The `zip` binary is pre-installed in all ZAI sandboxes. The write only goes to `/home/user_skills/` (persistent storage), not to any system directory.
 
 **Step 6 — Load phase intelligence:**
 
@@ -120,7 +137,7 @@ Determine three things: complexity tier (Minimal/Simple/Standard/Complex), task 
 
 Output this activation banner:
 ```
-☄️ STELLAR TRAILS · v7.7.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.1 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
