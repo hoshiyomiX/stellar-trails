@@ -15,20 +15,30 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.7.4
+- **version**: 7.7.5
 
 ## Activation
 
+**Mandatory: execute all 9 steps below in order, then print the banner checklist as confirmation.** Skipping any step or failing to print the banner is a correctness bug.
+
 ```
-☄️ STELLAR TRAILS · v7.7.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.5 · ACTIVE
 ├─ Six-phase workflow · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity
-└─ Activation steps (1–9, every invoke):
-   ├─ 1  Refresh context    │  2  Auto-update       │  3  Verify files
-   ├─ 4  Start server       │  5  Sync zip          │  6  Load phases
-   └─ 7  Classify           │  8  Confirm           │  9  Enter workflow
+└─ Activation checklist (1–9, every invoke) — execute all, then print this banner:
+   ├─ 1  Refresh context from disk
+   ├─ 2  Auto-update via ClawHub
+   ├─ 3  Verify skill files present
+   ├─ 4  Start popup preview server and verify mascot
+   ├─ 5  Sync persistent zip
+   ├─ 6  Load phase intelligence
+   ├─ 7  Classify
+   ├─ 8  Confirm activation (print this banner)
+   └─ 9  Enter the workflow
 ```
 
-**Execute all 9 steps before any task output.** Steps 1–9 run on every `Skill()` invoke. Running all steps every invoke is intentional — it guarantees the environment is fresh (latest skill version, popup server up, zip in sync) even after context truncation where the agent may not remember whether setup already ran. The total cost is ~3–5 seconds of cheap file operations and one ClawHub version check; the correctness benefit outweighs the latency.
+**Execute all 9 steps before any task output.** Steps 1–9 run on every `Skill()` invoke — no skipping, no "setup already ran" shortcuts. Running all steps every invoke is intentional: it guarantees the environment is fresh (latest skill version, popup server up, zip in sync) even after context truncation where the agent may not remember whether setup already ran. The total cost is ~3–5 seconds of cheap file operations and one ClawHub version check; the correctness benefit outweighs the latency.
+
+**After completing all 9 steps, print the activation checklist banner above** as visible confirmation to the user. This is the checklist the user sees to verify activation ran completely. If you skip the banner print, the user has no signal that activation succeeded.
 
 **Step 1 — Refresh Skill() context from disk:**
 
@@ -139,16 +149,26 @@ Determine three things: complexity tier (Minimal/Simple/Standard/Complex), task 
 
 **Step 8 — Confirm activation:**
 
-Output this activation banner (tree-style format matching the REPORT phase, includes the 9-step sequence for user visibility):
+Print the activation checklist banner below. This is the mandatory banner print that confirms Steps 1–7 ran successfully. Do not skip this print — it is the user's only signal that activation completed.
+
+Output this banner verbatim (vertical checklist format):
 ```
-☄️ STELLAR TRAILS · v7.7.4 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.5 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
-└─ Activation steps (1–9, every invoke):
-   ├─ 1  Refresh context    │  2  Auto-update       │  3  Verify files
-   ├─ 4  Start server       │  5  Sync zip          │  6  Load phases
-   └─ 7  Classify           │  8  Confirm           │  9  Enter workflow
+└─ Activation checklist (1–9, every invoke) — executed:
+   ├─ 1  Refresh context from disk        ✓
+   ├─ 2  Auto-update via ClawHub          ✓
+   ├─ 3  Verify skill files present       ✓
+   ├─ 4  Start popup preview server       ✓
+   ├─ 5  Sync persistent zip              ✓
+   ├─ 6  Load phase intelligence          ✓
+   ├─ 7  Classify                         ✓
+   ├─ 8  Confirm activation (this banner) ✓
+   └─ 9  Enter the workflow               →
 ```
+
+The `✓` marks confirm Steps 1–8 are done; `→` marks Step 9 as the next action (entering the workflow).
 
 **Step 9 — Enter the workflow:**
 

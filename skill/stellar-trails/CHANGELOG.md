@@ -1,5 +1,85 @@
 # Changelog
 
+## [7.7.5] — 2026-06-27
+
+### Changed — Banner layout: vertical checklist + mandatory execution + print mandate
+
+**Two changes** requested by user after v7.7.4:
+
+#### Change 1: Banner layout — 3×3 grid → vertical checklist
+
+**Before (v7.7.4)** — 3×3 grid with `│` pipe separators:
+```
+└─ Activation steps (1–9, every invoke):
+   ├─ 1  Refresh context    │  2  Auto-update       │  3  Verify files
+   ├─ 4  Start server       │  5  Sync zip          │  6  Load phases
+   └─ 7  Classify           │  8  Confirm           │  9  Enter workflow
+```
+
+**After (v7.7.5)** — vertical checklist with full step names:
+```
+└─ Activation checklist (1–9, every invoke) — execute all, then print this banner:
+   ├─ 1  Refresh context from disk
+   ├─ 2  Auto-update via ClawHub
+   ├─ 3  Verify skill files present
+   ├─ 4  Start popup preview server and verify mascot
+   ├─ 5  Sync persistent zip
+   ├─ 6  Load phase intelligence
+   ├─ 7  Classify
+   ├─ 8  Confirm activation (print this banner)
+   └─ 9  Enter the workflow
+```
+
+**Why vertical**: The 3×3 grid was compact but truncated step names (e.g., "Verify files" instead of "Verify skill files present"). Vertical layout shows full step names — no ambiguity, easier to read, easier to verify each step ran.
+
+#### Change 2: Mandatory execution + print mandate
+
+**Before (v7.7.4)**: SKILL.md said "Execute all 9 steps before any task output" but didn't explicitly mandate printing the banner. Some agents skipped the banner print, leaving users with no signal that activation completed.
+
+**After (v7.7.5)**: SKILL.md now explicitly states (3 places):
+
+1. **Top of Activation section**: "Mandatory: execute all 9 steps below in order, then print the banner checklist as confirmation. Skipping any step or failing to print the banner is a correctness bug."
+
+2. **Frequency guidance paragraph**: "Steps 1–9 run on every `Skill()` invoke — no skipping, no 'setup already ran' shortcuts."
+
+3. **After frequency paragraph**: "After completing all 9 steps, print the activation checklist banner above as visible confirmation to the user. This is the checklist the user sees to verify activation ran completely. If you skip the banner print, the user has no signal that activation succeeded."
+
+4. **Step 8 header**: "Print the activation checklist banner below. This is the mandatory banner print that confirms Steps 1–7 ran successfully. Do not skip this print — it is the user's only signal that activation completed."
+
+#### Step 8 banner — adds ✓ marks + → for next action
+
+The Step 8 confirm banner now shows execution status:
+```
+└─ Activation checklist (1–9, every invoke) — executed:
+   ├─ 1  Refresh context from disk        ✓
+   ├─ 2  Auto-update via ClawHub          ✓
+   ├─ 3  Verify skill files present       ✓
+   ├─ 4  Start popup preview server       ✓
+   ├─ 5  Sync persistent zip              ✓
+   ├─ 6  Load phase intelligence          ✓
+   ├─ 7  Classify                         ✓
+   ├─ 8  Confirm activation (this banner) ✓
+   └─ 9  Enter the workflow               →
+```
+
+- `✓` marks confirm Steps 1–8 are done (1–7 executed, 8 is the banner print itself)
+- `→` marks Step 9 as the next action (entering the workflow)
+
+This gives users a clear visual signal: 8 checkmarks = activation complete, arrow = next phase.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — top Activation banner (vertical + mandate prose) + Step 8 confirm banner (vertical + ✓ marks) + version bump 7.7.4 → 7.7.5
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.4 → 7.7.5 (patch — banner layout + execution mandate, no functional code changes)
+
+---
+
 ## [7.7.4] — 2026-06-27
 
 ### Changed — Refactor activation banner layout to tree-style format
