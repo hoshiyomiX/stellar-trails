@@ -27,7 +27,7 @@ Browser (user) → ZAI CDN/proxy → sandbox:81 (Caddy) → :3000 (dev.sh → py
 ├── .zscripts/
 │   ├── index.html    ← Landing page (what users see in popup)
 │   ├── dev.sh        ← HTTP server script (serves .zscripts/ on :3000)
-│   └── chibi.png     ← Mascot image (referenced by index.html)
+│   └── chibi.svg     ← Mascot image (SVG format, referenced by index.html)
 └── skills/
     └── stellar-trails/
         ├── index.html ← Source copy (in skill zip, distributed via ClawHub)
@@ -250,7 +250,7 @@ If all above correct but popup still shows old version:
 - Avoid `backdrop-filter` (performance cost on low-end devices)
 - Use CSS animations only (no JS animation libraries)
 - Always include `<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">`
-- Use `chibi.png` via `<img src="chibi.png" onerror="this.style.display='none'">` for graceful fallback
+- Use `chibi.svg` via `<img src="chibi.svg" onerror="this.style.display='none'">` for graceful fallback
 - Test with `agent-browser screenshot` + VLM analysis before publishing
 
 ## Version History of Popup Preview

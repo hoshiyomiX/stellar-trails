@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="chibi.png" alt="Stellar Trails mascot" width="180">
+<img src="chibi.svg" alt="Stellar Trails mascot" width="180">
 
 # Stellar Trails
 
@@ -25,7 +25,7 @@ Skill(command="stellar-trails")
 ### Path B — Standalone (non-ZAI)
 
 ```bash
-curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /tmp/stellar-trails/{chibi.png,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/stellar-trails /tmp/st.zip && echo "✓ installed"
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /tmp/stellar-trails/{chibi.svg,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/stellar-trails /tmp/st.zip && echo "✓ installed"
 ```
 
 For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with no-cache headers).
@@ -34,6 +34,7 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 7.6.0 | 2026-06-27 | BREAKING — mascot format change: chibi.png (binary, 1.2 MB) → chibi.svg (text SVG, 757 KB). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively. |
 | 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
 | 7.5.1 | 2026-06-26 | Patch — register chibi.png in .checksums manifest (root-cause fix for mascot missing in popup preview). Audit: 6 documentation leftovers cleaned. |
 | 7.2.0 | 2026-06-21 | boot.sh deleted (8 red flag patterns), replaced with dev.sh standalone (60 lines, no-cache HTTP server) |
@@ -59,7 +60,7 @@ stellar-trails/                   (repo root)
     ├── SKILL.md                  # Skill definition (activation + framework reference)
     ├── dev.sh                    # Standalone no-cache HTTP server (60 lines, popup preview)
     ├── index.html                # Landing page (minimalist, v7.5.0+)
-    ├── chibi.png                 # Mascot
+    ├── chibi.svg                 # Mascot (SVG, passes ClawHub text-file filter)
     ├── memory-template.md        # Memory system templates & storage rules
     ├── procedure/
     │   ├── phases.md             # 6-phase state machine definitions + gates

@@ -1,5 +1,68 @@
 # Changelog
 
+## [7.6.0] — 2026-06-27
+
+### Changed — BREAKING: chibi.png → chibi.svg mascot format migration
+
+**Problem**: ClawHub's publish mechanism strips binary files from the registry-stored skill. Despite the v7.5.1 `.checksums` fix (Path B GitHub Release zip) and v7.5.2 Step 1.6 defensive restoration (Path A ClawHub install workaround), the mascot was still missing for sandboxes that only had `clawhub install` without a local repo clone. The root cause — ClawHub's binary file filter — was outside our control.
+
+**Solution**: Replace `chibi.png` (binary PNG, 1.2 MB) with `chibi.svg` (ASCII text SVG, 757 KB). SVG is text-based and passes ClawHub's text-file filter natively. This solves the install bug at the source — no workarounds, no defensive restoration, no agent-refusal-prone curl fallbacks.
+
+#### File changes
+
+- **Deleted**: `skill/stellar-trails/chibi.png` (1,222,238 bytes, binary PNG)
+- **Added**: `skill/stellar-trails/chibi.svg` (757,180 bytes, ASCII SVG, 818×900 px)
+  - Source: uploaded file `341fcaa0-e130-4e2e-916a-0c2ea1e51810.svg` (auto-traced via VTracer 0.6.4)
+  - SHA-256: `c83d55e4d501a67ffd29e3a499e442e9fd7db4f31bf60d6dbee5429654116b59`
+
+#### Reference updates (6 active code locations)
+
+| File | Line | Change |
+|------|------|--------|
+| `skill/stellar-trails/index.html` | 102 | `src="chibi.png"` → `src="chibi.svg"` |
+| `skill/stellar-trails/SKILL.md` | 120 | Step 1.5 cp command: `chibi.png` → `chibi.svg` |
+| `skill/stellar-trails/SKILL.md` | 131-158 | Step 1.6 rewritten: `chibi.png` → `chibi.svg`, comment updated to reflect v7.6.0 context (mostly no-op for fresh installs, kept for backward compat) |
+| `.checksums` | 4 | Removed chibi.png SHA-256, added chibi.svg SHA-256 |
+| `README.md` | 3 | `<img src="skill/stellar-trails/chibi.png">` → `chibi.svg` |
+| `skill/stellar-trails/README.md` | 3, 28, 62 | `<img src="chibi.png">`, Path B install command, file structure comment |
+| `skill/stellar-trails/watermark.md` | 30, 253 | File tree comment, usage note |
+
+#### Preserved (historical context — NOT modified)
+
+All `chibi.png` references inside `CHANGELOG.md` entries for v6.0.0, v7.5.1, v7.5.2 — these document past versions and are legitimate historical context.
+
+#### SKILL.md Step 1.6 — now mostly no-op
+
+Step 1.6 (defensive mascot restoration from local repo clone) is retained but is now a no-op for fresh v7.6.0 installs (SVG passes ClawHub filter natively). It still serves a purpose for sandboxes upgrading from v7.5.x → v7.6.0 where the PNG-to-SVG file rename may not be atomic. Comment in Step 1.6 block updated to reflect this.
+
+#### Benefits
+
+- ✓ Mascot appears in popup preview for ALL install paths (ClawHub, GitHub Release zip, manual)
+- ✓ No more silent mascot missing (ClawHub filter issue resolved at source)
+- ✓ Smaller payload: 757 KB SVG vs 1.2 MB PNG (−37%)
+- ✓ Scalable: SVG renders crisply at any size, no retina issues
+- ✓ Animated via CSS/SMIL possible (future enhancement)
+
+#### Limitations / Trade-offs
+
+- SVG file is 757 KB because it was auto-traced from raster (VTracer 0.6.4) — single `<path>` element with thousands of Bezier curves. A hand-crafted SVG would be 5-20 KB. Acceptable for now; future optimization.
+- Visual fidelity: auto-traced SVG may have minor differences from original PNG artwork (slight curve simplification, no anti-aliased edges). User-perceptible difference should be minimal at typical display sizes (180×180 px in README, 200×200 px in popup).
+- No PNG fallback: browsers without SVG support (very rare in 2026) will hide the mascot via `onerror` handler. Acceptable — SVG support is universal in modern browsers.
+
+### Files Modified
+
+- `skill/stellar-trails/chibi.png` — **deleted**
+- `skill/stellar-trails/chibi.svg` — **added** (757 KB)
+- `skill/stellar-trails/index.html` — `src` attribute updated
+- `skill/stellar-trails/SKILL.md` — Step 1.5 + Step 1.6 rewritten; version bump 7.5.2 → 7.6.0 (metadata + 2 activation banners)
+- `.checksums` — chibi.png entry replaced with chibi.svg entry
+- `README.md` — `<img src>` updated; version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — `<img src>` + Path B install command + file structure comment + Version History entry
+- `skill/stellar-trails/watermark.md` — file tree comment + usage note (2 lines)
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+---
+
 ## [7.5.2] — 2026-06-26
 
 ### Added — Defensive Step 1.6: chibi.png auto-restoration (ClawHub filter workaround)

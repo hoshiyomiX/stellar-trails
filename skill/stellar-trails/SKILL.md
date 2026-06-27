@@ -15,12 +15,12 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.5.2
+- **version**: 7.6.0
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.5.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.6.0 · ACTIVE
    Phase State Machine · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
@@ -117,7 +117,7 @@ if [ -d "$SKILL_DIR" ]; then
   mkdir -p "$ZSCRIPTS"
   [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
   [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.png" ] && cp -f "$SKILL_DIR/chibi.png" "$ZSCRIPTS/chibi.png"
+  [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
 fi
 
 # Step B: Start dev.sh jika :3000 tidak listening (double-fork untuk survive shell exit)
@@ -128,33 +128,34 @@ fi
 ```
 **v7.4.1 fix**: Step A sekarang pakai `cp -f` (copy only if source is newer) — selalu sync dari `skills/stellar-trails/` ke `.zscripts/`, overwrite selalu. Fix v7.3.3 bug: kalau `.zscripts/dev.sh` sudah ada versi lama, Step A skip dan popup pakai index.html outdated. Sekarang: setiap Skill() invoke, Step 1.5 sync file terbaru dari skills/ ke .zscripts/, lalu start dev.sh jika :3000 tidak listening. Pure file copy (cp -f), no network, no exec dari URL, no destructive ops.
 
-**Step 1.6 — Defensive chibi.png restoration (ClawHub install path filter):**
+**Step 1.6 — Defensive chibi.svg restoration (legacy, post-v7.6.0 mostly no-op):**
 ```bash
-# v7.5.2 — ClawHub publish strips binary files + dotfiles from the install.
-# After `clawhub update`, chibi.png is missing from the skill dir, causing
-# the popup preview to silently hide the mascot (index.html onerror handler).
+# v7.6.0 — chibi.svg (text format) passes ClawHub filter natively. This step
+# is now a no-op for fresh installs but kept for backward compatibility with
+# sandboxes that still have v7.5.x installed (which used chibi.png).
 #
-# This step restores chibi.png from the local repo clone if it exists.
+# If chibi.svg is missing from skill dir (e.g., upgrade from v7.5.x to v7.6.0
+# where the PNG-to-SVG file rename wasn't atomic), restore from local repo clone.
 # Pure local file copy — no network, no curl, no agent refusal triggers.
-# If the local repo clone doesn't exist (fresh sandbox with only clawhub
-# install), this step is a no-op and the popup gracefully degrades.
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"
 
-if [ ! -f "$SKILL_DIR/chibi.png" ]; then
+if [ ! -f "$SKILL_DIR/chibi.svg" ]; then
   # Try common local repo clone locations
   for REPO_CLONE in \
     "/home/z/my-project/stellar-trails/skill/stellar-trails" \
     "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" \
     "$HOME/.stellar-trails-repo/skill/stellar-trails"; do
-    if [ -f "$REPO_CLONE/chibi.png" ]; then
-      cp -f "$REPO_CLONE/chibi.png" "$SKILL_DIR/chibi.png"
-      echo "stellar-trails: chibi.png restored from $REPO_CLONE (ClawHub filter workaround)"
+    if [ -f "$REPO_CLONE/chibi.svg" ]; then
+      cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg"
+      echo "stellar-trails: chibi.svg restored from $REPO_CLONE"
       break
     fi
   done
 fi
 ```
-**v7.5.2 fix**: ClawHub's publish mechanism filters out binary files (chibi.png, 1.2 MB) and dotfiles (.checksums) from the registry-stored skill. After `clawhub update --force`, the skill dir is missing chibi.png — `index.html`'s `onerror="this.style.display='none'"` silently hides the broken mascot. Step 1.6 checks common local repo clone paths and restores chibi.png if found. This is a **local file copy only** (no network, no curl) — safe for security-conscious agents. If no local clone exists, the step is a no-op and the popup gracefully degrades (no mascot, but skill still functions).
+**v7.6.0 change**: chibi.png (binary, 1.2 MB) replaced with chibi.svg (text, 757 KB ASCII SVG). SVG passes ClawHub's text-file filter natively — no longer stripped from `clawhub install` / `clawhub update` output. Step 1.6 becomes mostly no-op for fresh installs but is retained for backward compatibility with sandboxes upgrading from v7.5.x (where the PNG-to-SVG rename may not be atomic). 
+
+**v7.5.2 historical context** (pre-SVG migration): Step 1.6 originally restored chibi.png from local repo clone as a workaround for ClawHub's binary file filter. The SVG migration eliminates this filter issue at the source.
 
 **Step 2 — Load phase intelligence:**
 Read `procedure/phases.md`. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
@@ -164,7 +165,7 @@ Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/
 
 **Step 4 — Confirm activation:**
 ```
-☄️ STELLAR TRAILS · v7.5.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.6.0 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```
