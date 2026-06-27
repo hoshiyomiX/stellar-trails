@@ -1,5 +1,61 @@
 # Changelog
 
+## [7.7.4] — 2026-06-27
+
+### Changed — Refactor activation banner layout to tree-style format
+
+**Enhancement**: Both activation banners reformatted to use the tree-style layout (`├─` / `│  ├─` / `└─`) that matches the REPORT phase formatting convention already used elsewhere in SKILL.md (see COMMIT, REPORT, Delivery blocks in the "Deliverys" section).
+
+**Why this matters**: The previous v7.7.3 banner used free-form text with `·` separators. While functional, it was visually inconsistent with the rest of SKILL.md's structured output blocks. The new tree-style format:
+- Matches the visual language of COMMIT/REPORT/Delivery blocks
+- Makes the hierarchical structure explicit (header → metadata → step grid)
+- Aligns with the agent's existing mental model of "tree-style = structured output"
+- Renders cleanly in monospace terminal/Markdown contexts
+
+**Before (v7.7.3)**:
+```
+☄️ STELLAR TRAILS · v7.7.3 · ACTIVE
+   Six-phase workflow · Traceability IDs · ...
+
+   Activation steps (1–9, every invoke):
+   1 Refresh context  ·  2 Auto-update   ·  3 Verify files
+   ...
+```
+
+**After (v7.7.4)**:
+```
+☄️ STELLAR TRAILS · v7.7.4 · ACTIVE
+├─ Six-phase workflow · Traceability IDs · ...
+└─ Activation steps (1–9, every invoke):
+   ├─ 1  Refresh context    │  2  Auto-update       │  3  Verify files
+   ├─ 4  Start server       │  5  Sync zip          │  6  Load phases
+   └─ 7  Classify           │  8  Confirm           │  9  Enter workflow
+```
+
+**Layout details**:
+- Top-level tree uses `├─` for feature line, `└─` for the step grid (last item)
+- Step grid uses `├─` for first two rows, `└─` for last row
+- Within each row, steps separated by `│` (pipe) for clean column alignment
+- Numbers padded to 2 chars (`1 ` not `1`) for vertical alignment with `10` if step count grows
+- Step names padded to consistent width (`Refresh context   ` not `Refresh context`) for column alignment
+
+**Two banner locations updated**:
+1. Top Activation banner (shown when skill loads)
+2. Step 8 Confirm activation banner (output by agent when confirming activation)
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — top Activation banner + Step 8 confirm banner both reformatted to tree-style + version bump 7.7.3 → 7.7.4
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.3 → 7.7.4 (patch — banner layout refactor, no functional code changes)
+
+---
+
 ## [7.7.3] — 2026-06-27
 
 ### Added — 9-step sequence in activation banner

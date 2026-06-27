@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.7.3 | 2026-06-27 | Added 9-step sequence to activation banner (top banner + Step 8 confirm banner). Improves user visibility — agents and users see the full step list at a glance. |
+| 7.7.4 | 2026-06-27 | Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─) matching REPORT phase formatting convention. Visually consistent with COMMIT/REPORT/Delivery blocks. |
+| 7.7.3 | 2026-06-27 | Added 9-step sequence to activation banner (top + Step 8 confirm). |
 | 7.7.2 | 2026-06-27 | Corrected frequency guidance — all 9 activation steps run on every Skill() invoke. |
 | 7.7.1 | 2026-06-27 | Restructure activation: merged Step 5 (Verify chibi.svg) into Step 4. Added new Step 5: Sync persistent zip. |
 | 7.7.0 | 2026-06-27 | Fix 8 bugs causing LLM to skip activation steps. Replaced stale v7.5.0 zip with v7.6.2 zip. Rewrote SKILL.md activation section: added Step 1 (refresh context), imperative framing, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance. |
