@@ -15,16 +15,16 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.7.1
+- **version**: 7.7.2
 
 ## Activation
 
 ```
-☄️ STELLAR TRAILS · v7.7.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.2 · ACTIVE
    Six-phase workflow · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity · Universal · Stateless
 ```
 
-**Execute these steps before any task output.** Steps 1–5 run once per session (environment setup). Steps 6–9 run on every Skill() invoke (task routing). If you are continuing from a previous message in the same session, skip Steps 1–5 and start at Step 6.
+**Execute all 9 steps before any task output.** Steps 1–9 run on every `Skill()` invoke. Running all steps every invoke is intentional — it guarantees the environment is fresh (latest skill version, popup server up, zip in sync) even after context truncation where the agent may not remember whether setup already ran. The total cost is ~3–5 seconds of cheap file operations and one ClawHub version check; the correctness benefit outweighs the latency.
 
 **Step 1 — Refresh Skill() context from disk:**
 
@@ -137,7 +137,7 @@ Determine three things: complexity tier (Minimal/Simple/Standard/Complex), task 
 
 Output this activation banner:
 ```
-☄️ STELLAR TRAILS · v7.7.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.7.2 · ACTIVE
    Phase: IDLE → SPECIFY
    Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 ```

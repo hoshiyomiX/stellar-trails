@@ -1,5 +1,35 @@
 # Changelog
 
+## [7.7.2] — 2026-06-27
+
+### Fixed — Corrected frequency guidance: all 9 steps run on every Skill() invoke
+
+**Bug**: v7.7.0/v7.7.1 frequency guidance was incorrect. The SKILL.md activation section said: "Steps 1–5 run once per session (environment setup). Steps 6–9 run on every Skill() invoke (task routing). If you are continuing from a previous message in the same session, skip Steps 1–5 and start at Step 6."
+
+**Why this was wrong**:
+1. The agent has no reliable way to know whether it's "first invoke of the session" or "continuing from a previous message" — context truncation can happen at any time, and the agent may forget whether setup already ran.
+2. If the agent skips Steps 1–5 because it thinks setup already ran, but context was truncated, the environment may be stale (outdated skill version, popup server down, zip out of sync).
+3. The cost of running all 9 steps every invoke is ~3–5 seconds of cheap file operations + one ClawHub version check. The correctness benefit (guaranteed fresh environment) outweighs the latency cost.
+
+**Fix**: Changed SKILL.md line 27 from:
+> Steps 1–5 run once per session (environment setup). Steps 6–9 run on every Skill() invoke (task routing). If you are continuing from a previous message in the same session, skip Steps 1–5 and start at Step 6.
+
+To:
+> Execute all 9 steps before any task output. Steps 1–9 run on every `Skill()` invoke. Running all steps every invoke is intentional — it guarantees the environment is fresh (latest skill version, popup server up, zip in sync) even after context truncation where the agent may not remember whether setup already ran. The total cost is ~3–5 seconds of cheap file operations and one ClawHub version check; the correctness benefit outweighs the latency.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — line 27 frequency guidance rewritten + version bump 7.7.1 → 7.7.2 (metadata + 2 activation banners)
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.7.1 → 7.7.2 (patch — frequency guidance correction, no functional code changes)
+
+---
+
 ## [7.7.1] — 2026-06-27
 
 ### Changed — Restructure activation: merge Step 5 into Step 4, add Step 5 Sync persistent zip
