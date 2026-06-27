@@ -50,7 +50,7 @@ Memory is not only loaded in IDLE. At each phase transition, a one-line check en
 | VERIFY → DELIVER | Check `memory/MEMORY.md` before writing session digest |
 | Recovery | Read `memory/incidents.md` for similar past errors |
 
-These reminders are lightweight — a single line of context that keeps memory active throughout the entire phase machine, not just at the start.
+These reminders are lightweight — a single line of context that keeps memory active throughout the entire workflow, not just at the start.
 
 ---
 

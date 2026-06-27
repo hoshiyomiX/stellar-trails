@@ -152,8 +152,8 @@ exits (sandbox cleanup kills child processes of temporary shell).
 
 ### How It Works
 
-1. `( ... )` — subshell, di-background dengan `&`
-2. `setsid` — create new session, detach dari controlling terminal
+1. `( ... )` — subshell, backgrounded with `&`
+2. `setsid` — creates a new session, detaches from the controlling terminal
 3. `bash dev.sh` — runs in new session
 4. Subshell exits immediately
 5. dev.sh becomes **orphan** → parent = PID 1 (tini/init) → **survives shell exit**
@@ -167,7 +167,7 @@ cat /proc/$DEV_PID/status | grep PPid
 # Expected: PPid: 1
 ```
 
-### Used in SKILL.md Step 1.5
+### Used in SKILL.md Step 3
 
 ```bash
 DEV_SH="/home/z/my-project/.zscripts/dev.sh"
@@ -176,7 +176,7 @@ if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
 fi
 ```
 
-Step 1.5 runs on every `Skill(command="stellar-trails")` invoke. If :3000
+Step 3 runs on every `Skill(command="stellar-trails")` invoke. If :3000
 is not listening, it auto-launches dev.sh with double-fork → popup preview
 auto-starts without manual intervention or sandbox restart.
 

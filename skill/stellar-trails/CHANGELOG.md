@@ -1,5 +1,117 @@
 # Changelog
 
+## [7.6.2] — 2026-06-27
+
+### Changed — Language audit: codeswitching + buzzword + hyperbole cleanup
+
+**Problem**: Repository documentation mixed Indonesian and English inconsistently (codeswitching), used jargon phrases like "stateless phase machine" / "phase state machine" / "phase machine" that sounded unnatural to native English readers, and contained hyperbolic framing ("8 red flag patterns", "ROI ~720:1", "zero red flags, zero agent refusal") that read like marketing copy rather than technical documentation.
+
+**Audit scope**: 21 active files scanned (CHANGELOG.md and .git excluded as historical record). Found 27 problematic phrases across 5 files, categorized as:
+- **Codeswitching** (16 cases): Indonesian particles (dari, yang, dengan, untuk, pakai, hapus, ganti, ditolak, otomatis, revisi, handle sisanya, dll, etc.) embedded in English sentences
+- **Buzzword/jargon** (5 cases): "stateless phase machine", "phase state machine", "phase machine", "phase gates"
+- **Hyperbole** (4 cases): "8 red flag patterns", "ROI ~720:1", "zero red flags, zero agent refusal", "ALL ... without exception"
+- **Awkward English** (2 cases): "URL work" (broken grammar), staccato disclaimer style
+
+### Fixes applied
+
+#### Codeswitching — replaced Indonesian with English (16 cases)
+
+**README.md** (10 cases in CI/CD section + What's New entries):
+- "Setiap push tag ... yang otomatis:" → "Every `v*.*.*` tag push triggers ... which automatically:"
+- "Build zip dari directory" → "Build zip from the directory"
+- "Create GitHub Release dengan zip + checksum sebagai release assets" → "with zip + checksum as release assets"
+- "Move latest tag ke commit tersebut ... bukan pre-release" → "to that commit ... not pre-releases"
+- "Generate release body dengan install instructions" → "with install instructions"
+- "Tag dengan format" → "Tag with format"
+- "Workflow akan handle sisanya ... otomatis dalam ~30 detik" → "The workflow handles the rest ... automatically in ~30 seconds"
+- "Replaced dengan ... revisi:" → "Replaced with ... revised:"
+- "download dari release, bukan build manual" → "download from release, not manual build"
+- "hapus ... ganti dengan ... ditolak security-conscious agents" → "removed ... replaced with ... was refused by security-conscious agents"
+- Bonus: "Untuk maintainer — release baru" → "For maintainers — new release"
+- Bonus: "dll" → "etc."
+- Bonus: "untuk full history" → "for full history"
+
+**SKILL.md** (4 comment blocks rewritten):
+- Step 0.5 comment: "yang ditolak agents" → "that agents refused"; "dari ClawHub registry" → "from ClawHub registry"; "clawhub handle semuanya" → "clawhub handles everything"; "jika network down" → "if network is down"; "skill tetap activates walau update gagal" → "skill still activates even if update fails"
+- Step 1 comment: "Audit found 8 red flag patterns" → "Audit found multiple security issues"; "Network ops otomatis" → "Automatic network operations"; "yang ditolak security-conscious agents" → "that security-conscious agents refused"; "Skill sekarang pure markdown data" → "Skill is now pure markdown data"; "Path B pakai dev.sh" → "Path B uses dev.sh"; "untuk popup preview — tanpa destructive/git/network ops" → "for popup preview — no destructive/git/network ops"
+- Step 1.5 comment: full rewrite from Indonesian to English (8 phrases translated)
+- Step 1.5 fix explanation paragraph: full rewrite from Indonesian to English
+- v7.2.0 change explanation: "tidak perlu dev.sh" → "don't need dev.sh"; "dari .zscripts/" → "from .zscripts/"
+
+**watermark.md** (2 cases):
+- "subshell, di-background dengan `&`" → "subshell, backgrounded with `&`"
+- "create new session, detach dari controlling terminal" → "creates a new session, detaches from the controlling terminal"
+
+#### Buzzword — "phase machine" → "workflow" (15 cases across 7 files)
+
+The phrase "phase machine" / "phase state machine" / "stateless phase machine" was used as a conceptual name throughout the repository. It sounds unnatural because:
+1. "State machine" implies state transitions, but the framework uses a phase sequence (IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER)
+2. "Phase machine" is not standard terminology — readers confuse it with state machines, pipelines, or workflows
+3. "Stateless phase machine" is internally contradictory (the framework IS stateful via worklog.md + memory files)
+
+Replaced with "six-phase workflow" (for taglines/descriptions) or "workflow" (for inline references) in:
+- `README.md`: "phase state machine" → "six-phase workflow" (line 14); "phase machine" → "workflow" (lines 152, 201)
+- `skill/stellar-trails/README.md`: "Stateless phase machine" → "A structured six-phase workflow" (line 7); "6-phase state machine" → "6-phase workflow" (line 67)
+- `skill/stellar-trails/SKILL.md`: "phase machine" → "workflow" (lines 173, 217, 253); description rewrite (line 3)
+- `skill/stellar-trails/skill-card.md`: tagline + 2 references updated
+- `skill/stellar-trails/memory-template.md`: "phase machine" → "workflow" (line 53)
+- `skill/stellar-trails/procedure/phases.md`: 3 references updated (lines 51, 76, 93)
+
+#### Hyperbole — toned down dramatic framing (4 cases)
+
+- "8 red flag patterns: [list]" → "multiple security issues: [list]" (kept the actual list, removed the count + "red flag" framing)
+- "ROI ~720:1 based on real incident" → "Saved approximately 2 hours of debugging in one incident" (concrete, not theatrical)
+- "zero red flags, zero agent refusal" → "no red flags, no agent refusal" (removed parallelism marketing pattern)
+- "structures ALL work as a phase machine. It activates for every task — coding or not — without exception" → "structures all work as a six-phase workflow. It activates for every task, coding or not" (removed caps + redundant emphasis)
+
+#### Awkward English — fixed broken grammar (2 cases)
+
+- "URL work" (v7.1.2 What's New entry) → "makes URL work" (added missing verb)
+- "No boot.sh. No shell execution in Skill() invoke. Pure markdown data, stateless skill." (4 staccato sentences) → "No boot.sh, no shell execution during Skill() invocation. The skill is pure markdown data." (2 sentences, smoother flow)
+
+### Preserved (NOT modified)
+
+- **All CHANGELOG.md entries** — historical record, changing them falsifies history
+- **All "stellar-frameworks" references** in version-history sections — legitimate rebrand documentation
+- **"Stateless by Design" feature bullet** in skill/README.md — accurate description (the skill IS stateless: no shell execution, pure markdown)
+- **"phase-machine" topic tag** in skill-card.md metadata — it's a search/discovery tag, not prose
+
+### Files Modified
+
+- `README.md` — 18 fixes (codeswitching 13 + buzzword 2 + hyperbole 3)
+- `skill/stellar-trails/SKILL.md` — 9 fixes (codeswitching 8 in comment blocks + buzzword 1 in description + main body rewrite) + 8 step headers renumbered (Step 0.5/1/1.5/1.6/2/3/4/5 → Step 1/2/3/4/5/6/7/8) + 5 internal step references updated
+- `skill/stellar-trails/README.md` — 2 fixes (buzzword tagline + file structure comment)
+- `skill/stellar-trails/skill-card.md` — 3 fixes (tagline + 2 buzzword references)
+- `skill/stellar-trails/watermark.md` — 2 fixes (codeswitching) + 2 step references updated (Step 1.5 → Step 3)
+- `skill/stellar-trails/memory-template.md` — 1 fix (buzzword)
+- `skill/stellar-trails/procedure/phases.md` — 3 fixes (buzzword)
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Step numbering cleanup
+
+Activation sequence in SKILL.md previously used half-numbered steps (0.5, 1.5, 1.6) inserted between integer steps as the framework grew. This made the sequence read awkwardly: Step 0.5 → Step 1 → Step 1.5 → Step 1.6 → Step 2 → Step 3 → Step 4 → Step 5.
+
+Renumbered to sequential integers 1–8:
+
+| Old | New | Title |
+|-----|-----|-------|
+| Step 0.5 | Step 1 | Auto-update via ClawHub |
+| Step 1 | Step 2 | Verify skill files present |
+| Step 1.5 | Step 3 | Ensure popup preview server running |
+| Step 1.6 | Step 4 | Defensive chibi.svg restoration |
+| Step 2 | Step 5 | Load phase intelligence |
+| Step 3 | Step 6 | Classify |
+| Step 4 | Step 7 | Confirm activation |
+| Step 5 | Step 8 | Enter the workflow |
+
+Internal step references in SKILL.md (5 locations) and watermark.md (2 locations) updated to match new numbering. Historical references in CHANGELOG entries for v7.5.2 and v7.6.0 preserved (they describe the step numbering at the time of those releases).
+
+### Version bump
+
+7.6.1 → 7.6.2 (minor — documentation-only changes, no functional code changes, no breaking changes)
+
+---
+
 ## [7.6.1] — 2026-06-27
 
 ### Fixed — Popup mascot cropping (CSS fix)

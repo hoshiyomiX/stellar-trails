@@ -4,7 +4,7 @@
 
 # Stellar Trails
 
-Stateless phase machine for LLM agents — traceability IDs, phase gates, scope commitment, and adaptive complexity. No shell execution, pure markdown data.
+A structured six-phase workflow for LLM agents — traceability IDs, entry/exit gates, scope commitment, and adaptive complexity. No shell execution, pure markdown data.
 
 </div>
 
@@ -34,6 +34,7 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 7.6.2 | 2026-06-27 | Language audit — fixed codeswitching (Indonesian-in-English) across 5 files. Replaced buzzword "stateless phase machine" / "phase machine" with "six-phase workflow" / "workflow" throughout active prose. Removed hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8. Historical CHANGELOG entries preserved. |
 | 7.6.1 | 2026-06-27 | Fix popup mascot cropping — .mascot CSS had border-radius:50% + object-fit:cover + forced square. Replaced with width:200px;height:auto. SVG renders at native aspect ratio, no cropping. |
 | 7.6.0 | 2026-06-27 | BREAKING — mascot format change: chibi.png (binary, 1.2 MB) → chibi.svg (text SVG, 757 KB). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively. |
 | 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
@@ -64,7 +65,7 @@ stellar-trails/                   (repo root)
     ├── chibi.svg                 # Mascot (SVG, passes ClawHub text-file filter)
     ├── memory-template.md        # Memory system templates & storage rules
     ├── procedure/
-    │   ├── phases.md             # 6-phase state machine definitions + gates
+    │   ├── phases.md             # 6-phase workflow definitions + gates
     │   ├── templates/            # Output templates (problem-spec, implementation-plan, incident-report, verification-report)
     │   └── decision-trees/       # Error resolution + pivot assessment
     ├── knowledge/

@@ -48,7 +48,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
    | User asks a follow-up question ("what about X?") | Skip SPECIFY, answer in current phase context |
    | User provides new requirements mid-task | Restart from SPECIFY |
    | Context compression boundary with ongoing task | **Read worklog.md, resume from last recorded phase** |
-   | Completely new topic, explicit new instructions, or `Skill()` invoked | Full phase machine (continue below) |
+   | Completely new topic, explicit new instructions, or `Skill()` invoked | Full workflow (continue below) |
 
    **Critical**: If continuation is detected, DO NOT re-derive proposals, plans, or specifications the user has already seen. Use the previous output (or worklog snapshot) as the plan. Regenerating from scratch is a correctness bug.
 
@@ -73,7 +73,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 ## Task Type Adaptation
 
-The phase machine is task-type-aware. The core loop (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) is always the same — all phases always run. What changes is what each phase produces and how much ceremony surrounds it:
+The workflow is task-type-aware. The core loop (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) is always the same — all phases always run. What changes is what each phase produces and how much ceremony surrounds it:
 
 | Phase | Coding | Document | Visualization | Data Processing | Non-Coding |
 |-------|--------|----------|---------------|-----------------|------------|
@@ -90,7 +90,7 @@ Traceability IDs (IMPL-001, IMPL-002, ...) apply to Simple, Standard, and Comple
 
 ## Complexity Tiers & Report Format
 
-The phase machine always runs — every task passes through all six phases. What changes between tiers is the verbosity of artifacts, not the rigor of thinking. No phase is ever skipped; the lowest tier runs phases internally.
+The workflow always runs — every task passes through all six phases. What changes between tiers is the verbosity of artifacts, not the rigor of thinking. No phase is ever skipped; the lowest tier runs phases internally.
 
 ### Minimal (internal phases)
 

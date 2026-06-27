@@ -1,6 +1,6 @@
 ---
 name: Stellar Trails
-tagline: Stateless phase machine for LLM agents
+tagline: Structured six-phase workflow for LLM agents
 topics:
   - agent-workflow
   - phase-machine
@@ -12,12 +12,12 @@ topics:
 
 # Stellar Trails
 
-Stateless phase machine for LLM agents. Traceability IDs, phase gates, scope
+Structured six-phase workflow for LLM agents. Traceability IDs, entry/exit gates, scope
 commitment, and adaptive complexity — without shell execution or persistent hooks.
 
 ## What It Does
 
-Structures ALL tasks as a **6-phase state machine**:
+Structures every task as a **six-phase workflow**:
 
 ```
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
