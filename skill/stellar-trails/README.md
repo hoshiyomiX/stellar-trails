@@ -34,8 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.9.1 | 2026-06-27 | Merged SSV into Step 1. Added MID OUTPUT mandate (COMMIT/Scope block at end of PLAN). Three output mandates: FIRST + MID + LAST, all 'non-negotiable'. |
-| 7.9.0 | 2026-06-27 | Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Limitations rewrite. Condensed steps. |
+| 7.9.2 | 2026-06-27 | Fix Step 2 — add --force to clawhub update. Sandboxes with local mods were failing to update. |
+| 7.9.1 | 2026-06-27 | SSV merged into Step 1 + MID OUTPUT mandate. |
 | 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
 | 7.7.5 | 2026-06-27 | Banner → vertical checklist + mandatory execution + print mandate (4 places). |

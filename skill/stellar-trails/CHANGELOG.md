@@ -1,5 +1,33 @@
 # Changelog
 
+## [7.9.2] — 2026-06-27
+
+### Fixed — Step 2 clawhub update missing --force flag
+
+**Bug**: Step 2 (Auto-update via ClawHub) used `clawhub --no-input update stellar-trails` without `--force`. In sandboxes where local modifications exist (e.g., chibi.svg restored by Step 4 in a previous session, or any file touched by the agent), clawhub refuses to update with error: "local changes (no match). Use --force to overwrite."
+
+**Root cause**: The `--force` flag was present in earlier versions but was dropped during the v7.9.0 Activation section rewrite (when step explanations were condensed).
+
+**Fix**: Added `--force` to the clawhub update command:
+```
+clawhub --no-input update stellar-trails --force
+```
+
+This ensures the update always succeeds, even when local modifications exist. The `--force` flag is safe because the local modifications (like chibi.svg restoration) are re-applied by Step 4 on every invoke anyway.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — Step 2 bash block: added `--force` flag + version bump 7.9.1 → 7.9.2
+- `README.md` — version badge + What's New + Version History
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.9.1 → 7.9.2 (patch — single flag fix)
+
+---
+
 ## [7.9.1] — 2026-06-27
 
 ### Changed — SSV merged into Step 1 + MID OUTPUT mandate for COMMIT block

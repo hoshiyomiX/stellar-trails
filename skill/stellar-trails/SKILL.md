@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.9.1
+- **version**: 7.9.2
 
 ## Activation
 
@@ -26,7 +26,7 @@ metadata:
 Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–9.
 
 ```
-☄️ STELLAR TRAILS · v7.9.1 · ACTIVE
+☄️ STELLAR TRAILS · v7.9.2 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–9, every invoke) — executing:
@@ -58,7 +58,7 @@ git fetch origin --quiet 2>/dev/null; git rev-list --count HEAD..origin/$(git br
 ```bash
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
 LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-[ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ] && clawhub --no-input update stellar-trails 2>/dev/null && echo "stellar-trails: updated to v$LATEST" || true
+[ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ] && clawhub --no-input update stellar-trails --force 2>/dev/null && echo "stellar-trails: updated to v$LATEST" || true
 ```
 **Expected:** Silent if up-to-date. Safe: clawhub is native z.ai CLI, no curl, no .usermark.
 

@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.9.1-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.9.2-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.9.1 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.9.2 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.9.1**: Merged SSV into Step 1 (was standalone section). Added MID OUTPUT mandate — COMMIT/Scope block must be printed at end of PLAN phase before IMPLEMENT (Standard/Complex only). Three output mandates now: FIRST OUTPUT (activation banner) + MID OUTPUT (COMMIT scope) + LAST OUTPUT (REPORT). All marked 'non-negotiable'.
+- **v7.9.2**: Fix Step 2 — add `--force` to `clawhub update` command. Without `--force`, sandboxes with local modifications (e.g., chibi.svg restored by Step 4) get 'local changes (no match)' error and fail to update.
+- **v7.9.1**: SSV merged into Step 1 + MID OUTPUT mandate.
 - **v7.9.0**: Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Rewrote Limitations. Condensed steps (475→395 lines).
 - **v7.8.1**: skill-creator audit fixes — P0 typo + refactor, P1 Worked Example, P2 evals + topic tags.
 - **v7.8.0**: AskUserQuestion gate + SADC subagent delegation.
@@ -221,7 +222,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.9.1**](skill/stellar-trails/CHANGELOG.md) | Merged SSV into Step 1. Added MID OUTPUT mandate (COMMIT/Scope block at end of PLAN). Three output mandates: FIRST + MID + LAST, all 'non-negotiable'. |
+| [**v7.9.2**](skill/stellar-trails/CHANGELOG.md) | Fix Step 2 — add `--force` to `clawhub update`. Sandboxes with local mods were failing to update. |
+| [**v7.9.1**](skill/stellar-trails/CHANGELOG.md) | SSV merged into Step 1 + MID OUTPUT mandate. |
 | [**v7.9.0**](skill/stellar-trails/CHANGELOG.md) | Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Limitations rewrite. Condensed steps. |
 | [**v7.8.1**](skill/stellar-trails/CHANGELOG.md) | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | [**v7.8.0**](skill/stellar-trails/CHANGELOG.md) | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
