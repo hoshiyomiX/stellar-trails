@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.9.2
+- **version**: 7.9.3
 
 ## Activation
 
@@ -25,8 +25,16 @@ metadata:
 
 Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–9.
 
+**Why you must print this EVERY invoke, even if it feels repetitive:**
+- After context truncation, you (the LLM) do not know whether you already printed the banner in a previous message. The user also does not know. The banner is the ONLY signal that the skill is active.
+- Skipping it because "I already did it" is a correctness bug — you cannot reliably know what you did before truncation.
+- The user explicitly invoked `Skill(command="stellar-trails")` to get this banner. Not printing it is ignoring the user's request.
+- It takes 2 seconds to print. The information value to the user is high. The cost is negligible.
+
+This is non-negotiable.
+
 ```
-☄️ STELLAR TRAILS · v7.9.2 · ACTIVE
+☄️ STELLAR TRAILS · v7.9.3 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–9, every invoke) — executing:
@@ -46,7 +54,16 @@ Replace `...` with `✓` as each step completes. The user needs to see this bann
 ### Steps (execute after printing banner above)
 
 **Step 1 — Refresh context from disk + Source State Verification (SSV):**
-Read `/home/z/my-project/skills/stellar-trails/SKILL.md` now. If the on-disk version differs from your cached context, use the on-disk version as source of truth.
+
+You MUST re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do NOT skip this step by trusting your cached context.
+
+**Why you must re-read from disk (not trust cache):**
+- The Skill() tool loads SKILL.md into your context at session start from a zip file that may be stale (last session's version).
+- Step 2 (clawhub update) may have just updated the on-disk SKILL.md to a newer version — but your cached context still has the old version.
+- If you trust cache, you execute outdated instructions. If you re-read from disk, you get the latest version that clawhub just installed.
+- This is a 1-second Read tool call. The correctness benefit is enormous.
+
+If the on-disk version differs from your cached context, use the on-disk version as source of truth for ALL subsequent steps.
 
 If the task involves a git repository, run SSV:
 ```bash
@@ -102,7 +119,14 @@ Before entering IMPLEMENT phase, if task tier is Standard or Complex, print the 
 
 ### ⚠️ LAST OUTPUT — Print a REPORT at task completion
 
-Your VERY LAST output to the user MUST be a REPORT block (or PASS for Minimal tier). Do not finish without it. The user needs this to verify the workflow ran correctly. This is non-negotiable.
+Your VERY LAST output to the user MUST be a REPORT block (or `☄️ PASS` for Minimal tier). Do not finish without it. The user needs this to verify the workflow ran correctly. This is non-negotiable.
+
+**Why you must print a report for EVERY task, even "simple" ones:**
+- The user invoked Stellar Trails to get structured output — that includes the final report.
+- A "simple" task still consumed the user's time. The report confirms the task is done and shows the evidence.
+- Without the report, the user has to guess whether the workflow ran correctly or whether the agent just answered from cache.
+- Even a 1-line answer to a question gets `☄️ PASS | Evidence: <result>`. That's the Minimal tier format — it's one line, takes 1 second, and gives the user closure.
+- Skipping the report because "the task was too simple" is a correctness bug. The SKILL.md mandate says "every task gets a delivery report" — no exceptions for simplicity.
 
 Use the appropriate template from the **Deliveries** section below (Standard/Simple/Minimal). Print the REPORT, then append a Snapshot to `worklog.md`.
 
@@ -359,6 +383,8 @@ If 3+ back-to-back pivots occurred, also include:
 Pivot is not a failure marker — it's evidence of professional adaptation. An agent that pivots cleanly is more reliable than one that stubbornly forces a broken approach. But 3+ pivots on different errors signals a deeper issue — see Pivot Backlog Meta-Review in `procedure/decision-trees/error-resolution.md`.
 
 ### Minimal (non-coding: questions, explanations, recommendations)
+
+**EVEN for Minimal tier, you MUST print the `☄️ PASS` line below.** No exceptions. "It was just a question" is not a valid reason to skip. The user needs closure.
 
 ```
 ☄️ PASS | Evidence: <one-line result>

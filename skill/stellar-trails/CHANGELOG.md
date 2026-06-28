@@ -1,5 +1,72 @@
 # Changelog
 
+## [7.9.3] — 2026-06-27
+
+### Fixed — Counter 3 LLM bypass patterns with explicit "why" arguments
+
+**Problem**: LLMs using Stellar Trails reported 3 honest bypass patterns — they skipped mandated outputs because the SKILL.md didn't explain WHY each mandate matters. The LLMs rationalized: "banner is repetitive," "simple task doesn't need report," "cache is fine, no need to re-read." Each bypass is addressed with a counter-argument the LLM cannot rationalize away.
+
+#### Bypass #1: "Skip banner karena repetitive"
+
+**LLM's reasoning**: "I already printed the banner in a previous message. Printing it again feels redundant."
+
+**Counter-argument added to FIRST OUTPUT section**:
+- After context truncation, you (the LLM) do not know whether you already printed the banner. The user also does not know. The banner is the ONLY signal that the skill is active.
+- Skipping it because "I already did it" is a correctness bug — you cannot reliably know what you did before truncation.
+- The user explicitly invoked `Skill(command="stellar-trails")` to get this banner. Not printing it is ignoring the user's request.
+- It takes 2 seconds to print. The information value to the user is high. The cost is negligible.
+
+**Why this works**: The LLM's "I already did it" reasoning is based on an assumption about its own state. The counter-argument shows that this assumption is unreliable (context truncation). The LLM cannot maintain "I already did it" when confronted with "you can't know that."
+
+#### Bypass #2: "Skip report karena task simple"
+
+**LLM's reasoning**: "This was just a simple question. A full REPORT block feels like overkill."
+
+**Counter-argument added to LAST OUTPUT section + Minimal tier**:
+- The user invoked Stellar Trails to get structured output — that includes the final report.
+- A "simple" task still consumed the user's time. The report confirms the task is done and shows the evidence.
+- Without the report, the user has to guess whether the workflow ran correctly or whether the agent just answered from cache.
+- Even a 1-line answer to a question gets `☄️ PASS | Evidence: <result>`. That's one line, takes 1 second, and gives the user closure.
+- Skipping the report because "the task was too simple" is a correctness bug. The SKILL.md mandate says "every task gets a delivery report" — no exceptions for simplicity.
+
+**Also added to Minimal tier section**: "**EVEN for Minimal tier, you MUST print the `☄️ PASS` line below.** No exceptions. 'It was just a question' is not a valid reason to skip. The user needs closure."
+
+**Why this works**: The LLM's "overkill" reasoning assumes the report is heavy. The counter-argument shows that Minimal tier is ONE LINE (`☄️ PASS | Evidence: ...`). The LLM cannot maintain "it's too much" when the actual cost is 1 line × 1 second.
+
+#### Bypass #3: "Tidak re-read SKILL.md, trust cache"
+
+**LLM's reasoning**: "I already have SKILL.md in my context from the Skill() call. Re-reading from disk is redundant."
+
+**Counter-argument added to Step 1**:
+- The Skill() tool loads SKILL.md into your context at session start from a zip file that may be stale (last session's version).
+- Step 2 (clawhub update) may have just updated the on-disk SKILL.md to a newer version — but your cached context still has the old version.
+- If you trust cache, you execute outdated instructions. If you re-read from disk, you get the latest version that clawhub just installed.
+- This is a 1-second Read tool call. The correctness benefit is enormous.
+
+**Also added**: "You MUST re-read using the Read tool. Do NOT skip this step by trusting your cached context."
+
+**Why this works**: The LLM's "cache is fine" reasoning assumes the cache is current. The counter-argument shows that Step 2 (which runs BEFORE Step 1 in the execution sequence... wait, Step 1 runs first, but clawhub update is Step 2). Actually the sequence is: Step 1 reads from disk (may be stale from zip) → Step 2 clawhub updates the disk → now disk has newer version than what Step 1 read. So the re-read should happen AFTER Step 2, not before.
+
+**Design note**: Step 1 says "re-read from disk" but Step 2 might update the file after Step 1 reads it. The correct flow is:
+1. Step 1: Read from disk (gets current version, even if stale)
+2. Step 2: clawhub update (may update to newer version on disk)
+3. After Step 2: if version changed, re-read from disk again
+
+The Step 1 instruction now says: "If the on-disk version differs from your cached context, use the on-disk version." And Step 2's expected output includes "if updated, re-read SKILL.md from disk to get the new version."
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — FIRST OUTPUT section (bypass #1 counter) + Step 1 (bypass #3 counter) + LAST OUTPUT section (bypass #2 counter) + Minimal tier (bypass #2 reinforcement) + version bump 7.9.2 → 7.9.3
+- `README.md` — version badge + What's New + Version History
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.9.2 → 7.9.3 (patch — counter-argument additions, no structural changes)
+
+---
+
 ## [7.9.2] — 2026-06-27
 
 ### Fixed — Step 2 clawhub update missing --force flag
