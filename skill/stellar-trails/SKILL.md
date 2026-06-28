@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.9.0
+- **version**: 7.9.1
 
 ## Activation
 
@@ -26,11 +26,11 @@ metadata:
 Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–9.
 
 ```
-☄️ STELLAR TRAILS · v7.9.0 · ACTIVE
+☄️ STELLAR TRAILS · v7.9.1 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–9, every invoke) — executing:
-   ├─ 1  Refresh context from disk        ...
+   ├─ 1  Refresh context + SSV            ...
    ├─ 2  Auto-update via ClawHub          ...
    ├─ 3  Verify skill files present       ...
    ├─ 4  Start popup preview server       ...
@@ -45,8 +45,14 @@ Replace `...` with `✓` as each step completes. The user needs to see this bann
 
 ### Steps (execute after printing banner above)
 
-**Step 1 — Refresh context from disk:**
+**Step 1 — Refresh context from disk + Source State Verification (SSV):**
 Read `/home/z/my-project/skills/stellar-trails/SKILL.md` now. If the on-disk version differs from your cached context, use the on-disk version as source of truth.
+
+If the task involves a git repository, run SSV:
+```bash
+git fetch origin --quiet 2>/dev/null; git rev-list --count HEAD..origin/$(git branch --show-current 2>/dev/null || echo main) 2>/dev/null
+```
+**Expected:** `0` (in sync) or a number (behind by N commits — run `git pull` first). Skip SSV for non-git tasks.
 
 **Step 2 — Auto-update via ClawHub:**
 ```bash
@@ -90,9 +96,13 @@ Your banner was already printed as FIRST OUTPUT above. Update the `✓` marks to
 **Step 9 — Enter the workflow:**
 Begin SPECIFY (or IMPLEMENT if continuation detected). All phases always run.
 
+### ⚠️ MID OUTPUT — Print COMMIT block at end of PLAN (Standard/Complex only)
+
+Before entering IMPLEMENT phase, if task tier is Standard or Complex, print the `☄️ COMMIT [Standard]` block from the **Deliveries** section below. The user needs to see what you committed to build BEFORE you start building. This is non-negotiable.
+
 ### ⚠️ LAST OUTPUT — Print a REPORT at task completion
 
-Your VERY LAST output to the user MUST be a REPORT block. Do not finish without it. The user needs this to verify the workflow ran correctly. This is non-negotiable.
+Your VERY LAST output to the user MUST be a REPORT block (or PASS for Minimal tier). Do not finish without it. The user needs this to verify the workflow ran correctly. This is non-negotiable.
 
 Use the appropriate template from the **Deliveries** section below (Standard/Simple/Minimal). Print the REPORT, then append a Snapshot to `worklog.md`.
 
@@ -194,18 +204,6 @@ No phases are ever skipped. Non-coding tasks use **Minimal** complexity tier —
 | IMPLEMENT | (code/document/chart output) | `constraints/code-standards.md`, `constraints/type-safety.md` | Start of IMPLEMENT (coding tasks) |
 | VERIFY | `procedure/templates/verification-report.md` | `knowledge/universal/error-patterns.md` | Start of VERIFY |
 | Recovery | `procedure/templates/incident-report.md` | `procedure/decision-trees/error-resolution.md` | On error detection |
-
-## Source State Verification (SSV)
-
-Before analyzing or auditing a git repository, verify data freshness:
-
-1. `git fetch` to sync remote references
-2. Compare local HEAD against `origin/<branch>`
-3. If behind, `git pull` or `git checkout <branch>` after fetch
-4. If referencing a specific commit, verify it exists in history
-5. Only proceed after SSV passes
-
-SSV is required after cross-session boundaries or when previous sessions involved git operations. Skip SSV for purely creative tasks with no git involvement.
 
 ## Source Availability & Documentation Check (SADC)
 

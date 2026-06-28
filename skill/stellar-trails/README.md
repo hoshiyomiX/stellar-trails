@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.9.0 | 2026-06-27 | Full enforce behavior — FIRST OUTPUT banner mandate + LAST OUTPUT REPORT mandate (both 'non-negotiable'). Rewrote Limitations to remove 'may follow loosely' permission. Condensed step explanations (475→395 lines). Fixes 6 root causes of LLM skipping banner+report. |
+| 7.9.1 | 2026-06-27 | Merged SSV into Step 1. Added MID OUTPUT mandate (COMMIT/Scope block at end of PLAN). Three output mandates: FIRST + MID + LAST, all 'non-negotiable'. |
+| 7.9.0 | 2026-06-27 | Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Limitations rewrite. Condensed steps. |
 | 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
 | 7.7.5 | 2026-06-27 | Banner → vertical checklist + mandatory execution + print mandate (4 places). |

@@ -1,5 +1,50 @@
 # Changelog
 
+## [7.9.1] — 2026-06-27
+
+### Changed — SSV merged into Step 1 + MID OUTPUT mandate for COMMIT block
+
+**Two changes** requested by user after v7.9.0:
+
+#### Change 1: Merged SSV (Source State Verification) into Step 1
+
+**Before**: SSV was a standalone section (## Source State Verification) at line 198, separate from the activation steps. The LLM might read it but not execute it because it wasn't part of the numbered step sequence.
+
+**After**: SSV is now part of Step 1 — "Refresh context from disk + Source State Verification (SSV)". Step 1 now does:
+1. Read SKILL.md from disk (refresh context)
+2. If task involves git repo: run `git fetch` + compare HEAD vs origin (SSV)
+
+The standalone SSV section is removed. SSV is now guaranteed to run as part of the mandatory 9-step activation sequence, not as an optional separate section.
+
+#### Change 2: Added MID OUTPUT mandate — COMMIT block at end of PLAN
+
+**Before**: Only FIRST OUTPUT (activation banner) and LAST OUTPUT (REPORT) were mandated. The COMMIT/Scope block (printed at end of PLAN phase, before IMPLEMENT) was documented as a template but NOT explicitly mandated for printing. LLMs often skipped it.
+
+**After**: Added `### ⚠️ MID OUTPUT — Print COMMIT block at end of PLAN (Standard/Complex only)` section. This mandates printing the `☄️ COMMIT [Standard]` block before entering IMPLEMENT phase, so the user can see what the agent committed to build BEFORE it starts building.
+
+**Three output mandates now exist** (all marked 'non-negotiable'):
+1. **FIRST OUTPUT**: Activation banner (before any other text)
+2. **MID OUTPUT**: COMMIT/Scope block (at end of PLAN, before IMPLEMENT — Standard/Complex only)
+3. **LAST OUTPUT**: REPORT block (at task completion)
+
+This ensures the user sees three checkpoints:
+- Start: "I'm activating, here's my plan" (FIRST OUTPUT)
+- Middle: "Here's what I committed to build" (MID OUTPUT)
+- End: "Here's what I actually built + verification" (LAST OUTPUT)
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — Step 1 expanded with SSV + standalone SSV section removed + MID OUTPUT section added + version bump 7.9.0 → 7.9.1
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.9.0 → 7.9.1 (patch — SSV merge + COMMIT mandate, no functional workflow changes)
+
+---
+
 ## [7.9.0] — 2026-06-27
 
 ### Fixed — Full enforce behavior: 6 root causes of LLM not printing banner + report
