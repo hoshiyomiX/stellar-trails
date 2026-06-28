@@ -1,5 +1,61 @@
 # Changelog
 
+## [7.9.0] — 2026-06-27
+
+### Fixed — Full enforce behavior: 6 root causes of LLM not printing banner + report
+
+**Problem**: After v7.8.1 audit, LLM behavior still did not print the activation banner at the start or the REPORT block at the end. Analysis of SKILL.md found 6 root causes:
+
+#### Root Cause #1: "Limitations" section gave explicit permission to skip
+
+**Old text**: "The LLM reading this may follow it closely, loosely, or not at all depending on context, attention, and task complexity."
+
+**Fix**: Rewrote Limitations to: "It relies on the LLM reading it to follow the instructions closely. The activation banner (FIRST OUTPUT) and delivery report (LAST OUTPUT) are mandatory — they are the user's only signals that the workflow ran. Skipping either is a correctness bug, not a style preference."
+
+#### Root Cause #2: Banner print instruction was 130 lines away from banner template
+
+**Old structure**: Mandate at line 24 ("print the banner checklist") → 130 lines of step explanations → banner template at line 155 (Step 8).
+
+**Fix**: Moved banner template to the VERY TOP of Activation section as "FIRST OUTPUT" block. The banner is now the FIRST thing the LLM sees — before any steps. The LLM prints the banner first, then executes steps, updating `✓` marks as it goes.
+
+#### Root Cause #3: REPORT template was 390 lines from activation
+
+**Fix**: Added "LAST OUTPUT" block immediately after Step 9, explicitly mandating: "Your VERY LAST output to the user MUST be a REPORT block. Do not finish without it. This is non-negotiable."
+
+#### Root Cause #4: Too much "Why" explanation diluting imperative
+
+**Old**: Each step had 3-5 paragraphs of "Why this is safe" / "Why this step matters" / "Why this check exists." LLM read all this → felt it "understood" → skipped execution.
+
+**Fix**: Condensed each step's "Why" to 1 sentence max. Steps 2-5 now have: (a) imperative instruction, (b) bash block, (c) 1-line expected output + 1-line safety note. No more paragraph-length explanations. SKILL.md dropped from 475 → 395 lines.
+
+#### Root Cause #5: No "FIRST OUTPUT" / "LAST OUTPUT" framing
+
+**Fix**: Added explicit `### ⚠️ FIRST OUTPUT` and `### ⚠️ LAST OUTPUT` section headers with "non-negotiable" enforcement language. The LLM now has clear anchors: "this is the first thing you output" and "this is the last thing you output."
+
+#### Root Cause #6: Step 8 (print banner) was the 8th thing the LLM read
+
+**Fix**: Banner print is now the FIRST action (FIRST OUTPUT block), not Step 8. Step 8 is now just "confirm activation" (verify banner was printed, update ✓ marks). The LLM no longer has to read 7 steps before reaching the print instruction.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — full Activation section restructure (FIRST OUTPUT + condensed steps + LAST OUTPUT) + Limitations rewrite + version bump 7.8.1 → 7.9.0
+- `README.md` — version badge + banner ref + What's New entry + Version History entry
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Line count improvement
+
+| Version | SKILL.md lines | Key change |
+|---------|----------------|------------|
+| v7.8.1 | 475 | Long "Why" explanations per step |
+| v7.9.0 | 395 | Condensed to 1-sentence "Why" + FIRST/LAST OUTPUT blocks |
+
+### Version bump
+
+7.8.1 → 7.9.0 (minor — behavior enforcement restructure, no functional workflow changes)
+
+---
+
 ## [7.8.1] — 2026-06-27
 
 ### Fixed — skill-creator audit findings (P0 + P1 + P2)

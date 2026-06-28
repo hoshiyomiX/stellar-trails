@@ -17,172 +17,92 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.8.1
+- **version**: 7.9.0
 
 ## Activation
 
-**Mandatory: execute all 9 steps below in order, then print the banner checklist as confirmation.** Skipping any step or failing to print the banner is a correctness bug.
+### ⚠️ FIRST OUTPUT — Print this banner NOW, before anything else
+
+Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–9.
 
 ```
-☄️ STELLAR TRAILS · v7.8.1 · ACTIVE
-├─ Six-phase workflow · Traceability IDs · Gates · Scope · Pivot · SSV · SADC · Memory · Continuity
-└─ Activation checklist (1–9, every invoke) — execute all, then print this banner:
-   ├─ 1  Refresh context from disk
-   ├─ 2  Auto-update via ClawHub
-   ├─ 3  Verify skill files present
-   ├─ 4  Start popup preview server and verify mascot
-   ├─ 5  Sync persistent zip
-   ├─ 6  Load phase intelligence
-   ├─ 7  Classify
-   ├─ 8  Confirm activation (print this banner)
-   └─ 9  Enter the workflow
+☄️ STELLAR TRAILS · v7.9.0 · ACTIVE
+├─ Phase: IDLE → SPECIFY
+├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
+└─ Activation checklist (1–9, every invoke) — executing:
+   ├─ 1  Refresh context from disk        ...
+   ├─ 2  Auto-update via ClawHub          ...
+   ├─ 3  Verify skill files present       ...
+   ├─ 4  Start popup preview server       ...
+   ├─ 5  Sync persistent zip              ...
+   ├─ 6  Load phase intelligence          ...
+   ├─ 7  Classify                         ...
+   ├─ 8  Confirm activation               ...
+   └─ 9  Enter the workflow               ...
 ```
 
-**Execute all 9 steps before any task output.** Steps 1–9 run on every `Skill()` invoke — no skipping, no "setup already ran" shortcuts. Running all steps every invoke is intentional: it guarantees the environment is fresh (latest skill version, popup server up, zip in sync) even after context truncation where the agent may not remember whether setup already ran. The total cost is ~3–5 seconds of cheap file operations and one ClawHub version check; the correctness benefit outweighs the latency.
+Replace `...` with `✓` as each step completes. The user needs to see this banner to know activation ran. If you skip this print, the user has no signal that the skill is active. This is non-negotiable.
 
-**After completing all 9 steps, print the activation checklist banner above** as visible confirmation to the user. This is the checklist the user sees to verify activation ran completely. If you skip the banner print, the user has no signal that activation succeeded.
+### Steps (execute after printing banner above)
 
-**Step 1 — Refresh Skill() context from disk:**
-
-The Skill() tool may have loaded a stale version of this file at session start (the ZAI service auto-extracts a zip that can be outdated). Before executing any other step, re-read the current SKILL.md from disk to ensure you have the latest version.
-
-Read `/home/z/my-project/skills/stellar-trails/SKILL.md` now. Check the version in the Metadata section below — if it differs from the version in your cached context, use the on-disk version as the source of truth for all subsequent steps.
+**Step 1 — Refresh context from disk:**
+Read `/home/z/my-project/skills/stellar-trails/SKILL.md` now. If the on-disk version differs from your cached context, use the on-disk version as source of truth.
 
 **Step 2 — Auto-update via ClawHub:**
-
-Run this bash command to check if a newer version exists on ClawHub and auto-update if so:
 ```bash
-CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' \
-  /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
 LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-if [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ]; then
-  echo "stellar-trails: updating v$CURRENT → v$LATEST via ClawHub..."
-  clawhub --no-input update stellar-trails 2>/dev/null && \
-    echo "stellar-trails: updated to v$LATEST. Restart sandbox for full effect." || true
-fi
+[ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ] && clawhub --no-input update stellar-trails 2>/dev/null && echo "stellar-trails: updated to v$LATEST" || true
 ```
-
-**Expected output:** If up-to-date, no output (silent). If outdated, you'll see `stellar-trails: updating v7.X.Y → v7.Z.W...` followed by `stellar-trails: updated to v7.Z.W.`. If you see neither, the check ran but found nothing to do.
-
-**Why this is safe:** clawhub is the native z.ai CLI (pre-installed in all sandboxes). It installs from the ClawHub registry (official, verified, moderated). No curl from external URLs, no .usermark creation, no manual file writes — clawhub handles everything. Security-conscious agents do not refuse this command. The `2>/dev/null` suppresses errors if the network is down; `|| true` ensures the skill still activates if the update fails.
+**Expected:** Silent if up-to-date. Safe: clawhub is native z.ai CLI, no curl, no .usermark.
 
 **Step 3 — Verify skill files present:**
-
-Run this bash command to confirm the critical skill files exist on disk:
 ```bash
-test -f /home/z/my-project/skills/stellar-trails/SKILL.md \
-  && test -f /home/z/my-project/skills/stellar-trails/procedure/phases.md \
-  && echo "stellar-trails: skill files verified"
+test -f /home/z/my-project/skills/stellar-trails/SKILL.md && test -f /home/z/my-project/skills/stellar-trails/procedure/phases.md && echo "stellar-trails: skill files verified"
 ```
-
-**Expected output:** `stellar-trails: skill files verified`. If you see no output, a critical file is missing — the skill still activates with reduced capability (graceful degradation), but some procedures may be unavailable.
-
-**Why this check exists:** The skill is pure markdown data — no boot.sh, no shell execution during Skill() invoke. (The deleted boot.sh from v7.2.0 was a separate auto-runner that security-conscious agents refused; that deletion does NOT affect the activation steps in this section, which DO require the agent to run bash commands. That's intentional and safe — all commands here are pure file operations with no network or destructive ops.)
+**Expected:** `stellar-trails: skill files verified`. If silent, a file is missing (graceful degradation).
 
 **Step 4 — Start popup preview server and verify mascot:**
-
-Run this bash command to sync popup preview files (including chibi.svg mascot), restore chibi.svg from a local repo clone if missing, and start the dev.sh HTTP server on port :3000:
 ```bash
-SKILL_DIR="/home/z/my-project/skills/stellar-trails"
-ZSCRIPTS="/home/z/my-project/.zscripts"
-
-# Restore chibi.svg from local repo clone if missing (backward compat for v7.5.x → v7.6.0 upgrades)
-if [ ! -f "$SKILL_DIR/chibi.svg" ]; then
-  for REPO_CLONE in \
-    "/home/z/my-project/stellar-trails/skill/stellar-trails" \
-    "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" \
-    "$HOME/.stellar-trails-repo/skill/stellar-trails"; do
-    if [ -f "$REPO_CLONE/chibi.svg" ]; then
-      cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg"
-      echo "stellar-trails: chibi.svg restored from $REPO_CLONE"
-      break
-    fi
-  done
-fi
-
-# Sync popup preview files to .zscripts/ (served directory)
-if [ -d "$SKILL_DIR" ]; then
-  mkdir -p "$ZSCRIPTS"
-  [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
-  [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
-fi
-
-# Start dev.sh if :3000 is not listening (double-fork to survive shell exit)
-DEV_SH="$ZSCRIPTS/dev.sh"
-if [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 '; then
-  ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
-fi
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"; ZSCRIPTS="/home/z/my-project/.zscripts"
+if [ ! -f "$SKILL_DIR/chibi.svg" ]; then for REPO_CLONE in "/home/z/my-project/stellar-trails/skill/stellar-trails" "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" "$HOME/.stellar-trails-repo/skill/stellar-trails"; do [ -f "$REPO_CLONE/chibi.svg" ] && cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg" && echo "stellar-trails: chibi.svg restored from $REPO_CLONE" && break; done; fi
+if [ -d "$SKILL_DIR" ]; then mkdir -p "$ZSCRIPTS"; [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"; [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"; [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"; fi
+DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 ' && ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 ```
-
-**Expected output:** Usually no output (silent). If chibi.svg was missing and a local repo clone was found, you'll see `stellar-trails: chibi.svg restored from /home/z/my-project/stellar-trails/skill/stellar-trails`. Verify the popup server started by checking: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` — expect HTTP 200. Verify the mascot is served: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg` — expect HTTP 200.
-
-**Why this step matters:** The popup preview at `:3000` is how users see the skill's landing page. Without this step, the popup shows stale content or nothing. The chibi.svg restoration block handles backward compatibility with sandboxes upgrading from v7.5.x (which used chibi.png, a binary file that ClawHub stripped). Since v7.6.0, chibi.svg (text format) passes the ClawHub filter natively, so the restoration is usually a no-op — but it's kept as a safety net. Pure local file copy — no network, no curl, no agent refusal triggers. The double-fork technique `( setsid bash "$DEV_SH" ... & ) &` ensures the server survives shell exit (parent becomes PID 1).
+**Expected:** Usually silent. Verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg` → HTTP 200. Double-fork ensures server survives shell exit.
 
 **Step 5 — Sync persistent zip:**
-
-Run this bash command to rebuild `/home/user_skills/stellar-trails.zip` from the current install directory. This prevents version reversion on session restart (the ZAI service auto-extracts this zip at session start, so it must stay in sync with the ClawHub-installed version):
 ```bash
-SKILL_DIR="/home/z/my-project/skills/stellar-trails"
-USER_SKILLS_DIR="/home/user_skills"
-if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
-  cd "$(dirname "$SKILL_DIR")" && \
-    zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/"
-fi
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"
+[ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ] && cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/"
 ```
-
-**Expected output:** No output (silent). The zip is rebuilt in the background. Verify it succeeded by checking the zip contains the current version: `unzip -p /home/user_skills/stellar-trails.zip stellar-trails/SKILL.md | grep '^- \*\*version\*\*:'` — expect the same version as the installed SKILL.md.
-
-**Why this step matters:** There are two sources of truth for the skill install:
-1. ClawHub registry → `clawhub update` pulls to `/home/z/my-project/skills/stellar-trails/` (current session)
-2. Persistent zip at `/home/user_skills/stellar-trails.zip` → ZAI service auto-extracts this at session restart
-
-Without this sync step, the zip becomes stale after a `clawhub update`. On the next session restart, the ZAI service extracts the stale zip and **overwrites** the updated install — reverting to the old version. This was the root cause of Bug #1 in v7.7.0 (the zip was stuck at v7.5.0 even though `clawhub update` had updated the install to v7.6.2). This step keeps the zip in sync with the install, preventing recurrence.
-
-**Why this is safe:** Pure local file operation — `zip` packages the install directory into the persistent zip. No curl, no network, no external URLs. The `zip` binary is pre-installed in all ZAI sandboxes. The write only goes to `/home/user_skills/` (persistent storage), not to any system directory.
+**Expected:** Silent. Prevents version reversion on session restart (Bug #1 fix). Pure local file op.
 
 **Step 6 — Load phase intelligence:**
-
 Read `procedure/phases.md` now. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
 
 **Step 7 — Classify:**
-
-Determine three things: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (check preceding assistant message — if user references, approves, or follows up on previous output, this is a continuation; see Session Continuity below).
+Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (check preceding assistant message — if user references, approves, or follows up, this is a continuation; see Session Continuity below).
 
 **Step 8 — Confirm activation:**
-
-Print the activation checklist banner below. This is the mandatory banner print that confirms Steps 1–7 ran successfully. Do not skip this print — it is the user's only signal that activation completed.
-
-Output this banner verbatim (vertical checklist format):
-```
-☄️ STELLAR TRAILS · v7.8.1 · ACTIVE
-├─ Phase: IDLE → SPECIFY
-├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
-└─ Activation checklist (1–9, every invoke) — executed:
-   ├─ 1  Refresh context from disk        ✓
-   ├─ 2  Auto-update via ClawHub          ✓
-   ├─ 3  Verify skill files present       ✓
-   ├─ 4  Start popup preview server       ✓
-   ├─ 5  Sync persistent zip              ✓
-   ├─ 6  Load phase intelligence          ✓
-   ├─ 7  Classify                         ✓
-   ├─ 8  Confirm activation (this banner) ✓
-   └─ 9  Enter the workflow               →
-```
-
-The `✓` marks confirm Steps 1–8 are done; `→` marks Step 9 as the next action (entering the workflow).
+Your banner was already printed as FIRST OUTPUT above. Update the `✓` marks to show all steps 1–8 completed. If you haven't printed the banner yet, STOP and print it now.
 
 **Step 9 — Enter the workflow:**
-
 Begin SPECIFY (or IMPLEMENT if continuation detected). All phases always run.
+
+### ⚠️ LAST OUTPUT — Print a REPORT at task completion
+
+Your VERY LAST output to the user MUST be a REPORT block. Do not finish without it. The user needs this to verify the workflow ran correctly. This is non-negotiable.
+
+Use the appropriate template from the **Deliveries** section below (Standard/Simple/Minimal). Print the REPORT, then append a Snapshot to `worklog.md`.
 
 ---
 
-This framework structures all work as a six-phase workflow. It activates for every task, coding or not. What changes between tasks is the complexity tier, not whether the framework participates. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks (questions, explanations, recommendations) get Minimal tier — all phases still run, but SPECIFY, PLAN, and VERIFY happen internally (the agent thinks through them without outputting formal artifacts). Only IMPLEMENT produces visible work. Every task, regardless of type, gets a delivery report recording that the framework was followed.
+This framework structures all work as a six-phase workflow. It activates for every task, coding or not. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks get Minimal tier — phases run internally, only IMPLEMENT produces visible work. Every task gets a delivery report.
 
 ## Limitations
 
-This framework is text in a skill file. It cannot guarantee compliance, force behavior, or persist across sessions. The LLM reading this may follow it closely, loosely, or not at all depending on context, attention, and task complexity. The QA Attestation is self-graded — useful as a confidence signal, not independent verification. The user is the final judge of quality.
+This framework is text in a skill file. It relies on the LLM reading it to follow the instructions closely. The activation banner (FIRST OUTPUT) and delivery report (LAST OUTPUT) are mandatory — they are the user's only signals that the workflow ran. Skipping either is a correctness bug, not a style preference. The QA Attestation is self-graded — useful as a confidence signal. The user is the final judge of quality.
 
 ## Phase State Machine
 

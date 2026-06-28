@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo fix (Deliverys→Deliveries) + refactor to references/ dir (499→~440 lines). P1 Worked Example section. P2 evals/evals.json (4 verifiable assertions) + topic tag aliases (phase-workflow, task-workflow). Description kept pushy per user design. |
+| 7.9.0 | 2026-06-27 | Full enforce behavior — FIRST OUTPUT banner mandate + LAST OUTPUT REPORT mandate (both 'non-negotiable'). Rewrote Limitations to remove 'may follow loosely' permission. Condensed step explanations (475→395 lines). Fixes 6 root causes of LLM skipping banner+report. |
+| 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
 | 7.7.5 | 2026-06-27 | Banner → vertical checklist + mandatory execution + print mandate (4 places). |
 | 7.7.4 | 2026-06-27 | Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─). |
