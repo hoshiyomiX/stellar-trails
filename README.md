@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.9.3-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-7.9.4-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.9.3 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.9.4 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.9.3**: Counter 3 LLM bypass patterns — (1) Added "why repetition is non-negotiable" to FIRST OUTPUT (context truncation argument). (2) Added "why every task needs a report, even simple ones" to LAST OUTPUT + Minimal tier (closure argument). (3) Added "why re-read from disk, not trust cache" to Step 1 (stale zip → clawhub update → cache mismatch argument). Each bypass now has a counter-argument the LLM can't rationalize away.
+- **v7.9.4**: Solution 2 — Step 2 now mandates re-read SKILL.md from disk AFTER clawhub update. Closes the cache gap: Step 1 reads from disk (may be stale) → Step 2 clawhub updates disk → Step 2 re-reads from disk (now fresh). LLM no longer executes outdated instructions post-update.
+- **v7.9.3**: Counter 3 LLM bypass patterns with explicit why arguments.
 - **v7.9.2**: Fix Step 2 — add `--force` to `clawhub update`.
 - **v7.9.1**: SSV merged into Step 1 + MID OUTPUT mandate.
 - **v7.9.0**: Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Rewrote Limitations. Condensed steps (475→395 lines).
@@ -223,7 +224,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.9.3**](skill/stellar-trails/CHANGELOG.md) | Counter 3 LLM bypass patterns: banner skip (context truncation argument), report skip (closure argument), cache trust (stale zip argument). Each bypass now has explicit counter-reasoning. |
+| [**v7.9.4**](skill/stellar-trails/CHANGELOG.md) | Solution 2 — Step 2 mandates re-read SKILL.md from disk AFTER clawhub update. Closes cache gap: Step 1 reads (stale) → Step 2 updates disk → Step 2 re-reads (fresh). |
+| [**v7.9.3**](skill/stellar-trails/CHANGELOG.md) | Counter 3 LLM bypass patterns with explicit why arguments. |
 | [**v7.9.2**](skill/stellar-trails/CHANGELOG.md) | Fix Step 2 — add `--force` to `clawhub update`. |
 | [**v7.9.1**](skill/stellar-trails/CHANGELOG.md) | SSV merged into Step 1 + MID OUTPUT mandate. |
 | [**v7.9.0**](skill/stellar-trails/CHANGELOG.md) | Full enforce behavior — FIRST OUTPUT + LAST OUTPUT mandates. Limitations rewrite. Condensed steps. |

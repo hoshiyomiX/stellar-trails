@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.9.3
+- **version**: 7.9.4
 
 ## Activation
 
@@ -34,7 +34,7 @@ Your VERY FIRST output to the user MUST be the activation banner below. Do not e
 This is non-negotiable.
 
 ```
-☄️ STELLAR TRAILS · v7.9.3 · ACTIVE
+☄️ STELLAR TRAILS · v7.9.4 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–9, every invoke) — executing:
@@ -77,7 +77,9 @@ CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-p
 LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 [ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ] && clawhub --no-input update stellar-trails --force 2>/dev/null && echo "stellar-trails: updated to v$LATEST" || true
 ```
-**Expected:** Silent if up-to-date. Safe: clawhub is native z.ai CLI, no curl, no .usermark.
+**Expected:** Silent if up-to-date. If outdated, see "updating" + "updated" messages, then re-read SKILL.md from disk (see below). Safe: clawhub is native z.ai CLI, no curl, no .usermark.
+
+**If clawhub updated the skill:** Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool NOW. Your cached context has the OLD version — the on-disk version is the source of truth for all remaining steps. This re-read is mandatory because clawhub just wrote a newer SKILL.md to disk, but your context still holds the pre-update version from Step 1.
 
 **Step 3 — Verify skill files present:**
 ```bash

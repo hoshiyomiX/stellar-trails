@@ -1,5 +1,36 @@
 # Changelog
 
+## [7.9.4] — 2026-06-27
+
+### Fixed — Step 2: mandate re-read SKILL.md from disk AFTER clawhub update
+
+**Problem**: The cache gap. Step 1 reads SKILL.md from disk (may be stale from zip). Step 2 runs `clawhub update --force` which writes a newer SKILL.md to disk. But the LLM's context still holds the pre-update version from Step 1. The LLM then executes Steps 3-9 using OUTDATED instructions — even though the on-disk file was just updated.
+
+**Root cause**: Step 2 had no re-read instruction. The LLM assumed its Step 1 read was sufficient, not realizing that Step 2 just changed the file.
+
+**Fix**: Added to Step 2 expected output:
+> "If clawhub updated the skill: Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool NOW. Your cached context has the OLD version — the on-disk version is the source of truth for all remaining steps. This re-read is mandatory because clawhub just wrote a newer SKILL.md to disk, but your context still holds the pre-update version from Step 1."
+
+**Complete cache solution flow** (3 layers):
+1. **Step 1**: Read from disk (gets current version, even if stale from zip) — Solution 1 (v7.9.0)
+2. **Step 2**: clawhub update --force (writes newer version to disk) → **re-read from disk** — Solution 2 (v7.9.4, this release)
+3. **Step 5**: Rebuild /home/user_skills/ zip from install dir (ensures next session's zip is fresh) — Solution 3 (v7.7.1)
+
+With all 3 solutions in place, the LLM always has the latest SKILL.md in context by the time it reaches Step 3.
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — Step 2 expected output expanded with re-read mandate + version bump 7.9.3 → 7.9.4
+- `README.md` — version badge + What's New + Version History
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.9.3 → 7.9.4 (patch — single instruction addition to Step 2)
+
+---
+
 ## [7.9.3] — 2026-06-27
 
 ### Fixed — Counter 3 LLM bypass patterns with explicit "why" arguments

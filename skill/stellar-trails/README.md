@@ -34,7 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.9.3 | 2026-06-27 | Counter 3 LLM bypass patterns: banner skip (context truncation argument), report skip (closure argument), cache trust (stale zip argument). |
+| 7.9.4 | 2026-06-27 | Solution 2 — Step 2 mandates re-read SKILL.md from disk AFTER clawhub update. Closes cache gap. |
+| 7.9.3 | 2026-06-27 | Counter 3 LLM bypass patterns with explicit why arguments. |
 | 7.9.2 | 2026-06-27 | Fix Step 2 — add --force to clawhub update. |
 | 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
