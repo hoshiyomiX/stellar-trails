@@ -1,5 +1,70 @@
 # Changelog
 
+## [8.0.0] — 2026-06-27
+
+### Changed — Major step restructure: 9 steps → 5, no silent failures
+
+**5 changes** requested by user:
+
+#### Change 1: Popup server moved to Step 2 (between refresh and clawhub update)
+
+**Old order**: Step 1 (refresh) → Step 2 (clawhub) → Step 3 (verify files) → Step 4 (popup server) → ...
+**New order**: Step 1 (refresh) → **Step 2 (popup server)** → Step 3 (clawhub) → ...
+
+**Why**: User requested popup server be inserted between Step 1 and Step 2. This ensures the popup is running BEFORE clawhub update — if clawhub update fails, the popup still works with the current version.
+
+#### Change 2: Verify files + sync zip merged into Step 4
+
+**Old**: Step 3 (verify files) + Step 5 (sync zip) = 2 separate steps
+**New**: Step 4 (verify files + sync zip) = 1 merged step with 2 sub-checks (4a + 4b)
+
+#### Change 3: Load phases + classify merged into Step 5
+
+**Old**: Step 6 (load phases) + Step 7 (classify) = 2 separate steps
+**New**: Step 5 (load phases + classify) = 1 merged step
+
+#### Change 4: Confirm activation + enter workflow deleted
+
+**Old**: Step 8 (confirm activation) + Step 9 (enter workflow)
+**New**: Deleted. The banner was already printed as FIRST OUTPUT — no need for a separate "confirm" step. "Enter the workflow" is implicit — after Step 5, the agent begins SPECIFY.
+
+#### Change 5: No silent failures — every step prints ✓/✗ status
+
+**Old**: Steps said "Expected: Silent if up-to-date" or "Usually silent." Failures were invisible.
+**New**: Every step prints `✓ Step N: <result>` on success or `✗ Step N FAILED: <error>` on failure. The user always knows what happened.
+
+**Step-by-step status output**:
+- Step 1: `✓ Step 1: context refreshed + SSV passed (vX.Y.Z)` or `✗ Step 1 FAILED: ...`
+- Step 2: `✓ Step 2: popup server running on :3000 (HTTP 200, mascot 200)` or `✗ Step 2 FAILED: ...`
+- Step 3: `✓ Step 3: up to date (vX.Y.Z)` or `✓ Step 3: updated vX.Y.Z → vA.B.C` or `✗ Step 3 FAILED: ...`
+- Step 4: `✓ Step 4a: all skill files present` + `✓ Step 4b: persistent zip synced` or `✗ FAILED`
+- Step 5: `✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES]`
+
+### New step structure (5 steps, was 9)
+
+| New Step | What | Old Steps |
+|----------|------|-----------|
+| 1 | Refresh context + SSV | old 1 (unchanged) |
+| 2 | Start popup server + verify mascot | old 4 (moved here) |
+| 3 | Auto-update via ClawHub | old 2 (shifted down) |
+| 4 | Verify files + sync zip | merged old 3 + 5 |
+| 5 | Load phases + classify | merged old 6 + 7 |
+| — | ~~Confirm activation~~ | old 8 (deleted) |
+| — | ~~Enter the workflow~~ | old 9 (deleted) |
+
+### Files Modified
+
+- `skill/stellar-trails/SKILL.md` — full Activation section rewrite (5 steps, no silent failures) + version bump 7.9.4 → 8.0.0
+- `README.md` — version badge + What's New + Version History
+- `skill/stellar-trails/README.md` — Version History entry
+- `skill/stellar-trails/CHANGELOG.md` — this entry
+
+### Version bump
+
+7.9.4 → 8.0.0 (minor — major step restructure, step count change 9→5, no breaking workflow changes)
+
+---
+
 ## [7.9.4] — 2026-06-27
 
 ### Fixed — Step 2: mandate re-read SKILL.md from disk AFTER clawhub update

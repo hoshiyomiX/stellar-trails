@@ -34,8 +34,8 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 7.9.4 | 2026-06-27 | Solution 2 — Step 2 mandates re-read SKILL.md from disk AFTER clawhub update. Closes cache gap. |
-| 7.9.3 | 2026-06-27 | Counter 3 LLM bypass patterns with explicit why arguments. |
+| 8.0.0 | 2026-06-27 | Major restructure: 9 steps → 5. Popup server moved to Step 2. Verify+sync merged to Step 4. Load+classify merged to Step 5. Confirm+enter deleted. Every step prints ✓/✗ status — no silent failures. |
+| 7.9.4 | 2026-06-27 | Step 2 re-read SKILL.md from disk after clawhub update. |
 | 7.9.2 | 2026-06-27 | Fix Step 2 — add --force to clawhub update. |
 | 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
 | 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |

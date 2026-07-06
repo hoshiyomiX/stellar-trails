@@ -17,13 +17,13 @@ metadata:
 
 ## Metadata
 
-- **version**: 7.9.4
+- **version**: 8.0.0
 
 ## Activation
 
 ### ⚠️ FIRST OUTPUT — Print this banner NOW, before anything else
 
-Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–9.
+Your VERY FIRST output to the user MUST be the activation banner below. Do not explain what you are about to do. Do not output any other text before this. Print this banner, then execute Steps 1–5.
 
 **Why you must print this EVERY invoke, even if it feels repetitive:**
 - After context truncation, you (the LLM) do not know whether you already printed the banner in a previous message. The user also does not know. The banner is the ONLY signal that the skill is active.
@@ -34,86 +34,89 @@ Your VERY FIRST output to the user MUST be the activation banner below. Do not e
 This is non-negotiable.
 
 ```
-☄️ STELLAR TRAILS · v7.9.4 · ACTIVE
+☄️ STELLAR TRAILS · v8.0.0 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
-└─ Activation checklist (1–9, every invoke) — executing:
+└─ Activation checklist (1–5, every invoke) — executing:
    ├─ 1  Refresh context + SSV            ...
-   ├─ 2  Auto-update via ClawHub          ...
-   ├─ 3  Verify skill files present       ...
-   ├─ 4  Start popup preview server       ...
-   ├─ 5  Sync persistent zip              ...
-   ├─ 6  Load phase intelligence          ...
-   ├─ 7  Classify                         ...
-   ├─ 8  Confirm activation               ...
-   └─ 9  Enter the workflow               ...
+   ├─ 2  Start popup server               ...
+   ├─ 3  Auto-update via ClawHub          ...
+   ├─ 4  Verify files + sync zip          ...
+   └─ 5  Load phases + classify           ...
 ```
 
-Replace `...` with `✓` as each step completes. The user needs to see this banner to know activation ran. If you skip this print, the user has no signal that the skill is active. This is non-negotiable.
+Replace `...` with `✓` as each step completes, `✗` if it fails. The user needs to see this banner to know activation ran. If you skip this print, the user has no signal that the skill is active. This is non-negotiable.
 
 ### Steps (execute after printing banner above)
 
-**Step 1 — Refresh context from disk + Source State Verification (SSV):**
+**Every step MUST print a status line.** No silent successes, no silent failures. If a step succeeds, print `✓ <step name>: <result>`. If a step fails, print `✗ <step name> FAILED: <error>`. The user must always know what happened.
+
+**Step 1 — Refresh context + SSV:**
 
 You MUST re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do NOT skip this step by trusting your cached context.
 
 **Why you must re-read from disk (not trust cache):**
 - The Skill() tool loads SKILL.md into your context at session start from a zip file that may be stale (last session's version).
-- Step 2 (clawhub update) may have just updated the on-disk SKILL.md to a newer version — but your cached context still has the old version.
-- If you trust cache, you execute outdated instructions. If you re-read from disk, you get the latest version that clawhub just installed.
+- Step 3 (clawhub update) may update the on-disk SKILL.md to a newer version — but your cached context still has the old version.
+- If you trust cache, you execute outdated instructions. If you re-read from disk, you get the latest version.
 - This is a 1-second Read tool call. The correctness benefit is enormous.
 
 If the on-disk version differs from your cached context, use the on-disk version as source of truth for ALL subsequent steps.
 
 If the task involves a git repository, run SSV:
 ```bash
-git fetch origin --quiet 2>/dev/null; git rev-list --count HEAD..origin/$(git branch --show-current 2>/dev/null || echo main) 2>/dev/null
+git fetch origin --quiet 2>/dev/null
+BEHIND=$(git rev-list --count HEAD..origin/$(git branch --show-current 2>/dev/null || echo main) 2>/dev/null)
+if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: local is $BEHIND commits behind origin — run git pull first"
+else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
 ```
-**Expected:** `0` (in sync) or a number (behind by N commits — run `git pull` first). Skip SSV for non-git tasks.
+**Expected:** `✓ Step 1: context refreshed + SSV passed (vX.Y.Z)`. If `✗ FAILED`, print the error and continue (graceful degradation). Skip SSV for non-git tasks — still print `✓ Step 1: context refreshed (vX.Y.Z)`.
 
-**Step 2 — Auto-update via ClawHub:**
+**Step 2 — Start popup server + verify mascot:**
+```bash
+SKILL_DIR="/home/z/my-project/skills/stellar-trails"; ZSCRIPTS="/home/z/my-project/.zscripts"
+if [ ! -f "$SKILL_DIR/chibi.svg" ]; then for REPO_CLONE in "/home/z/my-project/stellar-trails/skill/stellar-trails" "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" "$HOME/.stellar-trails-repo/skill/stellar-trails"; do [ -f "$REPO_CLONE/chibi.svg" ] && cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg" && break; done; fi
+if [ -d "$SKILL_DIR" ]; then mkdir -p "$ZSCRIPTS"; [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"; [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"; [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"; fi
+DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 ' && ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
+sleep 1
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null)
+MASCOT=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg 2>/dev/null)
+if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HTTP $HTTP, mascot $MASCOT)"; else echo "✗ Step 2 FAILED: popup server not responding (HTTP $HTTP)"; fi
+```
+**Expected:** `✓ Step 2: popup server running on :3000 (HTTP 200, mascot 200)`. If `✗ FAILED`, the popup won't work but the skill still functions — print the error and continue.
+
+**Step 3 — Auto-update via ClawHub:**
 ```bash
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
 LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-[ -n "$CURRENT" ] && [ -n "$LATEST" ] && [ "$CURRENT" != "$LATEST" ] && clawhub --no-input update stellar-trails --force 2>/dev/null && echo "stellar-trails: updated to v$LATEST" || true
+if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
+elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
+elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT)"
+else clawhub --no-input update stellar-trails --force 2>/dev/null && echo "✓ Step 3: updated v$CURRENT → v$LATEST" || echo "✗ Step 3 FAILED: clawhub update error"; fi
 ```
-**Expected:** Silent if up-to-date. If outdated, see "updating" + "updated" messages, then re-read SKILL.md from disk (see below). Safe: clawhub is native z.ai CLI, no curl, no .usermark.
+**Expected:** `✓ Step 3: up to date (vX.Y.Z)` or `✓ Step 3: updated vX.Y.Z → vA.B.C`. If `✗ FAILED`, print the error and continue with current version.
 
-**If clawhub updated the skill:** Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool NOW. Your cached context has the OLD version — the on-disk version is the source of truth for all remaining steps. This re-read is mandatory because clawhub just wrote a newer SKILL.md to disk, but your context still holds the pre-update version from Step 1.
+**If clawhub updated the skill:** Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool NOW. Your cached context has the OLD version — the on-disk version is the source of truth for all remaining steps.
 
-**Step 3 — Verify skill files present:**
-```bash
-test -f /home/z/my-project/skills/stellar-trails/SKILL.md && test -f /home/z/my-project/skills/stellar-trails/procedure/phases.md && echo "stellar-trails: skill files verified"
-```
-**Expected:** `stellar-trails: skill files verified`. If silent, a file is missing (graceful degradation).
-
-**Step 4 — Start popup preview server and verify mascot:**
-```bash
-SKILL_DIR="/home/z/my-project/skills/stellar-trails"; ZSCRIPTS="/home/z/my-project/.zscripts"
-if [ ! -f "$SKILL_DIR/chibi.svg" ]; then for REPO_CLONE in "/home/z/my-project/stellar-trails/skill/stellar-trails" "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" "$HOME/.stellar-trails-repo/skill/stellar-trails"; do [ -f "$REPO_CLONE/chibi.svg" ] && cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg" && echo "stellar-trails: chibi.svg restored from $REPO_CLONE" && break; done; fi
-if [ -d "$SKILL_DIR" ]; then mkdir -p "$ZSCRIPTS"; [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"; [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"; [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"; fi
-DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 ' && ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
-```
-**Expected:** Usually silent. Verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg` → HTTP 200. Double-fork ensures server survives shell exit.
-
-**Step 5 — Sync persistent zip:**
+**Step 4 — Verify files + sync zip:**
 ```bash
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"
-[ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ] && cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/"
+FILES_OK="yes"
+for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
+if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; fi
+if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4b: persistent zip synced" || echo "✗ Step 4b FAILED: zip sync error"; else echo "✗ Step 4b FAILED: directory not found ($SKILL_DIR or $USER_SKILLS_DIR)"; fi
 ```
-**Expected:** Silent. Prevents version reversion on session restart (Bug #1 fix). Pure local file op.
+**Expected:** `✓ Step 4a: all skill files present` + `✓ Step 4b: persistent zip synced`. If any `✗ FAILED`, print the error and continue.
 
-**Step 6 — Load phase intelligence:**
+**Step 5 — Load phases + classify:**
+
 Read `procedure/phases.md` now. Also load the artifact template and knowledge files matching the current task from the Phase References table below.
 
-**Step 7 — Classify:**
-Determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (check preceding assistant message — if user references, approves, or follows up, this is a continuation; see Session Continuity below).
+Then determine: complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (check preceding assistant message — if user references, approves, or follows up, this is a continuation; see Session Continuity below).
 
-**Step 8 — Confirm activation:**
-Your banner was already printed as FIRST OUTPUT above. Update the `✓` marks to show all steps 1–8 completed. If you haven't printed the banner yet, STOP and print it now.
+Print: `✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES]`
 
-**Step 9 — Enter the workflow:**
-Begin SPECIFY (or IMPLEMENT if continuation detected). All phases always run.
+**After Step 5:** Begin SPECIFY (or IMPLEMENT if continuation detected). All phases always run. Update the banner `✓` marks — all 5 steps should show `✓` (or `✗` for failures). Then proceed to the task.
 
 ### ⚠️ MID OUTPUT — Print COMMIT block at end of PLAN (Standard/Complex only)
 

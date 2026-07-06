@@ -6,7 +6,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-7.9.4-blue.svg)](skill/stellar-trails/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-8.0.0-blue.svg)](skill/stellar-trails/CHANGELOG.md)
 [![Latest](https://img.shields.io/badge/tag-latest-brightgreen.svg)](https://github.com/hoshiyomiX/stellar-trails/releases/tag/latest)
 [![Language](https://img.shields.io/badge/language-Markdown-4EAA25.svg)]()
 [![Platform](https://img.shields.io/badge/platform-z.ai-7C3AED.svg)](https://z.ai)
@@ -42,7 +42,7 @@ clawhub install stellar-trails
 - ✓ ClawHub handles storage, extraction, and version tracking
 - ✓ Moderation status: CLEAN (no suspicious patterns)
 
-**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v7.9.4 · ACTIVE`.
+**After install:** Invoke via `Skill(command="stellar-trails")` — banner `☄️ STELLAR TRAILS · v8.0.0 · ACTIVE`.
 
 **Update to latest version:**
 ```bash
@@ -99,7 +99,8 @@ The workflow handles the rest. Release asset + `latest` tag update automatically
 
 ### What's New
 
-- **v7.9.4**: Solution 2 — Step 2 now mandates re-read SKILL.md from disk AFTER clawhub update. Closes the cache gap: Step 1 reads from disk (may be stale) → Step 2 clawhub updates disk → Step 2 re-reads from disk (now fresh). LLM no longer executes outdated instructions post-update.
+- **v8.0.0**: Major step restructure — 9 steps condensed to 5. (1) Popup server moved to Step 2 (between refresh and clawhub update). (2) Verify files + sync zip merged into Step 4. (3) Load phases + classify merged into Step 5. (4) Confirm activation + enter workflow steps deleted. (5) Every step now prints ✓/✗ status — no silent failures. If a step fails, the error is printed explicitly.
+- **v7.9.4**: Step 2 re-read SKILL.md from disk after clawhub update.
 - **v7.9.3**: Counter 3 LLM bypass patterns with explicit why arguments.
 - **v7.9.2**: Fix Step 2 — add `--force` to `clawhub update`.
 - **v7.9.1**: SSV merged into Step 1 + MID OUTPUT mandate.
@@ -224,7 +225,8 @@ Structured 5-step decision tree: **capture → classify → identify actions →
 
 | Version | Summary |
 |---------|---------|
-| [**v7.9.4**](skill/stellar-trails/CHANGELOG.md) | Solution 2 — Step 2 mandates re-read SKILL.md from disk AFTER clawhub update. Closes cache gap: Step 1 reads (stale) → Step 2 updates disk → Step 2 re-reads (fresh). |
+| [**v8.0.0**](skill/stellar-trails/CHANGELOG.md) | Major restructure: 9 steps → 5. Popup server moved to Step 2. Verify+sync merged to Step 4. Load+classify merged to Step 5. Confirm+enter deleted. Every step prints ✓/✗ status — no silent failures. |
+| [**v7.9.4**](skill/stellar-trails/CHANGELOG.md) | Step 2 re-read SKILL.md from disk after clawhub update. |
 | [**v7.9.3**](skill/stellar-trails/CHANGELOG.md) | Counter 3 LLM bypass patterns with explicit why arguments. |
 | [**v7.9.2**](skill/stellar-trails/CHANGELOG.md) | Fix Step 2 — add `--force` to `clawhub update`. |
 | [**v7.9.1**](skill/stellar-trails/CHANGELOG.md) | SSV merged into Step 1 + MID OUTPUT mandate. |
