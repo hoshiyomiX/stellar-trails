@@ -35,13 +35,13 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 | Feature | Description |
 |---------|-------------|
-| Phase State Machine | IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER |
+| Workflow Phases | IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER |
 | Traceability IDs | IMPL-001 chains through every phase — gaps are visible |
 | Adaptive Complexity | Minimal/Simple/Standard/Complex tiers |
 | Source Verification | SSV (git fetch before analysis) + SADC (research before planning) |
 | File-based Memory | Permanent Memory + dated files for cross-session continuity |
 | Error Decision Tree | 5-step: capture → classify → identify → fix → re-verify |
-| Stateless by Design | No shell execution in Skill() invoke — pure markdown data |
+| Pure Markdown by Design | No shell execution in Skill() invoke — pure markdown data |
 
 ## Install
 

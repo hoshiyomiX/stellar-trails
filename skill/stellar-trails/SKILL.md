@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 8.0.0
+- **version**: 8.0.1
 
 ## Activation
 
@@ -34,7 +34,7 @@ Your VERY FIRST output to the user MUST be the activation banner below. Do not e
 This is non-negotiable.
 
 ```
-☄️ STELLAR TRAILS · v8.0.0 · ACTIVE
+☄️ STELLAR TRAILS · v8.0.1 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–5, every invoke) — executing:
@@ -143,7 +143,7 @@ This framework structures all work as a six-phase workflow. It activates for eve
 
 This framework is text in a skill file. It relies on the LLM reading it to follow the instructions closely. The activation banner (FIRST OUTPUT) and delivery report (LAST OUTPUT) are mandatory — they are the user's only signals that the workflow ran. Skipping either is a correctness bug, not a style preference. The QA Attestation is self-graded — useful as a confidence signal. The user is the final judge of quality.
 
-## Phase State Machine
+## Workflow Phases
 
 ```
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
@@ -410,7 +410,7 @@ To illustrate how Stellar Trails handles a real task, here is a typical prompt a
 **User prompt**: "Build me a PDF report summarizing Q4 sales"
 
 **Stellar Trails handling**:
-1. **Activation Steps 1–9 run** (banner printed with ✓ marks)
+1. **Activation Steps 1–5 run** (banner printed with ✓ marks)
 2. **SPECIFY**:
    - AskUserQuestion (audience? length? style? — skip only if user pinned all 3)
    - SADC subagent (search "Python PDF report libraries" → web-reader → returns: reportlab + fpdf2 + gotchas)

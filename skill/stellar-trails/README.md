@@ -34,7 +34,7 @@ For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 8.0.0 | 2026-06-27 | Major restructure: 9 steps → 5. Popup server moved to Step 2. Verify+sync merged to Step 4. Load+classify merged to Step 5. Confirm+enter deleted. Every step prints ✓/✗ status — no silent failures. |
+| 8.0.1 | 2026-06-27 | Major restructure: 9 steps → 5. Popup server moved to Step 2. Verify+sync merged to Step 4. Load+classify merged to Step 5. Confirm+enter deleted. Every step prints ✓/✗ status — no silent failures. |
 | 7.9.4 | 2026-06-27 | Step 2 re-read SKILL.md from disk after clawhub update. |
 | 7.9.2 | 2026-06-27 | Fix Step 2 — add --force to clawhub update. |
 | 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
@@ -89,14 +89,14 @@ stellar-trails/                   (repo root)
 
 ## What's Inside
 
-- **Phase State Machine**: IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER (with error recovery loop)
+- **Workflow Phases**: IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER (with error recovery loop)
 - **Traceability IDs**: IMPL-001, IMPL-002... chain through every phase
 - **Adaptive Complexity**: Minimal, Simple, Standard, Complex tiers
 - **Source State Verification (SSV)**: git fetch before analysis
 - **Source Availability & Documentation Check (SADC)**: research before planning
 - **File-based Memory**: evergreen + dated files, bounded budget
 - **Error Decision Tree**: 5-step capture → classify → identify → fix → re-verify
-- **Stateless by Design**: no shell execution in Skill() invoke, pure markdown data
+- **Pure Markdown by Design**: no shell execution in Skill() invoke, pure markdown data
 
 ## Persistence Model (ZAI Platform)
 
@@ -106,4 +106,4 @@ stellar-trails/                   (repo root)
 | ZAI service auto-extract | `/app/main.py` extracts zip to `skills/stellar-trails/` at session start | ✓ (re-extracted every session) |
 | `.stellar-trails.usermark` | Marker "skill approved" in PolarFS | ✓ |
 
-No shell execution in Skill() invoke. No `.zscripts/` persistent backup. No `~/.stellar-trails.log`. Pure markdown data, stateless skill.
+No shell execution in Skill() invoke. No `.zscripts/` persistent backup. No `~/.stellar-trails.log`. Pure markdown data.

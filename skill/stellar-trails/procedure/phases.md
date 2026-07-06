@@ -1,4 +1,4 @@
-# Phase State Machine
+# Workflow Phases
 
 Each phase produces a concrete artifact that the next phase consumes. Skipping a phase means the next phase has no input to work from, which makes the gap visible and correctable.
 
