@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 8.0.2
+- **version**: 8.0.3
 
 ## Activation
 
@@ -34,7 +34,7 @@ Your VERY FIRST output to the user MUST be the activation banner below. Do not e
 This is non-negotiable.
 
 ```
-☄️ STELLAR TRAILS · v8.0.2 · ACTIVE
+☄️ STELLAR TRAILS · v8.0.3 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–5, every invoke) — executing:
@@ -98,24 +98,36 @@ else clawhub --no-input update stellar-trails --force 2>/dev/null && echo "✓ S
 
 **If clawhub updated the skill:** Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool NOW. Your cached context has the OLD version — the on-disk version is the source of truth for all remaining steps.
 
-**Step 4 — Verify files + sync .zscripts/ + sync zip:**
+**Step 4 — Verify files + force-override .zscripts/ + restart dev.sh + sync zip:**
 ```bash
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"; ZSCRIPTS="/home/z/my-project/.zscripts"
 FILES_OK="yes"
 for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
 if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; fi
-# Re-sync .zscripts/ from skill dir (Step 2 may have copied stale files before Step 3 clawhub update)
-if [ -d "$SKILL_DIR" ] && [ -d "$ZSCRIPTS" ]; then
-  [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
-  [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
-  [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
-  echo "✓ Step 4b: .zscripts/ re-synced from skill dir (post-clawhub-update)"
-else echo "✗ Step 4b FAILED: could not re-sync .zscripts/ — directory missing"; fi
-if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4c: persistent zip synced" || echo "✗ Step 4c FAILED: zip sync error"; else echo "✗ Step 4c FAILED: directory not found ($SKILL_DIR or $USER_SKILLS_DIR)"; fi
+# Force-override .zscripts/ with latest files from skill dir (unconditional, even if popup already running)
+mkdir -p "$ZSCRIPTS"
+[ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
+[ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
+[ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
+echo "✓ Step 4b: .zscripts/ force-overridden with latest files"
+# Restart dev.sh: kill old process on :3000, start fresh with new files
+OLD_PID=$(ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
+if [ -n "$OLD_PID" ]; then kill "$OLD_PID" 2>/dev/null; sleep 1; echo "✓ Step 4c: old dev.sh (PID $OLD_PID) killed"; fi
+DEV_SH="$ZSCRIPTS/dev.sh"
+if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
+  HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null)
+  if [ "$HTTP" = "200" ]; then echo "✓ Step 4d: dev.sh restarted on :3000 (HTTP $HTTP)"; else echo "✗ Step 4d FAILED: dev.sh restart failed (HTTP $HTTP)"; fi
+else echo "✗ Step 4d FAILED: dev.sh not found at $DEV_SH"; fi
+if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4e: persistent zip synced" || echo "✗ Step 4e FAILED: zip sync error"; else echo "✗ Step 4e FAILED: directory not found"; fi
 ```
-**Expected:** `✓ Step 4a: all skill files present` + `✓ Step 4b: .zscripts/ re-synced from skill dir (post-clawhub-update)` + `✓ Step 4c: persistent zip synced`. If any `✗ FAILED`, print the error and continue.
+**Expected:** `✓ Step 4a` + `✓ Step 4b: .zscripts/ force-overridden` + `✓ Step 4c: old dev.sh killed` (or skipped if no old process) + `✓ Step 4d: dev.sh restarted` + `✓ Step 4e: persistent zip synced`. If any `✗ FAILED`, print the error and continue.
 
-**Why Step 4b is critical:** Step 2 copies files to .zscripts/ BEFORE Step 3 (clawhub update). If clawhub updates the skill dir in Step 3, .zscripts/ still has the OLD files. Step 4b re-syncs .zscripts/ AFTER the clawhub update, ensuring the popup server always serves the latest index.html, chibi.svg, and dev.sh. Without this, the popup shows stale content even after a skill update.
+**Why Step 4b-4d are critical:** When clawhub updates the skill (Step 3), the skill dir gets new files. But the popup server (dev.sh) is still running with OLD files in .zscripts/ and serving them from memory. Even if you cp new files to .zscripts/, the running dev.sh process won't pick them up because Python's SimpleHTTPRequestHandler reads files on each request — BUT if dev.sh itself was updated (e.g., new port, new headers), the old process is still running the old code. So we MUST:
+1. Force-override .zscripts/ files (Step 4b) — ensures disk has latest files
+2. Kill old dev.sh process (Step 4c) — stops the stale server
+3. Start fresh dev.sh (Step 4d) — launches new server with new code + new files
+
+This is unconditional — runs every invoke, even if popup was already running. The cost is ~2 seconds (kill + restart). The benefit: popup always serves the exact version that clawhub just installed.
 
 **Step 5 — Load phases + classify:**
 
