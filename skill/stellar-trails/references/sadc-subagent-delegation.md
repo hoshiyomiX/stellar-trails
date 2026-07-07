@@ -11,12 +11,12 @@ For Standard/Complex tier tasks, delegate SADC research to a `Task` subagent (su
 
 ## Subagent Workflow
 
-1. **`Skill(command="web-search")`** — search for existing packages, libraries, or patterns matching the task domain. Examples:
+1. **`Skill(command="exa-search")`** — search for existing packages, libraries, or patterns matching the task domain. Examples:
    - "Python library for PDF text extraction"
    - "Next.js 16 authentication middleware patterns"
    - "matplotlib Chinese font configuration"
 
-2. **`Skill(command="web-reader")`** — extract full content from the top 3-5 most relevant URLs returned by web-search. Focus on: official docs, README, getting-started guides.
+2. **`Skill(command="crawl4ai")`** — extract full content from the top 3-5 most relevant URLs returned by exa-search. Focus on: official docs, README, getting-started guides.
 
 3. **Return to main agent**: a concise summary (≤500 words) covering:
    - Existing solutions found (name + URL + 1-line description)
