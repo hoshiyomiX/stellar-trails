@@ -152,30 +152,50 @@ jobs:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
         run: |
           if [ -z "$CLAWHUB_TOKEN" ]; then
-            echo "⚠️ CLAWHUB_TOKEN secret not set — skipping ClawHub publish"
-            echo "Set it in: Settings → Secrets and variables → Actions → New repository secret"
-            echo "Name: CLAWHUB_TOKEN, Value: your ClawHub API token (clh_...)"
-            exit 0
+            echo "::error::CLAWHUB_TOKEN secret not set — ClawHub publish cannot proceed"
+            echo "::error::Set it in: Settings → Secrets and variables → Actions → New repository secret"
+            echo "::error::Name: CLAWHUB_TOKEN, Value: your ClawHub API token (clh_...)"
+            echo "::error::This is a REQUIRED secret — without it, clawhub update will never get the new version"
+            exit 1
           fi
           npm install -g clawhub 2>/dev/null || true
-          clawhub login --token "$CLAWHUB_TOKEN"
+          if ! clawhub login --token "$CLAWHUB_TOKEN" 2>/dev/null; then
+            echo "::error::clawhub login failed — token may be expired or invalid"
+            echo "::error::Generate a new token at clawhub.ai and update the CLAWHUB_TOKEN secret"
+            exit 1
+          fi
+          echo "✓ ClawHub login successful"
           # Check if version already exists on ClawHub (skip if already published manually)
           EXISTING=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           if [ "$EXISTING" = "${{ steps.version.outputs.version }}" ]; then
             echo "ℹ️ stellar-trails@${{ steps.version.outputs.version }} already published to ClawHub — skipping"
             exit 0
           fi
+          echo "Publishing stellar-trails@${{ steps.version.outputs.version }} to ClawHub..."
           clawhub skill publish "$GITHUB_WORKSPACE/skill/stellar-trails" \
             --slug stellar-trails \
             --version ${{ steps.version.outputs.version }} \
             --source-repo ${{ github.server_url }}/${{ github.repository }} \
             --source-commit ${{ github.sha }} \
-            --changelog "v${{ steps.version.outputs.version }} — see CHANGELOG.md" \
-            || {
-              echo "⚠️ ClawHub publish failed (may already exist). Continuing..."
-              exit 0
-            }
-          echo "✓ Published stellar-trails@${{ steps.version.outputs.version }} to ClawHub"
+            --changelog "v${{ steps.version.outputs.version }} — see CHANGELOG.md"
+          PUBLISH_EXIT=$?
+          if [ $PUBLISH_EXIT -ne 0 ]; then
+            echo "::error::clawhub skill publish failed with exit code $PUBLISH_EXIT"
+            echo "::error::This means clawhub update will NOT get v${{ steps.version.outputs.version }}"
+            echo "::error::Check: token permissions, ClawHub API status, skill slug conflicts"
+            echo "::error::Output from clawhub skill publish:"
+            exit 1
+          fi
+          # Verify the publish actually worked by checking the registry
+          sleep 5
+          PUBLISHED=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$PUBLISHED" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::ClawHub registry still shows v$PUBLISHED after publish (expected v${{ steps.version.outputs.version }})"
+            echo "::error::The publish command exited 0 but the registry was not updated."
+            echo "::error::This may be a ClawHub API issue or a rate limit. Retry the tag push."
+            exit 1
+          fi
+          echo "✓ Published stellar-trails@${{ steps.version.outputs.version }} to ClawHub (verified: registry shows v$PUBLISHED)"
 
       - name: Summary
         run: |
