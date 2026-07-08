@@ -189,7 +189,7 @@ All phases use their full templates with extra detail. Traceability IDs required
 5. Define verification strategy — what to check, how, and expected outcome.
 6. Read relevant knowledge files based on task type (see Phase References in SKILL.md).
 7. **Skill Chain** (if applicable): If the task requires multiple skills, define the skill sequence:
-   - Identify skills needed and their invocation order (e.g., web-search → data processing → chart generation → PDF output).
+   - Identify skills needed and their invocation order (e.g., exa-search → crawl4ai → chart generation → PDF output).
    - Assign skill-level Traceability IDs (SKILL-001, SKILL-002, ...) for each skill invocation.
    - Define intermediate artifacts between skill invocations.
    - Note: Skill invocations should be delegated to subagents when possible; the main agent orchestrates the chain.

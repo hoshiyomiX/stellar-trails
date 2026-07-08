@@ -11,12 +11,14 @@ For Standard/Complex tier tasks, delegate SADC research to a `Task` subagent (su
 
 ## Subagent Workflow
 
-1. **`Skill(command="exa-search")`** — search for existing packages, libraries, or patterns matching the task domain. Examples:
+1. **`Skill(command="web-search")`** — search for existing packages, libraries, or patterns matching the task domain. Examples:
    - "Python library for PDF text extraction"
    - "Next.js 16 authentication middleware patterns"
    - "matplotlib Chinese font configuration"
 
-2. **`Skill(command="crawl4ai")`** — extract full content from the top 3-5 most relevant URLs returned by exa-search. Focus on: official docs, README, getting-started guides.
+2. **`Skill(command="crawl4ai")`** (if available) or **`Skill(command="web-reader")`** (fallback) — extract full content from the top 3-5 most relevant URLs returned by web-search. Focus on: official docs, README, getting-started guides.
+
+   **How to check if crawl4ai is available**: Try `python3 -c "import crawl4ai"` — if it succeeds, use crawl4ai. If it fails with ModuleNotFoundError, fall back to web-reader.
 
 3. **Return to main agent**: a concise summary (≤500 words) covering:
    - Existing solutions found (name + URL + 1-line description)
@@ -39,7 +41,9 @@ Task(
   subagent_type: "general-purpose",
   prompt: "Research existing solutions for <task description>.
     1. Invoke Skill(command='web-search') with query: '<domain-specific query>'
-    2. From the top 5 results, invoke Skill(command='web-reader') on the 3 most relevant URLs
+    2. From the top 5 results, extract content from the 3 most relevant URLs.
+       Try Skill(command='crawl4ai') first. If crawl4ai fails (ModuleNotFoundError),
+       fall back to Skill(command='web-reader').
     3. Return a summary (≤500 words): existing solutions found, recommended approach, gotchas.
     If no existing solution, state explicitly: 'searched <sources>, no existing package found'.
     Pass Task ID: SADC-001. Read /home/z/my-project/worklog.md before starting.

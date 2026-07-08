@@ -17,7 +17,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 8.1.0
+- **version**: 8.2.0
 
 ## Activation
 
@@ -34,7 +34,7 @@ Your VERY FIRST output to the user MUST be the activation banner below. Do not e
 This is non-negotiable.
 
 ```
-☄️ STELLAR TRAILS · v8.1.0 · ACTIVE
+☄️ STELLAR TRAILS · v8.2.0 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–5, every invoke) — executing:
@@ -278,17 +278,17 @@ For Standard and Complex tasks, delegate SADC research to a subagent via the `Ta
 
 **Mandate**: For Standard/Complex tier tasks, launch a `Task` subagent (subagent_type: `general-purpose`) BEFORE writing the problem specification.
 
-**Workflow**: Subagent invokes `Skill(command="exa-search")` → `Skill(command="crawl4ai")` → returns ≤500-word summary (existing solutions, recommended approach, gotchas, or "no existing package found").
+**Workflow**: Subagent invokes `Skill(command="web-search")` to find existing solutions, then uses `Skill(command="crawl4ai")` (if available) or `Skill(command="web-reader")` to extract full content from top URLs → returns ≤500-word summary.
 
-**Skill preference**: Use `exa-search` (high-quality document search) and `crawl4ai` (live document → clean text extractor) instead of generic `web-search`/`web-reader` when available. If `exa-search` or `crawl4ai` are not installed, fall back to `web-search`/`web-reader`.
+**Skill preference**: Use `crawl4ai` (live document → clean text extractor) instead of generic `web-reader` when available. If `crawl4ai` is not installed or its Python package is not available, fall back to `web-reader`.
 
 **Skill Collaboration Matrix**:
 
 | Phase | Skill | When to invoke | Role |
 |-------|-------|----------------|------|
-| SPECIFY (SADC) | `exa-search` | Standard/Complex tasks — BEFORE writing problem-spec | Search for existing solutions, docs, patterns |
-| SPECIFY (SADC) | `crawl4ai` | After exa-search finds URLs | Extract full content from top 3-5 URLs → clean text |
-| VERIFY | `crawl4ai` | When verifying claims against docs | Pull live doc content to confirm "docs really say X" |
+| SPECIFY (SADC) | `web-search` | Standard/Complex tasks — BEFORE writing problem-spec | Search for existing solutions, docs, patterns |
+| SPECIFY (SADC) | `crawl4ai` or `web-reader` | After web-search finds URLs | Extract full content from top 3-5 URLs → clean text |
+| VERIFY | `crawl4ai` or `web-reader` | When verifying claims against docs | Pull live doc content to confirm "docs really say X" |
 | All phases | `stellar-trails` | Every Skill() invoke | Workflow framework — orchestrates when other skills are called |
 
 **Simple / Minimal tier**: Skip subagent delegation. Inline research is fine for these tiers.
@@ -445,7 +445,7 @@ To illustrate how Stellar Trails handles a real task, here is a typical prompt a
 1. **Activation Steps 1–5 run** (banner printed with ✓ marks)
 2. **SPECIFY**:
    - AskUserQuestion (audience? length? style? — skip only if user pinned all 3)
-   - SADC subagent (exa-search "Python PDF report libraries" → crawl4ai extract → returns: reportlab + fpdf2 + gotchas)
+   - SADC subagent (web-search "Python PDF report libraries" → crawl4ai/web-reader extract → returns: reportlab + fpdf2 + gotchas)
 3. **PLAN**: implementation-plan.md with IMPL-001..005 (Scope: reportlab approach, fallback fpdf2)
 4. **IMPLEMENT**: invoke `Skill(command="pdf")` to generate the report
 5. **VERIFY**: format check (PDF opens, page count matches spec) + completeness check (all required sections present)
