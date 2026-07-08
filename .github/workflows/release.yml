@@ -151,6 +151,7 @@ jobs:
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
         run: |
+          set -o pipefail  # propagate failures through pipes
           if [ -z "$CLAWHUB_TOKEN" ]; then
             echo "::error::CLAWHUB_TOKEN secret not set — ClawHub publish cannot proceed"
             echo "::error::Set it in: Settings → Secrets and variables → Actions → New repository secret"
@@ -158,37 +159,109 @@ jobs:
             echo "::error::This is a REQUIRED secret — without it, clawhub update will never get the new version"
             exit 1
           fi
-          npm install -g clawhub 2>/dev/null || true
-          if ! clawhub login --token "$CLAWHUB_TOKEN" 2>/dev/null; then
-            echo "::error::clawhub login failed — token may be expired or invalid"
-            echo "::error::Generate a new token at clawhub.ai and update the CLAWHUB_TOKEN secret"
+
+          # Pin CLI version so behavior is deterministic across runs.
+          # v0.23.1 is the version tested with this workflow.
+          npm install -g clawhub@0.23.1 || npm install -g clawhub
+          clawhub --cli-version
+
+          # Capture login output to a log so we can show WHY it failed if it does.
+          LOGIN_LOG=$(mktemp)
+          if ! clawhub login --token "$CLAWHUB_TOKEN" --label "github-actions-${{ github.run_id }}" >"$LOGIN_LOG" 2>&1; then
+            echo "::error::clawhub login failed — token may be expired, invalid, or revoked"
+            echo "::error::Login output:"
+            sed 's/^/::error::  /' "$LOGIN_LOG"
+            echo "::error::Generate a new token at https://clawhub.ai and update the CLAWHUB_TOKEN secret"
             exit 1
           fi
           echo "✓ ClawHub login successful"
-          # Check if version already exists on ClawHub (skip if already published manually)
-          EXISTING=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          if [ "$EXISTING" = "${{ steps.version.outputs.version }}" ]; then
-            echo "ℹ️ stellar-trails@${{ steps.version.outputs.version }} already published to ClawHub — skipping"
+
+          # Use --json for robust parsing. The text output format wraps fields in
+          # box-drawing chars and uses spaces (not colons), which previously broke
+          # the `^Latest:\s*\K[0-9.]+` regex — that regex never matched, so the
+          # "already published" branch was dead code.
+          inspect_json=$(clawhub inspect stellar-trails --json 2>/dev/null || echo '{}')
+          latest_on_registry=$(echo "$inspect_json" | python3 -c '
+            import json, sys
+            try:
+                  d = json.load(sys.stdin)
+            except Exception:
+                  print(""); sys.exit(0)
+            lv = d.get("latestVersion") or {}
+            print(lv.get("version") or "")
+          ' 2>/dev/null)
+
+          echo "Registry state for stellar-trails: latest=${latest_on_registry:-<not found / hidden>}"
+
+          # If skill was soft-deleted (slug reserved but hidden), restore it first.
+          # undelete is idempotent: if the skill is not in deleted state, the
+          # command returns an error which we ignore. This step is necessary
+          # because `clawhub skill publish --slug X` is rejected when slug X is
+          # in deleted/hidden state — ClawHub requires the slug to be restored
+          # before a new version can be published under it.
+          UNDELETE_LOG=$(mktemp)
+          if clawhub undelete stellar-trails --yes >"$UNDELETE_LOG" 2>&1; then
+            echo "✓ stellar-trails was in deleted state — restored"
+          else
+            # Not deleted (or already active) — expected in normal operation.
+            echo "ℹ️ undelete skipped (skill not in deleted state, or already active)"
+            # Show the message in case it's something unexpected (not 'not deleted').
+            head -3 "$UNDELETE_LOG" | sed 's/^/   /'
+          fi
+
+          # Skip publish if the exact version is already on the registry.
+          if [ "$latest_on_registry" = "${{ steps.version.outputs.version }}" ]; then
+            echo "ℹ️ stellar-trails@${{ steps.version.outputs.version }} already on registry — skipping publish"
             exit 0
           fi
+
           echo "Publishing stellar-trails@${{ steps.version.outputs.version }} to ClawHub..."
+          PUBLISH_LOG=$(mktemp)
           clawhub skill publish "$GITHUB_WORKSPACE/skill/stellar-trails" \
             --slug stellar-trails \
             --version ${{ steps.version.outputs.version }} \
             --source-repo ${{ github.server_url }}/${{ github.repository }} \
             --source-commit ${{ github.sha }} \
-            --changelog "v${{ steps.version.outputs.version }} — see CHANGELOG.md"
+            --changelog "v${{ steps.version.outputs.version }} — see CHANGELOG.md" \
+            >"$PUBLISH_LOG" 2>&1
           PUBLISH_EXIT=$?
+
           if [ $PUBLISH_EXIT -ne 0 ]; then
             echo "::error::clawhub skill publish failed with exit code $PUBLISH_EXIT"
+            echo "::error::Full output from clawhub skill publish:"
+            sed 's/^/::error::  /' "$PUBLISH_LOG"
             echo "::error::This means clawhub update will NOT get v${{ steps.version.outputs.version }}"
-            echo "::error::Check: token permissions, ClawHub API status, skill slug conflicts"
-            echo "::error::Output from clawhub skill publish:"
+            echo "::error::Likely causes:"
+            echo "::error::  - Slug 'stellar-trails' is in deleted state — undelete step above should have handled this"
+            echo "::error::  - Token lacks publish permission for this slug"
+            echo "::error::  - ClawHub API is down (check https://clawhub.ai)"
             exit 1
           fi
-          # Verify the publish actually worked by checking the registry
-          sleep 10
-          PUBLISHED=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          echo "✓ clawhub skill publish exited 0"
+          # Show publish output (usually includes the new version URL)
+          sed 's/^/  /' "$PUBLISH_LOG"
+
+          # Verify the publish actually worked by re-checking the registry.
+          # Registry read-after-write may lag by a few seconds; retry up to 3 times.
+          PUBLISHED=""
+          for attempt in 1 2 3; do
+            sleep 5
+            verify_json=$(clawhub inspect stellar-trails --json 2>/dev/null || echo '{}')
+            PUBLISHED=$(echo "$verify_json" | python3 -c '
+              import json, sys
+              try:
+                  d = json.load(sys.stdin)
+              except Exception:
+                  print(""); sys.exit(0)
+              lv = d.get("latestVersion") or {}
+              print(lv.get("version") or "")
+            ' 2>/dev/null)
+            if [ "$PUBLISHED" = "${{ steps.version.outputs.version }}" ]; then
+              break
+            fi
+            echo "  attempt $attempt: registry shows v${PUBLISHED:-<not found>} (expected v${{ steps.version.outputs.version }})"
+          done
+
           if [ "$PUBLISHED" != "${{ steps.version.outputs.version }}" ]; then
             echo "⚠️ ClawHub registry shows v${PUBLISHED:-unknown} after publish (expected v${{ steps.version.outputs.version }})"
             echo "⚠️ The publish command exited 0 and reported success."
