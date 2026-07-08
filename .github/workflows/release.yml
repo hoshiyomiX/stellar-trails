@@ -181,15 +181,10 @@ jobs:
           # the `^Latest:\s*\K[0-9.]+` regex — that regex never matched, so the
           # "already published" branch was dead code.
           inspect_json=$(clawhub inspect stellar-trails --json 2>/dev/null || echo '{}')
-          latest_on_registry=$(echo "$inspect_json" | python3 -c '
-            import json, sys
-            try:
-                  d = json.load(sys.stdin)
-            except Exception:
-                  print(""); sys.exit(0)
-            lv = d.get("latestVersion") or {}
-            print(lv.get("version") or "")
-          ' 2>/dev/null)
+          # Single-line python script — multi-line scripts had IndentationError
+          # because bash preserves leading whitespace inside quotes.
+          # || echo "" handles invalid JSON (clawhub inspect failure → 404 page).
+          latest_on_registry=$(echo "$inspect_json" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
 
           echo "Registry state for stellar-trails: latest=${latest_on_registry:-<not found / hidden>}"
 
@@ -247,15 +242,7 @@ jobs:
           for attempt in 1 2 3; do
             sleep 5
             verify_json=$(clawhub inspect stellar-trails --json 2>/dev/null || echo '{}')
-            PUBLISHED=$(echo "$verify_json" | python3 -c '
-              import json, sys
-              try:
-                  d = json.load(sys.stdin)
-              except Exception:
-                  print(""); sys.exit(0)
-              lv = d.get("latestVersion") or {}
-              print(lv.get("version") or "")
-            ' 2>/dev/null)
+            PUBLISHED=$(echo "$verify_json" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
             if [ "$PUBLISHED" = "${{ steps.version.outputs.version }}" ]; then
               break
             fi
