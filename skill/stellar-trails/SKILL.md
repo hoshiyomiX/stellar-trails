@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.1.0
+- **version**: 9.2.0
 
 ---
 
@@ -312,6 +312,171 @@ Git rules (override defaults):
 - `git fetch` and inspect before `git pull` — if remote diverged, stop and ask
 - No `git rebase`, `git reset`, `git push --force`, or `git merge` without explicit user instruction
 - If git is blocked by infrastructure, stop all git operations and inform the user
+
+---
+
+## Implementation Discovery Protocol (NEW in v9.2.0)
+
+**Problem this solves**: While implementing a fix for bug X, the agent discovers bug Y in the same area. Two failure modes disrupt the workflow:
+
+- **Silent fix Y** → user sees unexpected changes in the diff, cannot tell what was planned vs. discovered. Scope Drift without acknowledgment.
+- **Silent skip Y** → Y is forgotten, surfaces later as a "new" bug, wasting a future audit cycle.
+
+This pattern occurred twice during this skill's own development:
+- v9.0.1 task was "fix Step 3 regex + add undelete" → discovered python3 `IndentationError` in the new code I just wrote (same surface, fixed in v9.0.2)
+- v9.1.0 audit found 5 bugs → while patching, discovered the v9.0.2 phases.md had 2 additional memory/ references I missed in the initial audit (same surface, fixed in same commit)
+
+**Rule**: Do NOT silently fix Y. Do NOT silently skip Y. Either choice disrupts the workflow.
+
+### Protocol
+
+When you discover bug Y while implementing fix for bug X:
+
+1. **STOP** implementation momentarily. Do not race ahead.
+
+2. **DOCUMENT** the discovery immediately — append to `/home/z/my-project/worklog.md`:
+   ```
+   discovery: <Y one-line> | found while: <X one-line> | surface: <same|different> | action: <fix-now|defer>
+   ```
+
+3. **CLASSIFY** using the Same-Surface Test:
+   - **Same surface** (same file, same function, same root cause, same bash block):
+     → **FIX NOW** in the same commit
+     → Update Scope: add Y to Scope IN
+     → Note in delivery report: `Scope Drift: +Y (discovered while fixing X, same surface)`
+   - **Different surface** (different file, different system, different root cause):
+     → **DEFER** to next iteration
+     → Add Y to "Deferred Discoveries" section in delivery report
+     → Log Y to worklog with `next_step: investigate Y in next iteration`
+
+4. **RESUME** implementation with updated scope (if fix-now) or original scope (if defer).
+
+5. **NEVER LOSE TRACK** of the original task. The DELIVER worklog snapshot must include BOTH X and Y status:
+   - X: completed (in this iteration)
+   - Y: completed (fix-now, same commit) OR deferred (next iteration)
+
+### Same-Surface Test Decision Tree
+
+```
+Discovered bug Y while fixing bug X
+         │
+         ├─ Is Y in the same file as X's fix?
+         │    ├─ YES → likely same surface
+         │    └─ NO  → likely different surface (DEFER)
+         │
+         ├─ Is Y's root cause the same as X's root cause?
+         │    ├─ YES → same surface (FIX NOW)
+         │    └─ NO  → different surface (DEFER)
+         │
+         ├─ Does fixing Y require changing code outside X's blast radius?
+         │    ├─ NO  → same surface (FIX NOW)
+         │    └─ YES → different surface (DEFER)
+         │
+         └─ Would deferring Y cause X's fix to fail CI / verification?
+              ├─ YES → same surface (FIX NOW, mandatory)
+              └─ NO  → defer is safe
+```
+
+### Anti-patterns (FORBIDDEN)
+
+- ❌ "I'll just fix Y real quick while I'm here" — no documentation, user sees surprise changes
+- ❌ "Y is small, I'll mention it in the commit message" — commit messages are not delivery reports
+- ❌ "Y is unrelated, I'll skip it" — without logging, Y is forgotten forever
+- ❌ "I found 3 more bugs, let me fix them all" — without classification, scope explodes silently
+
+### Worked example (from this skill's history)
+
+**v9.0.1 → v9.0.2 transition**:
+- Original task: "fix Step 3 broken regex + add undelete step"
+- Discovery: while writing the new `python3 -c` block for Step 3, used multi-line indented python inside single-quoted bash string → `IndentationError`
+- Same-Surface Test: same file (SKILL.md), same bash block (Step 3), same root cause (my new code) → **FIX NOW**
+- Action: rewrote python3 -c as one-liner, pushed as v9.0.2
+- Delivery report Pivot field: "YES — discovered IndentationError while writing the regex fix"
+- Lesson: this protocol did not exist in v9.0.1, so the discovery was handled ad-hoc. v9.2.0 codifies the pattern.
+
+### Worklog entry format (when discovery occurs)
+
+```
+---
+last_phase: DELIVER
+task: <original task>
+complexity: <tier>
+task_type: <type>
+files_modified: <list>
+traceability: IMPL-001 to IMPL-XXX
+discoveries:
+  - bug: <Y one-line>
+    found_while: <X one-line>
+    surface: same|different
+    action: fix-now|defer
+    outcome: <fixed in this commit | deferred to next iteration>
+pivot: NONE | YES (discovery-driven)
+scope_drift: NONE | +Y (discovered while fixing X, same surface)
+next_step: <what user should do next>
+```
+
+---
+
+## Pre-Push Local Verification (NEW in v9.2.0)
+
+**Problem this solves**: Pushing code changes to CI without local verification wastes a CI cycle (~1-2 minutes per run) and creates a "push → fail → read logs → push again" loop. This happened during this skill's development:
+
+- v9.0.1 push → CI failed (python3 IndentationError) → read logs → v9.0.2 push → CI succeeded
+- The IndentationError would have been caught by running the bash block locally before pushing.
+
+**Rule**: Before pushing any change that triggers CI (especially workflow file changes or SKILL.md bash block changes), run the new code locally in the sandbox.
+
+### Verification checklist
+
+1. **SKILL.md bash block changes** — copy the new bash block to a temp script, execute it, verify the output matches expectations:
+   ```bash
+   # Extract the bash block from SKILL.md and run it
+   awk '/^```bash$/,/^```$/' skill/stellar-trails/SKILL.md | \
+     sed '1d;$d' > /tmp/test-skill-bash.sh
+   bash /tmp/test-skill-bash.sh
+   ```
+
+2. **Workflow file changes** (`.github/workflows/*.yml`) — simulate the bash locally:
+   - For `clawhub skill publish` calls: run `clawhub skill publish --dry-run` first
+   - For `python3 -c` blocks: run them with mock inputs (`echo '{}' | python3 -c '...'`)
+   - For YAML structure: `python3 -c "import yaml; yaml.safe_load(open('release.yml'))"`
+
+3. **Code changes that import new modules** — verify imports work locally:
+   ```bash
+   python3 -c "import <module>" || echo "MISSING: <module>"
+   ```
+
+4. **Schema/migration changes** — dry-run on local copy before pushing.
+
+### When to skip Pre-Push Local Verification
+
+- Documentation-only changes (CHANGELOG.md, README.md)
+- Version bump commits (just `sed` + commit)
+- Changes to files that have no executable code (pure markdown prose)
+
+### Cost-benefit
+
+- **Cost**: 30-60 seconds of local testing
+- **Benefit**: saves 1-2 minutes of CI cycle time per caught bug, plus the cognitive cost of context-switching back to fix the bug
+- **Break-even**: catches 1 bug per ~10 pushes → worth it for any non-trivial change
+
+### Worked example
+
+Before pushing v9.0.2 (the IndentationError fix), the agent should have run:
+
+```bash
+# Test the new python3 -c block locally with 3 input cases
+echo '{"latestVersion":{"version":"9.0.2"}}' | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')"
+# Expected: 9.0.2
+
+echo '{}' | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')"
+# Expected: (empty string)
+
+echo "Skill not found" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo ""
+# Expected: (empty string, with the || echo "" fallback)
+```
+
+If all 3 cases pass, push. If any fails, fix before pushing.
 
 ---
 
