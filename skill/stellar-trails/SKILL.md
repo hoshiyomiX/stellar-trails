@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.2.0
+- **version**: 9.2.1
 
 ---
 
@@ -108,7 +108,7 @@ if [ -d "$HOME/.stellar-trails-repo/.git" ]; then
   BRANCH=$(git -C "$HOME/.stellar-trails-repo" branch --show-current 2>/dev/null || echo main)
   BEHIND=$(git -C "$HOME/.stellar-trails-repo" rev-list --count HEAD..origin/$BRANCH 2>/dev/null)
   if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: skill repo is $BEHIND commits behind origin — run git -C $HOME/.stellar-trails-repo pull"
-  else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- **version**: \s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
+  else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
 else
   echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown)) — SSV skipped (no skill git repo)"
 fi
@@ -141,7 +141,24 @@ LATEST=$(clawhub inspect stellar-trails --json 2>/dev/null | python3 -c "import 
 if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
 elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT)"
-else clawhub --no-input update stellar-trails --force 2>/dev/null && echo "✓ Step 3: updated v$CURRENT → v$LATEST" || echo "✗ Step 3 FAILED: clawhub update error"; fi
+else
+  if clawhub --no-input update stellar-trails --force 2>/dev/null; then
+    # Sync the persistent zip immediately after a successful update.
+    # Without this, the zip stays stale until Step 4e runs — and if a session
+    # reset happens between this update and the next Skill() invoke, the stale
+    # zip re-extracts and downgrades skills/ back to the old version.
+    # (Fixes P2-NEW-1 from v9.2.0 audit.)
+    SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+    USER_SKILLS_DIR="/home/user_skills"
+    if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
+      cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" 2>/dev/null && echo "✓ Step 3: updated v$CURRENT → v$LATEST (zip synced)" || echo "✓ Step 3: updated v$CURRENT → v$LATEST (zip sync warning)"
+    else
+      echo "✓ Step 3: updated v$CURRENT → v$LATEST"
+    fi
+  else
+    echo "✗ Step 3 FAILED: clawhub update error"
+  fi
+fi
 ```
 
 If clawhub updated the skill: re-read SKILL.md from disk now. Cached context is stale.
