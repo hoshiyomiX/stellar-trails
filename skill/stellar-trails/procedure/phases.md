@@ -83,13 +83,9 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
    - **Data Processing**: ETL, analysis, transform, Python scripts
    - **Non-Coding**: Questions, explanations, recommendations
 
-5. **Memory system initialization (bash gate)** — run before transitioning:
-   ```bash
-   mkdir -p /home/z/my-project/memory && ([ -f /home/z/my-project/memory/MEMORY.md ] || touch /home/z/my-project/memory/MEMORY.md) && echo "✓ Memory: $(wc -c < /home/z/my-project/memory/MEMORY.md)/3000 chars"
-   ```
-   This enforces the memory system exists before any phase produces work. The character count check ensures MEMORY.md budget is visible at every IDLE entry.
+5. ~~Memory system initialization~~ **(REMOVED in v9.1.0)**: The `memory/` directory protocol was dead code — every instruction to "check memory/" was a no-op, and the bash gate created an empty MEMORY.md that nothing ever wrote to. The worklog (`/home/z/my-project/worklog.md`) is the SOLE continuity mechanism. Do not run any `memory/` initialization.
 
-6. Check `memory/MEMORY.md` for user preferences and key decisions. For context-truncation recovery, worklog (step 2a) takes priority over memory files.
+6. ~~Check `memory/MEMORY.md`~~ **(REMOVED in v9.1.0)**: The worklog is the sole continuity mechanism. Do not check, create, or write to any `memory/` path.
 
 7. If task involves git repository and session was continued from previous conversation (context compression boundary), flag repo as "state-uncertain" and require Source State Verification in SPECIFY.
 
@@ -251,11 +247,9 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
    ```
    For Standard/Complex, also include: `traceability: IMPL-XXX completed`, `pivot: NONE or brief`, `scope_drift: NONE or brief`.
 
-2. **Write session digest** to `memory/YYYY-MM-DD.md` (file created by IDLE bash gate). Append, don't overwrite:
-   - Compact (Simple/Minimal): `[HH:MM] task: <desc> | outcome: PASS/FAIL | files: <count> | incidents: <count>`
-   - Rich (Standard/Complex): `[HH:MM] task: <desc> | outcome: PASS/FAIL | files: <count> | incidents: <count>` + `decisions: <key decision>` + `context: <what informed approach>` + `caveats: <things to watch>`
+2. ~~Write session digest to `memory/YYYY-MM-DD.md`~~ **(REMOVED in v9.1.0)**: The worklog snapshot (step 0 above) is the sole continuity artifact. Do not write to any `memory/` path.
 
-3. **Check MEMORY.md budget** — if `memory/MEMORY.md` exceeds ~3000 chars, note in delivery. Print `✓ Memory budget: $(wc -c < /home/z/my-project/memory/MEMORY.md)/3000 chars`.
+3. ~~Check MEMORY.md budget~~ **(REMOVED in v9.1.0)**: No `memory/MEMORY.md` exists — worklog budget is the only relevant check (worklog snapshots are typically <500 bytes each, no budget concern).
 
 4. Summarize what was implemented, referencing Traceability IDs.
 
@@ -299,10 +293,7 @@ Before attempting any fix, classify the error:
 3. Complete incident report template (inline in SKILL.md `<template name="incident-report">`).
 4. Follow error resolution decision tree (`procedure/error-resolution.md`).
 5. Decision tree determines return phase — default VERIFY, but approach failures return to PLAN, specification gaps return to SPECIFY.
-6. **Log incident** to `memory/incidents.md` (append, one line):
-   ```
-   [YYYY-MM-DD] error: <type> | cause: <one-line root cause> | fix: <one-line fix>
-   ```
+6. **Log incident** to the worklog (`/home/z/my-project/worklog.md`) — append a new `---`-delimited section with `last_phase: DELIVER`, `task: incident: <one-line description>`, and standard fields. (Removed `memory/incidents.md` in v9.1.0 — `memory/` was dead code; worklog already serves this purpose.)
 
 ---
 

@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.0.2
+- **version**: 9.1.0
 
 ---
 
@@ -80,7 +80,7 @@ Your VERY FIRST output to the user is the activation banner below. No other text
 **Why print every invoke**: After context truncation, neither you nor the user know whether the banner was already printed. The banner is the only reliable signal that activation ran. Skipping it because "I already did it" is a correctness bug — you cannot reliably know what you did before truncation.
 
 ```
-☄️ STELLAR TRAILS · v9.0.0 · ACTIVE
+☄️ STELLAR TRAILS · v9.1.0 · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–5, every invoke) — executing:
@@ -98,10 +98,20 @@ Replace `...` with `✓` (success) or `✗` (failure) as each step completes.
 **Step 1 — Refresh context + SSV**: Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do not trust cached context — the on-disk version is source of truth. If task involves a git repo, run SSV:
 
 ```bash
-git fetch origin --quiet 2>/dev/null
-BEHIND=$(git rev-list --count HEAD..origin/$(git branch --show-current 2>/dev/null || echo main) 2>/dev/null)
-if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: local is $BEHIND commits behind origin — run git pull first"
-else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
+# SSV only runs if the skill has its own git repo at $HOME/.stellar-trails-repo/.
+# In the z.ai sandbox this directory usually does not exist (skill is installed
+# via clawhub, not git clone), so SSV is skipped gracefully. Running bare
+# `git fetch` from /home/z/my-project/ would operate on the sandbox workspace
+# repo — explicitly forbidden by knowledge/platform/zai-sandbox.md.
+if [ -d "$HOME/.stellar-trails-repo/.git" ]; then
+  git -C "$HOME/.stellar-trails-repo" fetch origin --quiet 2>/dev/null
+  BRANCH=$(git -C "$HOME/.stellar-trails-repo" branch --show-current 2>/dev/null || echo main)
+  BEHIND=$(git -C "$HOME/.stellar-trails-repo" rev-list --count HEAD..origin/$BRANCH 2>/dev/null)
+  if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: skill repo is $BEHIND commits behind origin — run git -C $HOME/.stellar-trails-repo pull"
+  else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- **version**: \s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
+else
+  echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown)) — SSV skipped (no skill git repo)"
+fi
 ```
 
 **Step 2 — Start popup server + verify mascot**:
@@ -117,11 +127,17 @@ MASCOT=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg 
 if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HTTP $HTTP, mascot $MASCOT)"; else echo "✗ Step 2 FAILED: popup server not responding (HTTP $HTTP)"; fi
 ```
 
+**z.ai sandbox note**: The popup server runs on `localhost:3000` inside the sandbox, but z.ai does NOT expose raw ports to the user's browser. The popup is only visible through the z.ai preview URL pattern: `https://preview-<bot-id>.space-z.ai/`. If the sandbox exposes a preview panel, the popup appears there; otherwise the popup runs but is invisible to the user (activation still succeeds — the popup is decorative, not functional). See `knowledge/platform/zai-sandbox.md` for details.
+
 **Step 3 — Auto-update via ClawHub**:
 
 ```bash
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
-LATEST=$(clawhub inspect stellar-trails 2>/dev/null | grep -oP '^Latest:\s*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+# Use --json for robust parsing. The previous text-output regex
+# `^Latest:\s*\K[0-9.]+` never matched the real output format
+# `│ Latest   X.Y.Z` (no colon, box-drawing prefix, multiple spaces).
+# Single-line python3 -c to avoid IndentationError from bash quote preservation.
+LATEST=$(clawhub inspect stellar-trails --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
 if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
 elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT)"
@@ -243,14 +259,18 @@ Before planning any implementation, verify the approach is grounded in real sour
 |-----------|-------------------|
 | **Minimal** | Skip — knowledge questions don't need source research |
 | **Simple** | Quick check — verify approach against at least one source |
-| **Standard** | Subagent delegation — launch `Task(subagent_type:'general-purpose')` BEFORE writing problem-spec. Print `📡 SADC subagent dispatched (Task ID SADC-XXX)` |
-| **Complex** | Deep research via subagent — multiple sources, compare approaches, document tradeoffs |
+| **Standard** | **Main agent inline research** — invoke `Skill(command="web-search")` then `Skill(command="crawl4ai")` or `web-reader` BEFORE writing problem-spec. Print `📡 SADC: main agent researching inline` |
+| **Complex** | Deep research by main agent — multiple sources, compare approaches, document tradeoffs |
 
-**Subagent mandate (Standard/Complex)**: Launch the SADC subagent BEFORE writing the problem specification. The subagent invokes `Skill(command="web-search")` to find existing solutions, then `Skill(command="crawl4ai")` (preferred) or `Skill(command="web-reader")` to extract content from top URLs → returns ≤500-word summary.
+**Main agent mandate (Standard/Complex)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then `Skill(command="crawl4ai")` (preferred) or `Skill(command="web-reader")` to extract content from top URLs → ≤500-word summary.
+
+**Why main agent, not subagent**: The z.ai sandbox mandates "Skill invocation and skill-driven file generation MUST be done by the main agent, NEVER by subagents." Subagents in z.ai do not have access to skill instructions, so a subagent that calls `Skill(command="web-search")` will fail silently. (Removed subagent delegation in v9.1.0 — see audit P0-2.)
 
 If no existing solution is found, state it explicitly — "searched npm/PyPI/docs, no existing package found" is a valid result. Building from scratch when a library exists is a spec-level defect.
 
-Full subagent delegation template: read `references/sadc-subagent-delegation.md` when launching.
+**When subagents ARE appropriate**: Subagents may be used for non-skill tasks (e.g., "summarize these 5 URLs", "compare these 2 code samples"). The main agent fetches content via skills first, then delegates pure-text analysis to subagents. The rule: skills are invoked by the main agent; subagents operate on text the main agent has already retrieved.
+
+Historical subagent delegation template (deprecated): see `references/sadc-subagent-delegation.md`.
 
 ---
 
