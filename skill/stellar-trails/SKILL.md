@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.2.1
+- **version**: 9.2.2
 
 ---
 
@@ -79,8 +79,10 @@ Your VERY FIRST output to the user is the activation banner below. No other text
 
 **Why print every invoke**: After context truncation, neither you nor the user know whether the banner was already printed. The banner is the only reliable signal that activation ran. Skipping it because "I already did it" is a correctness bug — you cannot reliably know what you did before truncation.
 
+**Banner version is DYNAMIC**: Read the version from the `## Metadata` section at the top of this file (the `- **version**: X.Y.Z` line). Substitute that version into the banner below where you see `<VERSION>`. Do NOT hardcode the version — every version bump must automatically reflect in the banner without editing this template. (Fixes the v9.2.1 bug where the banner was stuck at v9.1.0 because it was hardcoded.)
+
 ```
-☄️ STELLAR TRAILS · v9.1.0 · ACTIVE
+☄️ STELLAR TRAILS · v<VERSION> · ACTIVE
 ├─ Phase: IDLE → SPECIFY
 ├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
 └─ Activation checklist (1–5, every invoke) — executing:
