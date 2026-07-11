@@ -16,62 +16,24 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.2.2
-
----
-
-## Three Enforcement Layers (NEW in v9.0.0)
-
-This version adds three deterministic enforcement layers that shift compliance from LLM goodwill to verifiable artifacts. Every layer below produces a print, a file, or a turn-ending marker — none rely on the LLM "remembering" to do them.
-
-### E1 — Phase Machine Enforcement
-
-Every task passes through all six phases (IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). No phase is skipped, even for Minimal tier.
-
-**Mechanism**: Each phase entry requires a phase-marker print of the form `📍 ENTER <PHASE>` before any other phase work. Each phase exit requires `📍 EXIT <PHASE> → <NEXT>`. The DELIVER report's `Phase Trace` field lists every phase-marker pair. Missing markers = compliance bug.
-
-**Why**: Phase skipping is the #1 silent failure mode. The marker print makes skipping visible in the transcript, not invisible in the LLM's hidden reasoning.
-
-### E2 — Mandatory Print Enforcement (Banner / Report / Block)
-
-Three prints are mandatory and have exact syntax. Self-check before DELIVER:
-
-| Print | When | Required Syntax |
-|---|---|---|
-| Activation banner | FIRST output of session | See Activation section |
-| COMMIT [Standard] block | End of PLAN, before IMPLEMENT (Standard/Complex only) | See Deliveries → Scope |
-| Delivery REPORT block | LAST output of session | See Deliveries → Delivery/Summary/Minimal |
-
-**Mechanism**: Before printing the Delivery report, print a self-check line:
-```
-✓ Pre-DELIVER print check: banner=✓ commit=✓/N/A report=✓
-```
-If any mandatory print was missed, do not print the report — go back and emit it first.
-
-**Why**: Bookend prints are the only signal the user has that the workflow ran. Missing any one of them is treated as a correctness bug, not a style preference.
-
-### E3 — Preferences Dialog Enforcement (AskUserQuestion)
-
-For any decision point where the LLM would otherwise guess audience/style/length/format/scope, invoke `AskUserQuestion` BEFORE producing content. This applies to:
-
-- Deliverable-creation tasks (Document, Visualization, PPT, PDF, Excel, dashboard, poster, script) — MANDATORY unless original request pins audience + style + length
-- Mid-task scope decisions (e.g., "should I also do X?", "which approach: A or B?") — MANDATORY
-- Recovery decisions after Pivot (e.g., "fallback approach A or new approach B?") — MANDATORY
-- Simple clarifications ("did you mean X or Y?") — MANDATORY if ambiguity would change output
-
-**Skip conditions** (auto-bypass, no AskUserQuestion needed):
-- User explicitly says "skip questions" / "just do it" / "no questions"
-- Continuation task where prior turn already approved the approach
-- Coding/Data Processing tasks with no design dimensions (e.g., "fix this typo", "run this script")
-- Trivial one-shot edits (single number change, single typo fix)
-
-**Mechanism**: Print `✓ Preferences dialog check: <INVOKED | SKIPPED: <reason>>` before any content-producing tool call in SPECIFY. This makes the decision visible.
-
-**Why**: Guessing audience/style/length causes the most expensive rework in document tasks. One batched 30-second question round prevents hours of regeneration.
+- **version**: 9.3.0
 
 ---
 
 ## Activation
+
+### ⚠️ CRITICAL: Pre-Tool-Call Gate (E4 — Layer 1, NEW in v9.3.0)
+
+Before calling ANY tool (Read, Write, Bash, Edit, Grep, Glob, Task, etc.) in a session, the activation banner MUST have been printed AND Steps 1–5 must have been executed. If you are about to call a tool and have NOT printed the banner + completed all 5 steps, STOP and do activation FIRST.
+
+**Self-check before first tool call**:
+- Have I printed `☄️ STELLAR TRAILS · vX.Y.Z · ACTIVE`? → If NO, print it NOW
+- Have I executed Steps 1–5 with `✓`/`✗` marks? → If NO, execute them NOW
+- Have I printed `✓ Step 5`? → If NO, do not proceed to any tool
+
+This is a **HARD GATE**. No tool call may precede the banner + 5 steps. Violating this gate is a correctness bug, not a style preference.
+
+**Why this gate exists**: Audit of 5 prior sessions found 0/5 compliance with activation mandate. LLMs rationalize skipping ("continuation task", "simple task", "save tokens", "user didn't complain last time"). The gate makes skipping impossible to rationalize — you literally cannot call a tool until activation is done.
 
 ### FIRST OUTPUT — Print this banner, then execute Steps 1–5
 
@@ -192,6 +154,117 @@ if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_
 Print: `✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES]`
 
 After Step 5: Begin SPECIFY (or IMPLEMENT if continuation detected).
+
+### FORBIDDEN Rationalizations for Skipping Activation (E5 — Layer 3, NEW in v9.3.0)
+
+The following thoughts are **CORRECTNESS BUGS**, not valid optimizations. If you catch yourself thinking ANY of these, STOP and run activation NOW.
+
+❌ **"This is a continuation task, I don't need to re-activate"**
+   → WRONG. Continuation skips SPECIFY+PLAN, NOT activation. Every `Skill()` invoke requires fresh activation — after context truncation, you cannot reliably know what you did before.
+
+❌ **"This is a simple/trivial task, activation is overkill"**
+   → WRONG. SKILL.md says "every task gets a delivery report — no exceptions for simplicity." Minimal tier still requires banner + 5 steps + `☄️ PASS` report.
+
+❌ **"The session is already long, I'll save tokens by skipping"**
+   → WRONG. Activation takes ~2 seconds and ~500 tokens. From a 200K context budget, that's 0.25% — negligible. User cannot see your context length, so they cannot "understand" why you skipped.
+
+❌ **"I already printed the banner in a previous message"**
+   → WRONG. Per SKILL.md: "After context truncation, you cannot reliably know what you did." The banner is the ONLY signal to the user that activation ran. Print it every invoke.
+
+❌ **"The user didn't complain last time I skipped"**
+   → WRONG. User silence is not approval. The banner exists for the USER's benefit, not yours. They may have noticed but chosen not to comment, or they may not have realized skipping was a bug.
+
+❌ **"I'll just label it 'Minimal tier' and skip"**
+   → WRONG. Minimal tier still requires banner + 5 steps. The complexity tier affects REPORT FORMAT, not ACTIVATION REQUIREMENTS. All tiers must activate.
+
+❌ **"Pattern drift — I've skipped before and it was fine"**
+   → WRONG. Past skips were bugs, not precedent. Each invoke is independent; previous bugs do not authorize future bugs.
+
+❌ **"I'll print the report without activation, user won't notice"**
+   → WRONG. This is silent skipping — the WORST option. If you must skip (emergency only), use the Escape Hatch (E6 below) to make it visible. Silent skips hide failures from the user.
+
+### If You Must Skip Activation — Escape Hatch (E6 — Layer 5, NEW in v9.3.0)
+
+If you are under extreme context pressure (≥90% context used) and MUST skip activation:
+
+1. Print this EXACT line first: `⚠️ ACTIVATION SKIPPED — operating without banner`
+2. State the reason in one sentence (e.g., "Reason: 92% context used, emergency task")
+3. Acknowledge: `This is a correctness bug per SKILL.md E4 Pre-Tool-Call Gate.`
+4. Proceed with the task
+
+**Do NOT silently skip.** Silent skipping hides the failure from the user. A visible skip at least lets the user know they should verify the output more carefully.
+
+**Escape hatch is for emergencies only** — not for "I'm lazy" or "this is simple". Misusing the escape hatch is itself a correctness bug.
+
+---
+
+## Three Enforcement Layers (NEW in v9.0.0)
+
+This version adds three deterministic enforcement layers that shift compliance from LLM goodwill to verifiable artifacts. Every layer below produces a print, a file, or a turn-ending marker — none rely on the LLM "remembering" to do them.
+
+### E1 — Phase Machine Enforcement
+
+Every task passes through all six phases (IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). No phase is skipped, even for Minimal tier.
+
+**Mechanism**: Each phase entry requires a phase-marker print of the form `📍 ENTER <PHASE>` before any other phase work. Each phase exit requires `📍 EXIT <PHASE> → <NEXT>`. The DELIVER report's `Phase Trace` field lists every phase-marker pair. Missing markers = compliance bug.
+
+**Why**: Phase skipping is the #1 silent failure mode. The marker print makes skipping visible in the transcript, not invisible in the LLM's hidden reasoning.
+
+### E2 — Mandatory Print Enforcement (Banner / Report / Block)
+
+Three prints are mandatory and have exact syntax. Self-check before DELIVER:
+
+| Print | When | Required Syntax |
+|---|---|---|
+| Activation banner | FIRST output of session | See Activation section |
+| COMMIT [Standard] block | End of PLAN, before IMPLEMENT (Standard/Complex only) | See Deliveries → Scope |
+| Delivery REPORT block | LAST output of session | See Deliveries → Delivery/Summary/Minimal |
+
+**Mechanism**: Before printing the Delivery report, print a self-check line:
+```
+✓ Pre-DELIVER print check: banner=✓ commit=✓/N/A report=✓
+```
+If any mandatory print was missed, do not print the report — go back and emit it first.
+
+**Pre-DELIVER Self-Audit (E2 expansion — Layer 2, NEW in v9.3.0)**: The single-line `banner=✓` check above is too easy to self-grade as `✓` even when skipped. Before printing the delivery report, answer these 5 questions HONESTLY:
+
+1. Did I print `☄️ STELLAR TRAILS · vX.Y.Z · ACTIVE` as my FIRST output to the user?
+2. Did I execute all 5 activation steps with `✓`/`✗` marks visible in the transcript?
+3. Did I read SKILL.md from disk in Step 1 (not just trust cached context)?
+4. Did I verify the popup server in Step 2 (HTTP 200)?
+5. Did I check ClawHub for updates in Step 3?
+
+If ANY answer is NO, append to the delivery report:
+```
+⚠️ ACTIVATION COMPLIANCE FAILURE:
+  - Banner printed as first output: YES/NO
+  - Steps executed with visible ✓/✗: n/5
+  - Failed steps: [list]
+  - Reason: [honest one-line explanation]
+```
+
+**Do NOT hide activation failures.** The user deserves to know. Self-grading `banner=✓` when you actually skipped is a lie — and the user can verify by scrolling up in the transcript. If they catch you lying, trust is broken permanently.
+
+**Why**: Bookend prints are the only signal the user has that the workflow ran. Missing any one of them is treated as a correctness bug, not a style preference.
+
+### E3 — Preferences Dialog Enforcement (AskUserQuestion)
+
+For any decision point where the LLM would otherwise guess audience/style/length/format/scope, invoke `AskUserQuestion` BEFORE producing content. This applies to:
+
+- Deliverable-creation tasks (Document, Visualization, PPT, PDF, Excel, dashboard, poster, script) — MANDATORY unless original request pins audience + style + length
+- Mid-task scope decisions (e.g., "should I also do X?", "which approach: A or B?") — MANDATORY
+- Recovery decisions after Pivot (e.g., "fallback approach A or new approach B?") — MANDATORY
+- Simple clarifications ("did you mean X or Y?") — MANDATORY if ambiguity would change output
+
+**Skip conditions** (auto-bypass, no AskUserQuestion needed):
+- User explicitly says "skip questions" / "just do it" / "no questions"
+- Continuation task where prior turn already approved the approach
+- Coding/Data Processing tasks with no design dimensions (e.g., "fix this typo", "run this script")
+- Trivial one-shot edits (single number change, single typo fix)
+
+**Mechanism**: Print `✓ Preferences dialog check: <INVOKED | SKIPPED: <reason>>` before any content-producing tool call in SPECIFY. This makes the decision visible.
+
+**Why**: Guessing audience/style/length causes the most expensive rework in document tasks. One batched 30-second question round prevents hours of regeneration.
 
 ---
 
