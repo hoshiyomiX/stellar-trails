@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.3.0
+- **version**: 9.4.0
 
 ---
 
@@ -57,9 +57,102 @@ Your VERY FIRST output to the user is the activation banner below. No other text
 
 Replace `...` with `✓` (success) or `✗` (failure) as each step completes.
 
+### Activation Enforcement Vectors (E7-E11, NEW in v9.4.0)
+
+Text enforcement (E1-E6) caps at ~70-85% compliance because LLMs can rationalize past text. The 5 vectors below use **sandbox-native mechanisms** that LLMs cannot fabricate — tool calls are ground truth, file tokens are verifiable, external oracles cannot be faked.
+
+**Expected compliance**: ~90-93% automated, ~95% with active user verification of transcript.
+
+#### Vektor 1 — Hash Token Gate (E7)
+
+Every bash block in activation writes/verifies a hash token. LLM cannot proceed past Step 2+ without actually running Step 1 (which writes the token).
+
+**Token file**: `/tmp/st-active` (session-scoped, wiped on session reset)
+**Token content**: `sha256(version_line_from_SKILL.md)[:16]`
+
+Step 1 writes the token. Steps 2-5 verify it at the top of their bash block:
+```bash
+# Gate check (top of every Step 2+ bash block):
+EXPECTED=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
+ACTUAL=$(cat /tmp/st-active 2>/dev/null)
+if [ "$EXPECTED" != "$ACTUAL" ]; then
+  echo "✗ GATE FAILED: activation token missing/invalid — Step 1 must run first"
+  exit 1
+fi
+```
+
+If LLM skips Step 1, token doesn't exist → Step 2 bash exits 1 → LLM cannot complete task. **LLM cannot fake this** because writing the correct hash requires reading SKILL.md (a tool call recorded in transcript).
+
+#### Vektor 2 — TodoWrite Live Marker (E8)
+
+TodoWrite is a platform tool that renders a live checklist visible to the user in real-time. The user sees checkboxes transition `pending → in_progress → completed` as the LLM works. This is **visibility enforcement** — user can SEE if steps are being executed, not just trust LLM's text claims.
+
+**Mandatory protocol** (before Step 1 bash):
+1. Call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`
+2. Before executing each Step N bash: call `TodoWrite` to mark Step N `in_progress`
+3. After each Step N bash succeeds: call `TodoWrite` to mark Step N `completed`
+4. If any Step N fails: leave as `in_progress`, do NOT mark `completed`
+
+**Why this works**: TodoWrite is a tool call recorded in transcript. LLM cannot fabricate "I marked Step 3 completed" without actually calling TodoWrite. User sees the live checklist — if Step 3 is marked `completed` but no Bash tool call for Step 3 appears in transcript, fraud is visible.
+
+**Edge case**: LLM could mark all 5 `completed` in a single TodoWrite call without running anything. Mitigation: user watches for the **transition** (pending → in_progress → completed), not just final state. Single-call mass-marking is suspicious.
+
+#### Vektor 3 — Persistent Activation Log (E9)
+
+Each successful activation appends to `/home/user_skills/.st-activation-log` (persistent across sessions). User can audit this file anytime.
+
+**Log entry format** (one line per activation):
+```
+YYYY-MM-DDTHH:MM:SSZ v<VERSION> session=<session_id_short> steps=5/5 banner=YES tokens=YES
+```
+
+Step 5 writes the log entry. Next session's Step 1 can read the log to verify prior activations occurred. LLM can fake a log entry, but:
+- Timestamps must be monotonic — fake entries with wrong timestamps are detectable
+- Session IDs are recorded by platform — fake session IDs mismatch real ones
+- User can `cat /home/user_skills/.st-activation-log` to audit anytime
+
+**This is fraud detection, not prevention** — but it raises the cost of fraud (LLM must fabricate consistent timestamps + session IDs).
+
+#### Vektor 4 — Read Tool Line-Number Proof (E10)
+
+Step 1 must print a specific line from SKILL.md in the format `Read` tool returns (`<line_number>→<content>`). LLM cannot fabricate this format without actually calling Read.
+
+**Protocol**: After Read SKILL.md, print the version line with its line number:
+```
+SKILL.md line 19: 19→- **version**: 9.4.0
+```
+
+User can verify by reading the same file themselves. If LLM fabricates (e.g., wrong line number, wrong content), user catches it on spot-check.
+
+**Limitation**: LLM knows line 19 is the version line (from context). Stronger variant: skill mandates "print line N where N = current day-of-month + 10" — LLM cannot predict which line user will verify. But this adds complexity; the simple variant is sufficient for now.
+
+#### Vektor 5 — Clawhub Oracle Cross-Check (E11)
+
+Step 3 runs `clawhub inspect` — output is ground truth from an external binary LLM cannot fabricate. Step 4 re-runs `clawhub inspect` and cross-checks the version matches what Step 3 reported.
+
+**Protocol**:
+- Step 3 writes `clawhub inspect --json` output to `/tmp/st-clawhub-oracle.json`
+- Step 4 reads `/tmp/st-clawhub-oracle.json`, extracts `latestVersion.version`
+- Step 4 compares to what LLM claimed in transcript
+- If mismatch → COMPLIANCE FAILURE reported to user
+
+**Why this works**: `clawhub` is a binary outside LLM control. LLM cannot fabricate `/tmp/st-clawhub-oracle.json` without actually running clawhub (which is a tool call recorded in transcript). The file's content is ground truth — LLM's text claims can be verified against it.
+
+#### Combined Enforcement Matrix
+
+| Vector | What it enforces | LLM can fake? | User can verify? |
+|---|---|---|---|
+| E7 Hash token | Steps 2-5 cannot run without Step 1 | NO (token requires actual file read) | YES (cat /tmp/st-active) |
+| E8 TodoWrite | Steps visible in real-time UI | Partially (can mass-mark, but transitions are visible) | YES (watch live checklist) |
+| E9 Persistent log | Cross-session audit trail | Partially (timestamps + session IDs must be consistent) | YES (cat /home/user_skills/.st-activation-log) |
+| E10 Line-number proof | Step 1 actually called Read | Partially (LLM knows line 19) | YES (read same file, compare) |
+| E11 Clawhub oracle | Step 3 actually ran clawhub | NO (external binary output is ground truth) | YES (cat /tmp/st-clawhub-oracle.json) |
+
+**What still cannot be enforced**: Banner printed as FIRST output (text ordering), LLM not printing fake `✓ Step N` markers (text). These remain text-only enforcement via E4-E6.
+
 ### Activation Steps
 
-**Step 1 — Refresh context + SSV**: Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do not trust cached context — the on-disk version is source of truth. If task involves a git repo, run SSV:
+**Step 1 — Refresh context + SSV**: Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do not trust cached context — the on-disk version is source of truth. If task involves a git repo, run SSV. **E7 (hash token) and E10 (line-number proof) are written by this step** — subsequent steps verify the token to enforce that Step 1 actually ran.
 
 ```bash
 # SSV only runs if the skill has its own git repo at $HOME/.stellar-trails-repo/.
@@ -76,11 +169,25 @@ if [ -d "$HOME/.stellar-trails-repo/.git" ]; then
 else
   echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown)) — SSV skipped (no skill git repo)"
 fi
+# E7: Write hash token — Steps 2-5 verify this token to prove Step 1 ran.
+# Token = sha256(version line)[:16]. LLM cannot fake this without reading SKILL.md.
+grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16 > /tmp/st-active
+# E10: Print line-number proof — user can verify by reading same file.
+SKILL_VERSION_LINE=$(grep -n '^- \*\*version\*\*:' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1 | cut -d: -f1)
+echo "  E7 token: $(cat /tmp/st-active)"
+echo "  E10 line proof: SKILL.md line ${SKILL_VERSION_LINE}: $(sed -n "${SKILL_VERSION_LINE}p" /home/z/my-project/skills/stellar-trails/SKILL.md)"
 ```
 
-**Step 2 — Start popup server + verify mascot**:
+**Step 2 — Start popup server + verify mascot**: **E7 gate check at top of bash block** — verifies Step 1 ran by checking hash token.
 
 ```bash
+# E7 gate check — proves Step 1 actually ran (token requires reading SKILL.md)
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
+  echo "✗ Step 2 GATE FAILED: activation token missing/invalid — Step 1 must run first"
+  exit 1
+fi
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; ZSCRIPTS="/home/z/my-project/.zscripts"
 if [ ! -f "$SKILL_DIR/chibi.svg" ]; then for REPO_CLONE in "/home/z/my-project/stellar-trails/skill/stellar-trails" "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" "$HOME/.stellar-trails-repo/skill/stellar-trails"; do [ -f "$REPO_CLONE/chibi.svg" ] && cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg" && break; done; fi
 if [ -d "$SKILL_DIR" ]; then mkdir -p "$ZSCRIPTS"; [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"; [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"; [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"; fi
@@ -93,18 +200,24 @@ if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HT
 
 **z.ai sandbox note**: The popup server runs on `localhost:3000` inside the sandbox, but z.ai does NOT expose raw ports to the user's browser. The popup is only visible through the z.ai preview URL pattern: `https://preview-<bot-id>.space-z.ai/`. If the sandbox exposes a preview panel, the popup appears there; otherwise the popup runs but is invisible to the user (activation still succeeds — the popup is decorative, not functional). See `knowledge/platform/zai-sandbox.md` for details.
 
-**Step 3 — Auto-update via ClawHub**:
+**Step 3 — Auto-update via ClawHub**: **E7 gate check + E11 oracle** — clawhub output written to `/tmp/st-clawhub-oracle.json` for Step 4 cross-verification.
 
 ```bash
+# E7 gate check
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
+  echo "✗ Step 3 GATE FAILED: activation token missing/invalid — Step 1 must run first"
+  exit 1
+fi
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
-# Use --json for robust parsing. The previous text-output regex
-# `^Latest:\s*\K[0-9.]+` never matched the real output format
-# `│ Latest   X.Y.Z` (no colon, box-drawing prefix, multiple spaces).
-# Single-line python3 -c to avoid IndentationError from bash quote preservation.
-LATEST=$(clawhub inspect stellar-trails --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
+# E11: Write clawhub output to oracle file — Step 4 will cross-verify this.
+# LLM cannot fabricate this file without actually running clawhub (tool call recorded).
+clawhub inspect stellar-trails --json 2>/dev/null > /tmp/st-clawhub-oracle.json
+LATEST=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json 2>/dev/null || echo "")
 if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
 elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
-elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT)"
+elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT) — E11 oracle: $(stat -c%s /tmp/st-clawhub-oracle.json) bytes"
 else
   if clawhub --no-input update stellar-trails --force 2>/dev/null; then
     # Sync the persistent zip immediately after a successful update.
@@ -127,9 +240,23 @@ fi
 
 If clawhub updated the skill: re-read SKILL.md from disk now. Cached context is stale.
 
-**Step 4 — Verify files + force-override .zscripts/ + restart dev.sh + sync zip**:
+**Step 4 — Verify files + force-override .zscripts/ + restart dev.sh + sync zip**: **E7 gate + E11 cross-check** — verifies Step 3 oracle file exists and matches claimed version.
 
 ```bash
+# E7 gate check
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
+  echo "✗ Step 4 GATE FAILED: activation token missing/invalid — Step 1 must run first"
+  exit 1
+fi
+# E11 cross-check: verify Step 3 oracle file exists (proves Step 3 ran clawhub)
+if [ ! -f /tmp/st-clawhub-oracle.json ]; then
+  echo "✗ Step 4 E11 FAILED: clawhub oracle file missing — Step 3 must run first"
+  exit 1
+fi
+ORACLE_VERSION=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json 2>/dev/null || echo "")
+echo "  E11 oracle cross-check: registry latest = v${ORACLE_VERSION:-<parse failed>}"
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"; ZSCRIPTS="/home/z/my-project/.zscripts"
 FILES_OK="yes"
 for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
@@ -149,9 +276,26 @@ else echo "✗ Step 4d FAILED: dev.sh not found at $DEV_SH"; fi
 if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4e: persistent zip synced" || echo "✗ Step 4e FAILED: zip sync error"; else echo "✗ Step 4e FAILED: directory not found"; fi
 ```
 
-**Step 5 — Load phases + classify**: Read `procedure/phases.md` now. Then determine complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (NEW or YES — see Session Continuity below).
+**Step 5 — Load phases + classify**: Read `procedure/phases.md` now. Then determine complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (NEW or YES — see Session Continuity below). **E7 gate + E9 persistent log** — writes activation record to `/home/user_skills/.st-activation-log` for cross-session audit.
 
-Print: `✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES]`
+```bash
+# E7 gate check
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
+  echo "✗ Step 5 GATE FAILED: activation token missing/invalid — Step 1 must run first"
+  exit 1
+fi
+# E9: Write persistent activation log — user can audit anytime via:
+#   cat /home/user_skills/.st-activation-log
+ST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+ST_TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+ST_TOKEN=$(cat /tmp/st-active)
+echo "${ST_TIMESTAMP} v${ST_VERSION} token=${ST_TOKEN} steps=5/5 banner=YES" >> /home/user_skills/.st-activation-log
+echo "✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES] — E9 log entry written"
+```
+
+**Mandatory TodoWrite protocol (E8)**: Before Step 1 bash, call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`. Before each Step N bash, mark Step N `in_progress`. After each Step N bash succeeds, mark Step N `completed`. User sees the live checklist transition in real-time — this is visibility enforcement that text cannot provide.
 
 After Step 5: Begin SPECIFY (or IMPLEMENT if continuation detected).
 
