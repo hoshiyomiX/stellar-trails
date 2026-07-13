@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.4.0
+- **version**: 9.5.0
 
 ---
 
@@ -495,10 +495,10 @@ Before planning any implementation, verify the approach is grounded in real sour
 |-----------|-------------------|
 | **Minimal** | Skip — knowledge questions don't need source research |
 | **Simple** | Quick check — verify approach against at least one source |
-| **Standard** | **Main agent inline research** — invoke `Skill(command="web-search")` then `Skill(command="crawl4ai")` or `web-reader` BEFORE writing problem-spec. Print `📡 SADC: main agent researching inline` |
+| **Standard** | **Main agent inline research** — invoke `Skill(command="web-search")` then use Inline Content Retrieval (v9.5.0) BEFORE writing problem-spec. Print `📡 SADC: main agent researching inline` |
 | **Complex** | Deep research by main agent — multiple sources, compare approaches, document tradeoffs |
 
-**Main agent mandate (Standard/Complex)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then `Skill(command="crawl4ai")` (preferred) or `Skill(command="web-reader")` to extract content from top URLs → ≤500-word summary.
+**Main agent mandate (Standard/Complex)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (see Inline Content Retrieval section, NEW in v9.5.0) to extract content from top 3-5 URLs → ≤500-word summary. **No external extraction skill dependency** — uses native curl + python3.
 
 **Why main agent, not subagent**: The z.ai sandbox mandates "Skill invocation and skill-driven file generation MUST be done by the main agent, NEVER by subagents." Subagents in z.ai do not have access to skill instructions, so a subagent that calls `Skill(command="web-search")` will fail silently. (Removed subagent delegation in v9.1.0 — see audit P0-2.)
 
@@ -713,6 +713,295 @@ echo "Skill not found" | python3 -c "import json,sys; d=json.load(sys.stdin); pr
 ```
 
 If all 3 cases pass, push. If any fails, fix before pushing.
+
+---
+
+## Proximate Cause Triage (NEW in v9.5.0 — orisinil feature)
+
+**Problem this solves**: GLM-5.2 z.ai has a known weakness — when auditing or diagnosing, it tends to trace problems too far down the causal chain, rabbit-holing into deep investigations when the root cause is proximate and simple. This wastes tokens and time, and often loses the user's actual question in the weeds.
+
+**Inspiration**: Combines core concepts from two clawhub skills — `occams-razor` (Parsimony Audit: prefer fewest assumptions) and `aana-task-scope-guardrail` (Scope Gate: classify actions, stop when complete) — into a single orisinil protocol integrated into stellar-trails workflow. **Not a wrapper** — this is a native feature with its own decision tree, tuned for the proximate-cause failure mode.
+
+### When to Apply
+
+**Mandatory trigger** in these phases:
+- **SPECIFY**: after identifying the problem, BEFORE writing problem-spec
+- **VERIFY**: when tracing a defect, BEFORE going deeper than 2 levels
+- **Recovery**: when classifying bug vs wrong approach
+
+**Optional trigger** (LLM should self-check):
+- Whenever internal reasoning exceeds 3 "why" levels
+- Whenever audit scope expands beyond original request
+- Whenever a hypothesis requires >2 unsupported assumptions
+
+### The Proximate Cause Test
+
+Before going deeper into investigation, answer these 3 questions:
+
+**Q1: Is the candidate cause within 1 hop of the symptom?**
+- YES → strong proximate candidate, prefer this first
+- NO → far cause, only investigate if Q2 fails
+
+**Q2: Does the candidate explain ALL observed symptoms with ≤2 assumptions?**
+- YES → parsimonious, prefer this
+- NO → needs too many assumptions, defer (likely over-engineering)
+
+**Q3: Would fixing this candidate resolve the user's actual request?**
+- YES → in scope, fix it
+- NO → out of scope, log to "Deferred Discoveries" and stop
+
+### Decision Tree
+
+```
+Symptom observed
+   │
+   ├─ Q1: Is candidate within 1 hop of symptom?
+   │    ├─ YES + Q2 ≤2 assumptions + Q3 fixes user request
+   │    │    → FIX NOW (proximate, parsimonious, in-scope)
+   │    │
+   │    ├─ YES but Q2 >2 assumptions
+   │    │    → Look for SIMPLER proximate cause before going deeper
+   │    │
+   │    └─ NO (far cause)
+   │         ├─ Q3 still in scope?
+   │         │    ├─ YES → investigate, but time-box (max 1 deeper level)
+   │         │    └─ NO  → DEFER (out of scope, log it)
+   │         └─ Q2 needs >3 assumptions?
+   │              → STOP. Likely over-engineering. Re-state problem to user.
+```
+
+### Scope Gate (from aana-task-scope-guardrail, integrated)
+
+Before each investigation step, classify the action:
+
+| Category | Action |
+|---|---|
+| `in_scope` | Directly requested by user → proceed |
+| `necessary_support` | Required to complete request → proceed |
+| `clarification_needed` | Ambiguous boundary → ASK user before continuing |
+| `optional_followup` | Useful but not required → mention briefly, do NOT do |
+| `out_of_scope` | Unrelated/premature → DO NOT do, log to worklog |
+| `stop` | Request is complete → STOP, do not keep acting |
+
+**Hard rule**: if proposed action is `out_of_scope` OR request is `stop`, you MUST stop. Continuing is a correctness bug.
+
+### Parsimony Audit (from occams-razor, integrated)
+
+When multiple competing hypotheses exist for a symptom:
+
+```
+# Parsimony Audit: <symptom>
+## Candidates:
+  A: <hypothesis 1>  B: <hypothesis 2>  C: <hypothesis 3>
+## Fit check:
+  A fits all evidence? <yes/no>  B? <yes/no>  C? <yes/no>
+## Assumption load (count unsupported assumptions, NOT words):
+  A: <list> → N assumptions
+  B: <list> → N assumptions
+  C: <list> → N assumptions
+## Proximate check:
+  A within 1 hop? <yes/no>  B? <yes/no>  C? <yes/no>
+## Preferred: <fewest assumptions + most proximate>
+## Over-shave check: <preferred still fits all evidence?>
+## What would overturn this: <distinguishing evidence>
+```
+
+**Key rule**: parsimony counts **unsupported assumptions**, not words. "It's the network" (5 words) posits 1 unobserved failure — high assumption load. "Cache TTL expired at 14:03, as logs show" (10 words) assumes 0 unsupported — low load. Prefer the second.
+
+### Anti-patterns (FORBIDDEN)
+
+- ❌ "Let me trace this deeper to be sure" — if proximate cause found, STOP. Going deeper without evidence of misdiagnosis is scope creep.
+- ❌ "There might be a hidden root cause" — without a specific symptom that the proximate cause does NOT explain, this is speculation, not investigation.
+- ❌ "I'll fix this AND investigate the deeper cause" — fixing + investigating = two tasks. User asked for one. Log the deeper investigation as `optional_followup`.
+- ❌ "Let me check 5 more files just in case" — this is `out_of_scope` unless user asked for full audit. Proximate cause + parsimony audit is sufficient.
+- ❌ Applying Parsimony Audit when only 1 hypothesis exists — Occam's Razor chooses AMONG candidates. With 1 candidate, no choice to make.
+
+### Worked Example
+
+**Scenario**: User reports "Step 3 activation fails with '✗ GATE FAILED'".
+
+**Wrong (deep rabbit hole)**:
+1. Investigate Step 3 bash block
+2. Check clawhub version
+3. Inspect sha256 implementation
+4. Investigate SKILL.md encoding
+5. Check Linux filesystem layer
+6. ... (10 levels deep, never finds it)
+
+**Right (Proximate Cause Triage)**:
+1. Symptom: `✗ GATE FAILED` means `EXPECTED_TOKEN != ACTUAL_TOKEN`
+2. Q1: Is candidate within 1 hop? YES — token mismatch is directly in Step 1 bash
+3. Q2: Does it explain all symptoms with ≤2 assumptions?
+   - Assumption 1: Step 1 bash didn't run (so token not written)
+   - Assumption 2: OR Step 1 ran but wrote wrong hash
+   - → 2 assumptions, parsimonious
+4. Q3: Would fixing this resolve user's request? YES
+5. Action: check if `/tmp/st-active` exists. If missing → Step 1 was skipped. If present but wrong → recompute hash.
+6. **STOP** at first resolution. Do not investigate deeper unless fix fails.
+
+### Integration with existing protocols
+
+- **Implementation Discovery Protocol**: Proximate Cause Triage informs the Same-Surface Test. If discovered bug Y is within 1 hop of bug X (proximate), likely same surface → fix-now.
+- **Pivot**: when classifying bug vs wrong approach, run Proximate Cause Test first. If proximate cause exists, it's a bug (fix). If no proximate cause after 2 hops, it's likely wrong approach (pivot).
+- **Recovery**: Step 1 (Stop) + Step 2 (Classify) must include Proximate Cause Triage before proceeding.
+
+---
+
+## Inline Content Retrieval (NEW in v9.5.0 — orisinil feature)
+
+**Problem this solves**: stellar-trails SADC section previously mandated `Skill(command="crawl4ai")` for content extraction. This creates external dependency — if crawl4ai is not installed, broken, or its API changes, SADC fails. User explicitly requested removing this reliance.
+
+**Solution**: orisinil inline content retrieval using sandbox-native tools (`curl` + `python3`). No external skill dependency. Simpler, more reliable, fully under stellar-trails control.
+
+### When to Use
+
+Replace `Skill(command="crawl4ai")` and `Skill(command="web-reader")` calls with this inline protocol in:
+- **SADC** (Standard/Complex tier): extracting content from top URLs returned by web-search
+- **VERIFY**: pulling live doc content to confirm claims
+- Any phase needing web page text extraction
+
+### The Retrieval Protocol
+
+**Step 1: Fetch with curl** (sandbox-native, no Python dependency)
+```bash
+# Fetch URL, follow redirects, set user-agent, 10s timeout, capture to file
+URL="<url>"
+OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
+curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE" 2>/dev/null
+HTTP_STATUS=$(curl -sSL -m 10 -o /dev/null -w "%{http_code}" "$URL" 2>/dev/null)
+[ "$HTTP_STATUS" = "200" ] || { echo "✗ Retrieval failed: HTTP $HTTP_STATUS"; exit 1; }
+echo "✓ Fetched $(stat -c%s "$OUTFILE") bytes from $URL"
+```
+
+**Step 2: Extract text with python3** (using only stdlib `html.parser`)
+```bash
+python3 << 'PYEOF'
+import sys, re, html
+from html.parser import HTMLParser
+
+class TextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text = []
+        self.skip = False  # skip script/style/nav/footer
+        self.skip_tags = {'script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript'}
+        self.title = ''
+        self.in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.skip_tags:
+            self.skip = True
+        if tag == 'title':
+            self.in_title = True
+        if tag in ('h1','h2','h3','h4','h5','h6','p','li','td','th','div','section','article','pre','code','blockquote'):
+            self.text.append('\n')  # block-level: newline before
+
+    def handle_endtag(self, tag):
+        if tag in self.skip_tags:
+            self.skip = False
+        if tag == 'title':
+            self.in_title = False
+        if tag in ('p','li','div','section','article','pre','blockquote'):
+            self.text.append('\n')  # block-level: newline after
+
+    def handle_data(self, data):
+        if self.skip:
+            return
+        if self.in_title:
+            self.title += data
+        text = data.strip()
+        if text:
+            self.text.append(text)
+
+with open(sys.argv[1], 'r', encoding='utf-8', errors='ignore') as f:
+    content = f.read()
+
+parser = TextExtractor()
+parser.feed(content)
+result = ' '.join(parser.text)
+# Collapse whitespace
+result = re.sub(r'\s+', ' ', result)
+result = re.sub(r' \n ', '\n', result)
+result = re.sub(r'\n{3,}', '\n\n', result)
+# Trim to first 3000 chars (SADC needs summary, not full page)
+result = result[:3000]
+if parser.title:
+    print(f"# {parser.title.strip()}\n")
+print(result)
+PYEOF
+```
+
+**Step 3: Truncate to ≤500 words for SADC summary**
+```bash
+# After extraction, truncate to 500 words for SADC
+TEXT_FILE="${OUTFILE%.html}.txt"
+python3 -c "
+import sys
+text = sys.stdin.read()
+words = text.split()[:500]
+print(' '.join(words))
+" < "$TEXT_FILE" > "${TEXT_FILE}.truncated"
+echo "✓ Extracted $(wc -w < "${TEXT_FILE}.truncated") words to ${TEXT_FILE}.truncated"
+```
+
+### When to Use Inline vs External Skill
+
+| Situation | Use |
+|---|---|
+| Static HTML page, public URL | **Inline** (this protocol) |
+| Page requires JavaScript rendering | `agent-browser` skill (rendered extraction) |
+| Page behind authentication | User-provided content (skip retrieval) |
+| Page returns non-HTML (PDF, JSON, etc) | `curl` + appropriate parser inline |
+| Bulk crawl (10+ pages) | Loop the inline protocol, OR use crawl4ai if installed |
+
+**Default**: use inline. Only fall back to external skill if inline fails (JS rendering needed, etc.).
+
+### Why Inline Is Better Than crawl4ai Dependency
+
+| Aspect | crawl4ai (external) | Inline (orsinil) |
+|---|---|---|
+| Dependency | Requires skill installed + Python package | None (curl + python3 stdlib) |
+| Failure modes | Package not installed, API changes, async issues | curl fails (network), python3 fails (parsing) |
+| Speed | AsyncWebCrawler startup overhead | curl ~1s + python3 ~0.1s |
+| Control | External skill controls behavior | stellar-trails controls everything |
+| Token cost | Loads crawl4ai SKILL.md (~2K tokens) into context | 0 tokens — protocol is in stellar-trails SKILL.md |
+| Maintenance | Dependent on crawl4ai updates | Self-maintained, version-controlled with stellar-trails |
+
+### Anti-patterns (FORBIDDEN)
+
+- ❌ "I'll just invoke crawl4ai, it's easier" — no. User explicitly removed this reliance. Use inline protocol.
+- ❌ "Let me fetch 20 pages to be thorough" — Scope Gate says `out_of_scope` unless user asked for bulk crawl. SADC needs 3-5 top URLs, not 20.
+- ❌ "The inline extraction missed some content, let me use crawl4ai" — first try `agent-browser` (also installed) for JS rendering. Only escalate to crawl4ai as last resort.
+- ❌ "I'll skip retrieval and just use my training knowledge" — SADC mandate exists for a reason. If retrieval fails, state explicitly "could not retrieve, using training knowledge" — do not silently skip.
+
+### Integration with SADC
+
+SADC section (Standard/Complex tier) now reads:
+> BEFORE writing the problem specification, the **main agent** invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (above) to extract content from top 3-5 URLs → ≤500-word summary.
+
+This removes the `Skill(command="crawl4ai")` dependency. web-search is still external (it's the search API, not extraction), but extraction is now inline.
+
+### Worked Example
+
+**Task**: "Build a PDF report — SADC required"
+
+```bash
+# 1. web-search returns 5 URLs (still external skill)
+# 2. Inline retrieval for top 3 URLs:
+for URL in "$URL1" "$URL2" "$URL3"; do
+  OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
+  curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE" 2>/dev/null
+  # ... extract text via python3 (Step 2 above) ...
+  # ... truncate to 500 words (Step 3 above) ...
+done
+# 3. Summarize: combine 3 truncated files into ≤500-word SADC summary
+cat /tmp/st-retrieval-*.truncated | python3 -c "
+import sys
+text = sys.stdin.read()
+words = text.split()[:500]
+print(' '.join(words))
+"
+```
 
 ---
 
