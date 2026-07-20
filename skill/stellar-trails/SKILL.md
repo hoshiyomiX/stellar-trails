@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.6.1
+- **version**: 9.7.0
 
 ---
 
@@ -653,66 +653,178 @@ next_step: <what user should do next>
 
 ---
 
-## Pre-Push Local Verification (NEW in v9.2.0)
+## Pre-Push Local Verification (NEW in v9.2.0, strengthened in v9.7.0)
 
 **Problem this solves**: Pushing code changes to CI without local verification wastes a CI cycle (~1-2 minutes per run) and creates a "push → fail → read logs → push again" loop. This happened during this skill's development:
 
 - v9.0.1 push → CI failed (python3 IndentationError) → read logs → v9.0.2 push → CI succeeded
 - The IndentationError would have been caught by running the bash block locally before pushing.
+- v9.6.0 push → CI succeeded BUT publish didn't register (moderation hide) → v9.6.1 re-publish
+- v9.2.1 push → banner version hardcoded at v9.1.0 (not caught by bash -n)
+- v9.1.0 push → SSV grep unescaped `**` (not caught by bash -n)
 
-**Rule**: Before pushing any change that triggers CI (especially workflow file changes or SKILL.md bash block changes), run the new code locally in the sandbox.
+**Rule**: Before pushing any change that triggers CI, run ALL checks below. **All 9 checks must PASS before push.** If any FAIL, fix before pushing — do not push broken code.
 
-### Verification checklist
+### Verification checklist (9 checks, ALL must pass)
 
-1. **SKILL.md bash block changes** — copy the new bash block to a temp script, execute it, verify the output matches expectations:
-   ```bash
-   # Extract the bash block from SKILL.md and run it
-   awk '/^```bash$/,/^```$/' skill/stellar-trails/SKILL.md | \
-     sed '1d;$d' > /tmp/test-skill-bash.sh
-   bash /tmp/test-skill-bash.sh
-   ```
+#### Check 1: bash -n syntax on all bash blocks
+```bash
+python3 << 'PYEOF'
+import re, subprocess, tempfile, os
+with open('skill/stellar-trails/SKILL.md') as f:
+    content = f.read()
+blocks = re.findall(r'```bash\n(.*?)```', content, re.DOTALL)
+fail = 0
+for i, block in enumerate(blocks, 1):
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(block); path = f.name
+    r = subprocess.run(['bash', '-n', path], capture_output=True, text=True)
+    os.unlink(path)
+    if r.returncode != 0:
+        print(f"✗ Block {i} FAIL: {r.stderr.strip()[:120]}")
+        fail += 1
+print(f"{'✓' if fail == 0 else '✗'} Check 1: bash -n — {len(blocks)-fail}/{len(blocks)} blocks pass")
+PYEOF
+```
 
-2. **Workflow file changes** (`.github/workflows/*.yml`) — simulate the bash locally:
-   - For `clawhub skill publish` calls: run `clawhub skill publish --dry-run` first
-   - For `python3 -c` blocks: run them with mock inputs (`echo '{}' | python3 -c '...'`)
-   - For YAML structure: `python3 -c "import yaml; yaml.safe_load(open('release.yml'))"`
+#### Check 2: python3 -c blocks execute with mock inputs (NEW v9.7.0)
+```bash
+# Extract and run every python3 -c block with 3 mock inputs: valid JSON, empty JSON, invalid text
+python3 << 'PYEOF'
+import re, subprocess
+with open('skill/stellar-trails/SKILL.md') as f:
+    content = f.read()
+# Find all python3 -c "..." blocks
+blocks = re.findall(r'python3 -c ("[^"]+"|\'[^\']+\')', content)
+fail = 0
+for i, block in enumerate(blocks, 1):
+    cmd = f'echo "{{}}" | python3 -c {block} 2>/dev/null'
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+    if r.returncode != 0:
+        print(f"✗ python3 -c block {i} FAIL on empty JSON: {r.stderr.strip()[:80]}")
+        fail += 1
+print(f"{'✓' if fail == 0 else '✗'} Check 2: python3 -c mock execution — {len(blocks)-fail}/{len(blocks)} blocks pass")
+PYEOF
+```
 
-3. **Code changes that import new modules** — verify imports work locally:
-   ```bash
-   python3 -c "import <module>" || echo "MISSING: <module>"
-   ```
+#### Check 3: grep patterns return expected values (NEW v9.7.0)
+```bash
+# Every grep -oP pattern in SKILL.md must return non-empty on the actual file
+python3 << 'PYEOF'
+import re, subprocess
+with open('skill/stellar-trails/SKILL.md') as f:
+    content = f.read()
+patterns = re.findall(r"grep -oP '([^']+)'", content)
+fail = 0
+for i, pat in enumerate(patterns, 1):
+    # Skip patterns that are meant to match process output, not file content
+    if 'pid=' in pat or ':3000' in pat or 'HTTP' in pat:
+        continue
+    r = subprocess.run(['grep', '-oP', pat, 'skill/stellar-trails/SKILL.md'],
+                       capture_output=True, text=True, timeout=5)
+    if not r.stdout.strip():
+        print(f"✗ grep pattern {i} returns empty: {pat[:60]}")
+        fail += 1
+print(f"{'✓' if fail == 0 else '✗'} Check 3: grep patterns — {len(patterns)-fail}/{len(patterns)} return non-empty")
+PYEOF
+```
 
-4. **Schema/migration changes** — dry-run on local copy before pushing.
+#### Check 4: Banner version is dynamic, not hardcoded (NEW v9.7.0)
+```bash
+# Banner must use <VERSION> placeholder, NOT hardcoded v9.x.y
+HARDCODED=$(grep -c '☄️ STELLAR TRAILS · v[0-9]' skill/stellar-trails/SKILL.md)
+PLACEHOLDER=$(grep -c '☄️ STELLAR TRAILS · v<VERSION>' skill/stellar-trails/SKILL.md)
+if [ "$HARDCODED" -gt 0 ] && [ "$PLACEHOLDER" -eq 0 ]; then
+  echo "✗ Check 4 FAIL: banner has hardcoded version ($HARDCODED occurrences), no <VERSION> placeholder"
+else
+  echo "✓ Check 4: banner uses <VERSION> placeholder ($PLACEHOLDER refs), no hardcoded version"
+fi
+```
+
+#### Check 5: Metadata version matches git tag about to be pushed (NEW v9.7.0)
+```bash
+NEW_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' skill/stellar-trails/SKILL.md | head -1)
+TAG="v$NEW_VERSION"
+if git tag -l "$TAG" | grep -q "$TAG"; then
+  echo "✗ Check 5 FAIL: tag $TAG already exists"
+else
+  echo "✓ Check 5: tag $TAG does not exist yet (safe to push)"
+fi
+```
+
+#### Check 6: ClawHub registry state — skill not hidden by moderation (NEW v9.7.0)
+```bash
+# Before push, verify skill is visible on registry (not moderation-hidden)
+# This catches the v9.6.0 bug where publish exit 0 but version didn't register
+REGISTRY_STATE=$(clawhub inspect stellar-trails --json 2>/dev/null)
+if [ -z "$REGISTRY_STATE" ]; then
+  echo "✗ Check 6 FAIL: cannot reach clawhub registry — push may publish to hidden skill"
+else
+  MOD_STATE=$(echo "$REGISTRY_STATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('moderation',{}).get('state','unknown'))" 2>/dev/null || echo "unknown")
+  if [ "$MOD_STATE" = "hidden" ] || [ "$MOD_STATE" = "deleted" ]; then
+    echo "✗ Check 6 FAIL: skill is $MOD_STATE by moderation — publish will not register"
+    echo "  Contact clawhub moderator before pushing"
+  else
+    echo "✓ Check 6: skill visible on registry (moderation: $MOD_STATE)"
+  fi
+fi
+```
+
+#### Check 7: YAML structure valid (if workflow files changed)
+```bash
+if git diff --cached --name-only HEAD 2>/dev/null | grep -q '\.github/workflows/'; then
+  python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))" && \
+    echo "✓ Check 7: workflow YAML valid" || echo "✗ Check 7 FAIL: workflow YAML invalid"
+else
+  echo "✓ Check 7: no workflow files changed (skip)"
+fi
+```
+
+#### Check 8: Markdown fence count is even (no orphan code blocks)
+```bash
+FENCES=$(grep -c '```' skill/stellar-trails/SKILL.md)
+if [ $((FENCES % 2)) -eq 0 ]; then
+  echo "✓ Check 8: markdown fences even ($FENCES)"
+else
+  echo "✗ Check 8 FAIL: markdown fences odd ($FENCES) — orphan code block"
+fi
+```
+
+#### Check 9: Post-push plan — registry poll will be done (NEW v9.7.0)
+```bash
+# Acknowledge that push is not complete until registry confirms the version
+echo "✓ Check 9: post-push plan acknowledged"
+echo "  After CI succeeds, MUST poll clawhub inspect until latestVersion = $NEW_VERSION"
+echo "  If registry doesn't update within 60s of CI success, fetch CI logs + diagnose"
+echo "  (This catches the v9.6.0 bug: publish exit 0 but version not registered)"
+```
 
 ### When to skip Pre-Push Local Verification
 
-- Documentation-only changes (CHANGELOG.md, README.md)
-- Version bump commits (just `sed` + commit)
-- Changes to files that have no executable code (pure markdown prose)
+- Documentation-only changes (CHANGELOG.md, README.md) → skip checks 2-6, run 1+7+8
+- Version bump commits (just `sed` + commit) → run checks 4+5+6+9
+- Changes to files that have no executable code (pure markdown prose) → skip checks 2-3
+
+**Never skip**: checks 1 (bash syntax), 8 (markdown fences), 9 (post-push plan)
 
 ### Cost-benefit
 
-- **Cost**: 30-60 seconds of local testing
-- **Benefit**: saves 1-2 minutes of CI cycle time per caught bug, plus the cognitive cost of context-switching back to fix the bug
-- **Break-even**: catches 1 bug per ~10 pushes → worth it for any non-trivial change
+- **Cost**: 60-90 seconds of local testing (up from 30-60s in v9.2.0)
+- **Benefit**: catches 5 bug classes that slipped through v9.2.0's 4 checks
+- **Bug classes caught by v9.7.0 additions**:
+  - python3 -c execution errors (would have caught v9.0.1 IndentationError)
+  - grep pattern failures (would have caught v9.1.0 unescaped `**`)
+  - banner version drift (would have caught v9.2.1 hardcoded v9.1.0)
+  - tag collision (would have caught duplicate tag pushes)
+  - moderation hide (would have caught v9.6.0 publish-not-registering)
+  - post-push registry verification (would have caught v9.6.0 silent publish failure)
 
-### Worked example
+### Anti-patterns (FORBIDDEN)
 
-Before pushing v9.0.2 (the IndentationError fix), the agent should have run:
-
-```bash
-# Test the new python3 -c block locally with 3 input cases
-echo '{"latestVersion":{"version":"9.0.2"}}' | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')"
-# Expected: 9.0.2
-
-echo '{}' | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')"
-# Expected: (empty string)
-
-echo "Skill not found" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo ""
-# Expected: (empty string, with the || echo "" fallback)
-```
-
-If all 3 cases pass, push. If any fails, fix before pushing.
+- ❌ "bash -n passed, ship it" — bash -n is necessary but NOT sufficient. Run all 9 checks.
+- ❌ "Skip check 6, registry was fine last time" — moderation state can change between pushes. Always check.
+- ❌ "Skip check 9, CI will tell us" — CI success ≠ registry update. v9.6.0 proved this. Always poll registry post-push.
+- ❌ "Check 2 takes too long" — 5 seconds per python3 -c block. Worth it to avoid CI cycle.
 
 ---
 
