@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.5.0
+- **version**: 9.6.0
 
 ---
 
@@ -1002,6 +1002,214 @@ words = text.split()[:500]
 print(' '.join(words))
 "
 ```
+
+---
+
+## GitHub Operations Protocol (NEW in v9.6.0 — adapted from @steipete/github)
+
+**Inspiration**: Adapted from `@steipete/github` clawhub skill (v1.0.0, MIT-0 license) by @steipete. The original skill documents `gh` CLI patterns for PR checks, workflow runs, and API queries. **Not a wrapper** — adapted to stellar-trails' curl-based approach because `gh` CLI is not available in z.ai sandbox.
+
+**Why adapt**: stellar-trails already uses GitHub API for CI polling (Steps 3, 4 in activation), release management (Pre-Push Local Verification), and tag pushing. Currently these are ad-hoc curl calls scattered across phases. Codifying them into a protocol makes GitHub operations consistent, reusable, and safer.
+
+**License attribution**: Original @steipete/github skill is MIT-0 (no attribution required). Adapted patterns retained as orisinil curl-based implementation.
+
+### Why curl + PAT instead of `gh` CLI
+
+| Aspect | `gh` CLI (original skill) | curl + PAT (stellar-trails adaptation) |
+|---|---|---|
+| Availability | Not installed in z.ai sandbox | curl is sandbox-native |
+| Auth | `gh auth login` (interactive browser flow) | PAT in `/home/z/my-project/upload/PAT` (already configured) |
+| Token storage | gh's own credential store | File-based, user-controlled |
+| Scriptability | Subprocess invocation | Native bash, no subprocess overhead |
+| Portability | Requires gh install | Works anywhere curl exists |
+
+### Prerequisites
+
+Before using any GitHub Operations command:
+
+1. **PAT must be present** at `/home/z/my-project/upload/PAT` (user-managed, persistent across sessions)
+2. **Validate PAT** before first use:
+   ```bash
+   GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+   HTTP=$(curl -sS -m 10 -o /tmp/gh_user.json -w "%{http_code}" \
+     -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user)
+   [ "$HTTP" = "200" ] || { echo "✗ PAT invalid or expired (HTTP $HTTP)"; exit 1; }
+   python3 -c "import json; d=json.load(open('/tmp/gh_user.json')); print(f'✓ Authenticated as: {d.get(\"login\")}')"
+   ```
+3. **Never print PAT to logs** — always use `tr -d '[:space:]'` to strip, never `echo $GH_TOKEN`
+
+### Operation 1: PR CI Status Check
+
+**Original (@steipete/github)**: `gh pr checks 55 --repo owner/repo`
+**Adapted**: curl GitHub API for check runs on a PR's HEAD commit.
+
+```bash
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+REPO="owner/repo"
+PR_NUMBER=55
+
+# Get PR HEAD SHA
+PR_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER")
+HEAD_SHA=$(echo "$PR_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('head',{}).get('sha',''))")
+echo "PR #$PR_NUMBER HEAD: $HEAD_SHA"
+
+# Get check runs for that SHA
+curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/commits/$HEAD_SHA/check-runs" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for cr in d.get('check_runs', []):
+    print(f\"  {cr.get('name')}: {cr.get('status')}/{cr.get('conclusion') or '-'}\")"
+```
+
+### Operation 2: List Recent Workflow Runs
+
+**Original**: `gh run list --repo owner/repo --limit 10`
+**Adapted**: curl GitHub Actions API.
+
+```bash
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+REPO="owner/repo"
+
+curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/actions/runs?per_page=10" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f\"total_count: {d.get('total_count')}\")
+for r in d.get('workflow_runs', [])[:10]:
+    print(f\"  #{r.get('run_number')} | {r.get('name')} | {r.get('head_branch')} | {r.get('status')}/{r.get('conclusion') or '-'} | {r.get('created_at')}\")
+    print(f\"    URL: {r.get('html_url')}\")"
+```
+
+### Operation 3: View Failed Step Logs
+
+**Original**: `gh run view <run-id> --repo owner/repo --log-failed`
+**Adapted**: curl jobs endpoint, identify failed steps, fetch logs (requires auth + logs API which needs Accept header).
+
+```bash
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+REPO="owner/repo"
+RUN_ID="<run-id>"
+
+# Get jobs in the run, find failed steps
+curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for j in d.get('jobs', []):
+    print(f\"JOB: {j.get('name')} - {j.get('conclusion')}\")
+    for s in j.get('steps', []):
+        if s.get('conclusion') == 'failure':
+            print(f\"  FAILED STEP: {s.get('name')}\")
+            print(f\"    started: {s.get('started_at')} | completed: {s.get('completed_at')}\")"
+
+# Download full logs zip (authenticated endpoint)
+curl -sS -L -m 60 -H "Authorization: Bearer $GH_TOKEN" \
+  -o "/tmp/gh-logs-$RUN_ID.zip" \
+  "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/logs"
+echo "Logs saved to /tmp/gh-logs-$RUN_ID.zip"
+unzip -o -q "/tmp/gh-logs-$RUN_ID.zip" -d "/tmp/gh-logs-$RUN_ID/"
+# Find the failed step log file
+find "/tmp/gh-logs-$RUN_ID/" -name "*Publish*" -o -name "*failed*" 2>/dev/null | head -5
+```
+
+### Operation 4: API Queries with jq-style Filtering
+
+**Original**: `gh api repos/owner/repo/pulls/55 --jq '.title, .state, .user.login'`
+**Adapted**: curl + python3 (jq may not be installed; python3 is always available).
+
+```bash
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+REPO="owner/repo"
+
+# Get PR with specific fields (jq-style via python3)
+curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/pulls/55" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f\"title: {d.get('title')}\")
+print(f\"state: {d.get('state')}\")
+print(f\"user: {d.get('user',{}).get('login')}\")"
+
+# List issues with specific fields (original: --json number,title --jq '.[] | "\(.number): \(.title)"')
+curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
+  "https://api.github.com/repos/$REPO/issues?state=open&per_page=10" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for i in d:
+    print(f\"{i.get('number')}: {i.get('title')}\")"
+```
+
+### Risk Mitigation Checklist (from @steipete/github skill-card.md)
+
+Before running ANY GitHub operation, classify the action:
+
+| Action class | Examples | Approval required? |
+|---|---|---|
+| **Read** | GET issues, PRs, runs, logs, check-runs | NO (safe) |
+| **Write** | POST comments, create PRs, push tags/commits | YES (user explicit) |
+| **Modify** | PATCH PRs, issues, repo settings | YES (user explicit) |
+| **Delete** | DELETE branches, comments, releases | YES (user explicit + confirm) |
+| **API mutation** | `gh api -X POST/PATCH/DELETE` equivalent | YES (user explicit) |
+
+**Hard rule**: any non-GET request to GitHub API requires user explicit approval. State the exact mutation (URL + payload) before executing. Silent mutations are correctness bugs.
+
+**Auth scope check** (run once per session, before first write op):
+```bash
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+curl -sSI -m 10 -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user \
+  | grep -i "x-oauth-scopes:" | head -1
+# Verify scopes include 'repo' for write operations, 'workflow' for workflow file changes
+```
+
+### Integration with stellar-trails phases
+
+- **Pre-Push Local Verification (v9.2.0)**: uses Operation 1 (PR checks) + Operation 2 (run list) before push, Operation 3 (failed logs) if CI fails
+- **Pivot (Recovery)**: when CI fails, use Operation 3 to fetch failed step logs → inform Pivot classification (bug vs wrong approach)
+- **Proximate Cause Triage (v9.5.0)**: failed step logs are proximate evidence — apply Proximate Cause Test to the failure, don't rabbit-hole into unrelated logs
+- **Step 3 activation**: uses `clawhub inspect` (not GitHub API) — different concern, do not conflate
+
+### Anti-patterns (FORBIDDEN)
+
+- ❌ "Let me just call gh CLI" — `gh` is not installed in sandbox. Use curl + PAT.
+- ❌ "I'll print the PAT for debugging" — NEVER. Use `tr -d '[:space:]'` and never echo $GH_TOKEN.
+- ❌ "Let me fetch all 1000 runs to be thorough" — Scope Gate says `out_of_scope`. 10 most recent is sufficient for diagnosis.
+- ❌ "I'll do a POST to fix the issue" — write/modify/delete requires user explicit approval. State the mutation first.
+- ❌ "Logs are too big, let me skip them" — failed step logs are critical evidence. Fetch + extract the relevant section, do not skip.
+
+### Worked Example
+
+**Scenario**: CI run #28982551045 failed at "Publish to ClawHub" step.
+
+**Wrong (deep rabbit hole)**:
+1. Re-run entire CI
+2. Check clawhub.ai status page
+3. Investigate npm registry
+4. Inspect stellar-trails SKILL.md encoding
+5. ... (10 levels, never finds root cause)
+
+**Right (GitHub Operations Protocol + Proximate Cause Triage)**:
+1. Use Operation 3 to fetch failed step logs:
+   ```bash
+   GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+   curl -sS -L -m 60 -H "Authorization: Bearer $GH_TOKEN" \
+     -o /tmp/gh-logs.zip \
+     "https://api.github.com/repos/hoshiyomiX/stellar-trails/actions/runs/28982551045/logs"
+   unzip -o -q /tmp/gh-logs.zip -d /tmp/gh-logs/
+   cat "/tmp/gh-logs/build-and-release/10_Publish to ClawHub.txt"
+   ```
+2. Apply Proximate Cause Triage:
+   - Q1: Is "IndentationError" within 1 hop of "Publish failed"? YES (error in the bash block being run)
+   - Q2: Does it explain all symptoms with ≤2 assumptions? YES (1 assumption: my new python3 -c code has wrong indentation)
+   - Q3: Would fixing this resolve user's request? YES
+   - → FIX NOW: rewrite python3 -c as one-liner, push new tag
+3. **STOP**. Do not investigate clawhub.ai or npm registry — out_of_scope.
 
 ---
 
