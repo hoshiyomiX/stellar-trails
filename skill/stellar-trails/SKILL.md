@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.15.3
+- **version**: 9.16.0
 
 ---
 
@@ -65,120 +65,9 @@ Text enforcement (E1-E6) caps at ~70-85% compliance because LLMs can rationalize
 
 **Expected compliance**: ~90-93% automated, ~95% with active user verification of transcript.
 
-#### Vektor 1 — Hash Token Gate (E7)
+#### E7-E11 Detailed Descriptions
 
-Every bash block in activation writes/verifies a hash token. LLM cannot proceed past Block B without Block A having actually run.
-
-**Token file**: `/tmp/st-active` + `/tmp/st-session-meta` (session-scoped, wiped on session reset)
-**Token content** (v9.15.0): `sha256(version:timestamp:pid)[:16]` — session-specific, NOT version-derived
-
-Block A writes both files. Block B verifies:
-1. Both files exist
-2. Token age ≤ 120s (freshness check, Proposal 2)
-3. Token matches recomputation from `version + session_meta` (proves token wasn't fabricated)
-
-```bash
-# Block B gate check (top of Block B bash):
-if [ ! -f /tmp/st-active ] || [ ! -f /tmp/st-session-meta ]; then
-  echo "✗ Block B GATE FAILED: token files missing — Block A must run first"
-  exit 1
-fi
-TOKEN_AGE=$(( $(date +%s) - $(stat -c %Y /tmp/st-active) ))
-if [ "$TOKEN_AGE" -gt 120 ]; then
-  echo "✗ Block B GATE FAILED: token is ${TOKEN_AGE}s old (max 120s) — re-run Block A"
-  exit 1
-fi
-SESSION_META=$(cat /tmp/st-session-meta)
-EXPECTED_TOKEN=$(printf '%s' "${ST_VERSION}:${SESSION_META}" | sha256sum | cut -c1-16)
-ACTUAL_TOKEN=$(cat /tmp/st-active)
-if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
-  echo "✗ Block B GATE FAILED: token mismatch — token does not match session_meta"
-  exit 1
-fi
-```
-
-**Why this is now CODE-ENFORCED (not PARTIAL)**: The token includes `$$` (bash PID of Block A) and `$(date +%s)` (unix timestamp when Block A ran). An LLM cannot fabricate this token without actually running bash — it has no way to know what PID or timestamp bash will assign. Previous session's token won't work because timestamp will be >120s old. Concurrent sessions' tokens won't work because PIDs differ.
-
-**Residual bypass**: A rationalizing LLM could still compute the token directly by running `echo "9.15.0:$(date +%s):$$" | sha256sum` — but this requires running bash, which is itself a tool call recorded in transcript. The gate's purpose is to force Block A to actually execute bash, not to cryptographically prove identity.
-
-**Subagent write access caveat (added v9.11.4, still applies)**: `/tmp/st-active` and `/tmp/st-session-meta` are world-writable. A subagent CAN overwrite them. But the freshness check (120s) means the subagent would have to overwrite within 120s of Block B running — and the orchestrating main agent should pre-validate before trusting.
-
-#### Vektor 2 — TodoWrite Live Marker (E8)
-
-TodoWrite is a platform tool that renders a live checklist visible to the user in real-time. The user sees checkboxes transition `pending → in_progress → completed` as the LLM works. This is **visibility enforcement** — user can SEE if steps are being executed, not just trust LLM's text claims.
-
-**Mandatory protocol** (before Step 1 bash):
-1. Call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`
-2. Before executing each Step N bash: call `TodoWrite` to mark Step N `in_progress`
-3. After each Step N bash succeeds: call `TodoWrite` to mark Step N `completed`
-4. If any Step N fails: leave as `in_progress`, do NOT mark `completed`
-
-**Why this works**: TodoWrite is a tool call recorded in transcript. LLM cannot fabricate "I marked Step 3 completed" without actually calling TodoWrite. User sees the live checklist — if Step 3 is marked `completed` but no Bash tool call for Step 3 appears in transcript, fraud is visible.
-
-**Edge case**: LLM could mark all 5 `completed` in a single TodoWrite call without running anything. Mitigation: user watches for the **transition** (pending → in_progress → completed), not just final state. Single-call mass-marking is suspicious.
-
-#### Vektor 3 — Persistent Activation Log (E9)
-
-Each successful activation appends to `/home/user_skills/.st-activation-log` (persistent across sessions). User can audit this file anytime.
-
-**Log entry format** (one line per activation — corrected v9.13.1 to match actual Step 5 bash output):
-```
-YYYY-MM-DDTHH:MM:SSZ v<VERSION> token=<hash> steps=5/5 banner=YES
-```
-
-Step 5 writes the log entry. Next session's Step 1 can read the log to verify prior activations occurred. LLM can fake a log entry, but:
-- Timestamps must be monotonic — fake entries with wrong timestamps are detectable
-- No session ID is recorded — the log proves WHEN an activation happened, never WHO did it
-- User can `cat /home/user_skills/.st-activation-log` to audit anytime
-
-**Empirical persistence + multi-session caveat (added v9.13.1)**: Cross-session persistence is a **verified fact**, not an aspiration. At audit time the log held 326 entries across 38 distinct days (2026-07-11 → 2026-08-23, versions v9.4.0 → v9.13.0) with **0 timestamp-monotonicity violations**. However, the sandbox filesystem is **shared by concurrent sessions**, and their entries interleave indistinguishably. On 2026-08-23 alone, ≥2 sessions interleaved within one hour — including a `COMPLIANCE v9.13.0 score=12/12` entry that belongs to a session which wrote **no adjacent activation entry**. Only version/token discontinuities distinguish the sessions. **The log proves WHEN, never WHO.**
-
-**Best-effort caveat (added v9.11.4)**: `/home/user_skills/` is world-writable (`drwxrwxrwx` mode 0777) in the z.ai sandbox, meaning any process — including subagents — can modify or append to the activation log. This vector is fraud-detection (anomalous timestamps are visible on audit), not fraud-prevention. The real value of E9 is **visibility for the user**, not cryptographic integrity.
-
-#### Vektor 4 — Read Tool Line-Number Proof (E10)
-
-Step 1 must print a specific line from SKILL.md in the format `Read` tool returns (`<line_number>→<content>`). LLM cannot fabricate this format without actually calling Read.
-
-**Protocol**: After Read SKILL.md, print the version line with its line number:
-```
-SKILL.md line 19: 19→- **version**: 9.4.0
-```
-
-User can verify by reading the same file themselves. If LLM fabricates (e.g., wrong line number, wrong content), user catches it on spot-check.
-
-**Limitation**: LLM knows line 19 is the version line (from context). Stronger variant: skill mandates "print line N where N = current day-of-month + 10" — LLM cannot predict which line user will verify. But this adds complexity; the simple variant is sufficient for now.
-
-#### Vektor 5 — Clawhub Oracle Cross-Check (E11)
-
-Block A runs `clawhub inspect` and writes output to `/tmp/st-clawhub-oracle.json`. Block B **re-runs `clawhub inspect`** (Proposal 4, v9.15.0) and cross-checks the version matches the cached oracle.
-
-**Protocol** (v9.15.0):
-- Block A writes `clawhub inspect --json` output to `/tmp/st-clawhub-oracle.json`
-- Block B runs a FRESH `clawhub inspect --json` to `/tmp/st-clawhub-oracle-verify.json`
-- Block B extracts `latestVersion.version` from both files
-- If versions mismatch → COMPLIANCE FAILURE (exit 1)
-- If fresh inspect fails (network) → warning, but proceeds with cached
-
-```bash
-# Block B E11 re-verification (Proposal 4)
-clawhub inspect stellar-trails --json > /tmp/st-clawhub-oracle-verify.json 2>/dev/null
-FRESH_VERSION=$(python3 -c "import json; d=json.load(open('/tmp/st-clawhub-oracle-verify.json')); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
-CACHED_VERSION=$(python3 -c "import json; d=json.load(open('/tmp/st-clawhub-oracle.json')); print((d.get('latestVersion') or {}).get('version') or '')" 2>/dev/null || echo "")
-if [ -z "$FRESH_VERSION" ]; then
-  echo "⚠️ Block B E11 WARNING: fresh clawhub inspect failed — using cached oracle"
-elif [ "$FRESH_VERSION" != "$CACHED_VERSION" ]; then
-  echo "✗ Block B E11 FAILED: oracle mismatch — cached=$CACHED_VERSION, fresh=$FRESH_VERSION"
-  exit 1
-fi
-```
-
-**Why this is now CODE-ENFORCED (not PARTIAL)**: Even if an LLM fabricates `/tmp/st-clawhub-oracle.json` with fake JSON, Block B's fresh `clawhub inspect` call will return the REAL registry version. If they don't match, exit 1. The LLM cannot fabricate the fresh clawhub output because clawhub is an external binary.
-
-**Cost**: One extra `clawhub inspect` call (~2s). Acceptable for the verification gain.
-
-**Fabrication caveat (corrected v9.11.4 → v9.15.0)**: Previous versions claimed the cached oracle file was the protection. v9.15.0 makes the FRESH clawhub call the protection. The cached file is now just an audit artifact — the fresh call is the actual oracle. A fabricated cached file will be caught by the fresh call's mismatch.
-
-**Parse-defensiveness note (added v9.13.1, retained)**: Live registry responses may **omit or null** fields like `moderation.state`. Always extract `latestVersion.version` defensively.
+**Moved to `knowledge/enforcement-vectors.md`** in v9.16.0. SKILL.md keeps matrix below.
 
 #### Combined Enforcement Matrix (v9.15.0)
 
@@ -647,6 +536,26 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 Phase definitions, entry/exit criteria, and gate rules live in `procedure/phases.md` — read it during Step 5 of Activation.
 
+### Phase Entry Snapshot (v9.16.0 Refactor D — CODE-ENFORCED phase trail)
+
+At EACH phase entry, run this bash block to write snapshot (Proposal 8 integration optimized). This replaces manual `☄️ ENTER/EXIT` text markers with CODE-ENFORCED bash trail:
+
+```bash
+# v9.16.0 Refactor D: Phase entry snapshot — optimized single pattern
+# Run at start of each phase (SPECIFY, PLAN, IMPLEMENT, VERIFY, DELIVER)
+_PHASE="[SPECIFY|PLAN|IMPLEMENT|VERIFY|DELIVER]"  # set per phase
+_TASK="[one-line task summary]"
+_FILES="[files modified so far, or 'none']"
+_NEXT="[next step in this phase]"
+_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+echo "${_TS}:phase=${_PHASE}:task=${_TASK}:files=${_FILES}:next=${_NEXT}" >> /tmp/st-session-snapshot
+tail -10 /tmp/st-session-snapshot > /tmp/st-session-snapshot.tmp && mv /tmp/st-session-snapshot.tmp /tmp/st-session-snapshot
+echo "task=${_TASK} | phase=${_PHASE} | files=${_FILES} | next=${_NEXT}" > /tmp/st-context-summary
+echo "✓ Phase snapshot: ${_PHASE} at ${_TS}"
+```
+
+User can `cat /tmp/st-session-snapshot` for CODE-ENFORCED audit trail of all phases entered.
+
 ---
 
 ## Session Continuity
@@ -813,12 +722,14 @@ Before planning any implementation, verify the approach is grounded in real sour
 
 | Complexity | SADC Requirement |
 |-----------|-------------------|
-| **Minimal** | Skip — knowledge questions don't need source research |
-| **Simple** | Quick check — verify approach against at least one source |
-| **Standard** | **Main agent inline research** — invoke `Skill(command="web-search")` then use Inline Content Retrieval (v9.5.0) BEFORE writing problem-spec. Print `📡 SADC: main agent researching inline` |
-| **Complex** | Deep research by main agent — multiple sources, compare approaches, document tradeoffs |
+| **Minimal** | **Mandatory** — 1 source, quick check (even knowledge Q&A benefits from ground truth) |
+| **Simple** | **Mandatory** — 1-2 sources, verify approach |
+| **Standard** | **Mandatory** — 3-5 sources, main agent inline research via `Skill(command="web-search")` + Inline Content Retrieval BEFORE problem-spec. Print `📡 SADC: main agent researching inline` |
+| **Complex** | **Mandatory** — 5+ sources, deep research, compare approaches, document tradeoffs |
 
-**Main agent mandate (Standard/Complex)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (see Inline Content Retrieval section, NEW in v9.5.0) to extract content from top 3-5 URLs → ≤500-word summary. **No external extraction skill dependency** — uses native curl + python3.
+**v9.16.0 Refactor B**: SADC is now MANDATORY in ALL tiers. Rationale: true ground knowledge prevents hallucinated assumptions. Even Minimal tier (knowledge Q&A) benefits from verifying against real sources. Cost (~2K tokens) is acceptable for quality guarantee.
+
+**Main agent mandate (ALL tiers, v9.16.0)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (see Inline Content Retrieval section, NEW in v9.5.0) to extract content from top 3-5 URLs → ≤500-word summary. **No external extraction skill dependency** — uses native curl + python3.
 
 **Why main agent, not subagent**: The z.ai sandbox main agent has the SKILL.md pre-loaded into its context at session start; subagents do not (their context is the orchestrating main agent's task prompt). While subagents CAN invoke `Skill(command="stellar-trails")` after the fact (verified v9.11.4 — see Subagent Compliance Matrix below), doing so consumes ~95K tokens of the subagent's budget just to load the skill — wasteful for a single SADC lookup. The main agent already has SKILL.md in context, so it can perform SADC inline at near-zero marginal cost. Additionally, subagent prompts are compressed by the orchestrator, which may strip nuance needed for SADC source evaluation.
 
@@ -899,316 +810,13 @@ next_step: <what user should do next>
 
 ---
 
-## Pre-Push Local Verification (NEW in v9.2.0, strengthened in v9.7.0)
+## Pre-Push Local Verification
 
-**Problem this solves**: Pushing code changes to CI without local verification wastes a CI cycle (~1-2 minutes per run) and creates a "push → fail → read logs → push again" loop. This happened during this skill's development:
+**Moved to `procedure/pre-push-checks.md`** in v9.16.0 (Refactor A — slim down).
 
-- v9.0.1 push → CI failed (python3 IndentationError) → read logs → v9.0.2 push → CI succeeded
-- The IndentationError would have been caught by running the bash block locally before pushing.
-- v9.6.0 push → CI succeeded BUT publish didn't register (moderation hide) → v9.6.1 re-publish
-- v9.2.1 push → banner version hardcoded at v9.1.0 (not caught by bash -n)
-- v9.1.0 push → SSV grep unescaped `**` (not caught by bash -n)
-
-**Rule**: Before pushing any change that triggers CI, run ALL checks below. **All 9 checks must PASS before push.** If any FAIL, fix before pushing — do not push broken code.
-
-### Verification checklist (9 checks, ALL must pass)
-
-#### Check 1: bash -n syntax on all bash blocks
-```bash
-python3 << 'PYEOF'
-import re, subprocess, tempfile, os
-with open('skill/stellar-trails/SKILL.md') as f:
-    content = f.read()
-blocks = re.findall(r'\x60\x60\x60bash\n(.*?)\x60\x60\x60', content, re.DOTALL)
-fail = 0
-for i, block in enumerate(blocks, 1):
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
-        f.write(block); path = f.name
-    r = subprocess.run(['bash', '-n', path], capture_output=True, text=True)
-    os.unlink(path)
-    if r.returncode != 0:
-        print(f"✗ Block {i} FAIL: {r.stderr.strip()[:120]}")
-        fail += 1
-print(f"{'✓' if fail == 0 else '✗'} Check 1: bash -n — {len(blocks)-fail}/{len(blocks)} blocks pass")
-PYEOF
-```
-
-#### Check 2: python3 -c blocks execute with mock inputs (NEW v9.7.0)
-```bash
-# Extract and run every python3 -c block with 3 mock inputs: valid JSON, empty JSON, invalid text
-python3 << 'PYEOF'
-import re, subprocess
-with open('skill/stellar-trails/SKILL.md') as f:
-    content = f.read()
-# Find all python3 -c "..." blocks
-blocks = re.findall(r'python3 -c ("[^"]+"|\'[^\']+\')', content)
-fail = 0
-for i, block in enumerate(blocks, 1):
-    cmd = f'echo "{{}}" | python3 -c {block}'
-    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-    if r.returncode != 0:
-        print(f"✗ python3 -c block {i} FAIL on empty JSON: {r.stderr.strip()[:80]}")
-        fail += 1
-print(f"{'✓' if fail == 0 else '✗'} Check 2: python3 -c mock execution — {len(blocks)-fail}/{len(blocks)} blocks pass")
-PYEOF
-```
-
-#### Check 3: grep patterns return expected values (NEW v9.7.0)
-```bash
-# Every grep -oP pattern in SKILL.md must return non-empty on the actual file
-python3 << 'PYEOF'
-import re, subprocess
-with open('skill/stellar-trails/SKILL.md') as f:
-    content = f.read()
-patterns = re.findall(r"grep -oP '([^']+)'", content)
-fail = 0
-for i, pat in enumerate(patterns, 1):
-    # Skip patterns that are meant to match process output, not file content
-    if 'pid=' in pat or ':3000' in pat or 'HTTP' in pat:
-        continue
-    r = subprocess.run(['grep', '-oP', pat, 'skill/stellar-trails/SKILL.md'],
-                       capture_output=True, text=True, timeout=5)
-    if not r.stdout.strip():
-        print(f"✗ grep pattern {i} returns empty: {pat[:60]}")
-        fail += 1
-print(f"{'✓' if fail == 0 else '✗'} Check 3: grep patterns — {len(patterns)-fail}/{len(patterns)} return non-empty")
-PYEOF
-```
-
-#### Check 4: Banner version is dynamic, not hardcoded (NEW v9.7.0)
-```bash
-# Banner must use <VERSION> placeholder, NOT hardcoded v9.x.y
-HARDCODED=$(grep -c '☄️ STELLAR TRAILS · v[0-9]' skill/stellar-trails/SKILL.md)
-PLACEHOLDER=$(grep -c '☄️ STELLAR TRAILS · v<VERSION>' skill/stellar-trails/SKILL.md)
-if [ "$HARDCODED" -gt 0 ] && [ "$PLACEHOLDER" -eq 0 ]; then
-  echo "✗ Check 4 FAIL: banner has hardcoded version ($HARDCODED occurrences), no <VERSION> placeholder"
-else
-  echo "✓ Check 4: banner uses <VERSION> placeholder ($PLACEHOLDER refs), no hardcoded version"
-fi
-```
-
-#### Check 5: Metadata version matches git tag about to be pushed (NEW v9.7.0)
-```bash
-NEW_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' skill/stellar-trails/SKILL.md | head -1)
-TAG="v$NEW_VERSION"
-if git tag -l "$TAG" | grep -q "$TAG"; then
-  echo "✗ Check 5 FAIL: tag $TAG already exists"
-else
-  echo "✓ Check 5: tag $TAG does not exist yet (safe to push)"
-fi
-```
-
-#### Check 6: ClawHub registry state — skill not hidden by moderation (NEW v9.7.0)
-```bash
-# Before push, verify skill is visible on registry (not moderation-hidden)
-# This catches the v9.6.0 bug where publish exit 0 but version didn't register
-REGISTRY_STATE=$(clawhub inspect stellar-trails --json)
-if [ -z "$REGISTRY_STATE" ]; then
-  echo "✗ Check 6 FAIL: cannot reach clawhub registry — push may publish to hidden skill"
-else
-  MOD_STATE=$(echo "$REGISTRY_STATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('moderation',{}).get('state','unknown'))" || echo "unknown")
-  if [ "$MOD_STATE" = "hidden" ] || [ "$MOD_STATE" = "deleted" ]; then
-    echo "✗ Check 6 FAIL: skill is $MOD_STATE by moderation — publish will not register"
-    echo "  Contact clawhub moderator before pushing"
-  else
-    echo "✓ Check 6: skill visible on registry (moderation: $MOD_STATE)"
-  fi
-fi
-```
-
-#### Check 7: YAML structure valid (if workflow files changed)
-```bash
-if git diff --cached --name-only HEAD | grep -q '\.github/workflows/'; then
-  python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))" && \
-    echo "✓ Check 7: workflow YAML valid" || echo "✗ Check 7 FAIL: workflow YAML invalid"
-else
-  echo "✓ Check 7: no workflow files changed (skip)"
-fi
-```
-
-#### Check 8: Markdown fence count is even (no orphan code blocks)
-```bash
-_F=$(printf '\x60\x60\x60')
-FENCES=$(grep -c "$_F" skill/stellar-trails/SKILL.md)
-if [ $((FENCES % 2)) -eq 0 ]; then
-  echo "✓ Check 8: markdown fences even ($FENCES)"
-else
-  echo "✗ Check 8 FAIL: markdown fences odd ($FENCES) — orphan code block"
-fi
-```
-
-#### Check 9: Post-push plan — registry poll will be done (NEW v9.7.0)
-```bash
-# Acknowledge that push is not complete until registry confirms the version
-echo "✓ Check 9: post-push plan acknowledged"
-echo "  After CI succeeds, MUST poll clawhub inspect until latestVersion = $NEW_VERSION"
-echo "  If registry doesn't update within 60s of CI success, fetch CI logs + diagnose"
-echo "  (This catches the v9.6.0 bug: publish exit 0 but version not registered)"
-```
-
-#### Check 10: index.html version matches SKILL.md (NEW v9.10.1)
-```bash
-SKILL_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' skill/stellar-trails/SKILL.md | head -1)
-INDEX_VERSION=$(grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' skill/stellar-trails/index.html | head -1)
-if [ "$SKILL_VERSION" != "$INDEX_VERSION" ]; then
-  echo "✗ Check 10 FAIL: SKILL.md v$SKILL_VERSION vs index.html v$INDEX_VERSION — version drift"
-else
-  echo "✓ Check 10: index.html version matches SKILL.md (v$SKILL_VERSION)"
-fi
-```
-
-#### Check 11: No duplicate knowledge files (NEW v9.11.4)
-```bash
-# Catches byte-identical duplicate files in knowledge/ subdirs (leftover from path-mismatch fixes)
-DUPES=$(find skill/stellar-trails/knowledge/ -type f -name "*.md" -exec md5sum {} \; | sort | uniq -d -w 32 | wc -l)
-if [ "$DUPES" -gt 0 ]; then
-  echo "✗ Check 11 FAIL: $DUPES duplicate knowledge file(s) detected:"
-  find skill/stellar-trails/knowledge/ -type f -name "*.md" -exec md5sum {} \; | sort | uniq -d -w 32
-  echo "  Remove duplicates — only top-level knowledge/*.md should exist (no platform/ or universal/ subdirs)"
-else
-  echo "✓ Check 11: no duplicate knowledge files"
-fi
-```
-
-#### Check 12: phases.md ↔ SKILL.md SADC drift (NEW v9.11.4)
-```bash
-# Catches drift between phases.md SADC step and SKILL.md SADC section
-# Both must agree: main agent inline, NO subagent dispatch, NO crawl4ai/web-reader invocations
-# Note: matches positive invocations only (Skill(command="...") or "dispatched"), not negations like "No crawl4ai"
-PHASES_SUBAGENT=$(grep -cE 'Skill\(command="(crawl4ai|web-reader)"\)|subagent dispatched|Task\(subagent_type' skill/stellar-trails/procedure/phases.md)
-PHASES_SUBAGENT=${PHASES_SUBAGENT:-0}
-PHASES_CRAWL=0  # accounted for in PHASES_SUBAGENT above via Skill(command="...")
-if [ "$PHASES_SUBAGENT" -gt 0 ]; then
-  echo "✗ Check 12 FAIL: phases.md still references removed SADC patterns (count: $PHASES_SUBAGENT)"
-  echo "  SKILL.md removed subagent SADC in v9.1.0 and crawl4ai in v9.5.0 — phases.md must match"
-  grep -nE 'Skill\(command="(crawl4ai|web-reader)"\)|subagent dispatched|Task\(subagent_type' skill/stellar-trails/procedure/phases.md
-else
-  echo "✓ Check 12: phases.md SADC step aligned with SKILL.md (no subagent dispatch, no crawl4ai/web-reader invocations)"
-fi
-```
-
-#### Check 13: Path integrity — all referenced files exist (NEW v9.11.5)
-```bash
-# Catches broken file references left behind when files/dirs are moved or deleted.
-# Verifies every (references|procedure|knowledge|constraints)/path/to/file.md mentioned
-# in any skill file actually exists on disk. Would have caught the v9.11.4 regression
-# where knowledge/universal/ and knowledge/platform/ subdirs were deleted but refs in
-# constraints/code-standards.md, knowledge/error-patterns.md, procedure/error-resolution.md
-# were not updated.
-python3 << 'PYEOF'
-import os, re, subprocess
-SKILL_DIR = 'skill/stellar-trails'
-# Collect all file-path references from all .md files in the skill
-ref_pattern = re.compile(r'(?:references|procedure|knowledge|constraints)/[a-zA-Z0-9_/-]+\.md')
-missing = []
-files_scanned = 0
-for root, dirs, files in os.walk(SKILL_DIR):
-    for fname in files:
-        if not fname.endswith('.md'):
-            continue
-        fpath = os.path.join(root, fname)
-        files_scanned += 1
-        with open(fpath) as f:
-            content = f.read()
-        for match in ref_pattern.finditer(content):
-            ref = match.group(0)
-            full = os.path.join(SKILL_DIR, ref)
-            if not os.path.exists(full):
-                # Allow references that are documentation of removal (e.g., "formerly in procedure/templates/")
-                # — but only if the line contains "formerly" or "removed" or "REMOVED"
-                line_start = content.rfind('\n', 0, match.start()) + 1
-                line_end = content.find('\n', match.end())
-                line = content[line_start:line_end if line_end > 0 else len(content)]
-                if any(kw in line.lower() for kw in ['formerly', 'removed', 'deprecated', 'was dead code']):
-                    continue
-                missing.append(f"  {fpath}: {ref}")
-if missing:
-    print(f"✗ Check 13 FAIL: {len(missing)} broken file reference(s):")
-    for m in missing:
-        print(m)
-else:
-    print(f"✓ Check 13: all file references valid ({files_scanned} files scanned)")
-PYEOF
-```
-
-#### Check 14: .zscripts/dev.sh git-tracked + hash matches skill copy (NEW v9.11.9)
-```bash
-# Verifies that .zscripts/dev.sh is git-tracked (not ignored by .gitignore)
-# AND that its hash matches skill/stellar-trails/dev.sh (the zip source).
-# Catches: .gitignore regression (re-ignoring .zscripts/), dev.sh drift between
-# the tracked runtime copy and the zip source.
-if git ls-files --error-unmatch .zscripts/dev.sh >/dev/null 2>&1; then
-  SKILL_HASH=$(sha256sum skill/stellar-trails/dev.sh | cut -d' ' -f1)
-  ZSCRIPTS_HASH=$(sha256sum .zscripts/dev.sh | cut -d' ' -f1)
-  if [ "$SKILL_HASH" != "$ZSCRIPTS_HASH" ]; then
-    echo "✗ Check 14 FAIL: .zscripts/dev.sh hash mismatch"
-    echo "  skill/stellar-trails/dev.sh: $SKILL_HASH"
-    echo "  .zscripts/dev.sh:            $ZSCRIPTS_HASH"
-    echo "  Fix: cp -f skill/stellar-trails/dev.sh .zscripts/dev.sh"
-  else
-    echo "✓ Check 14: .zscripts/dev.sh tracked + hash matches skill copy ($ZSCRIPTS_HASH)"
-  fi
-else
-  echo "✗ Check 14 FAIL: .zscripts/dev.sh is NOT git-tracked — check .gitignore exception"
-  echo "  Expected pattern in .gitignore: .zscripts/* + !.zscripts/dev.sh"
-  echo "  Or run: git add -f .zscripts/dev.sh"
-fi
-```
-
-#### Worklog Snapshot + L1 Pattern Skeleton (bash-enforced v9.14.0)
-```bash
-# Bash guarantees worklog entry + L1 pattern skeleton at DELIVER
-# LLM fills in [brackets] after bash creates skeleton
-cat >> /home/z/my-project/worklog.md << ST_WL_EOF
----
-last_phase: DELIVER
-timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
-version: v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
-task: [LLM fills]
-complexity: [LLM fills]
-task_type: [LLM fills]
-files_modified: [LLM fills]
-phase_trace: IDLE→SPECIFY→PLAN→IMPLEMENT→VERIFY→DELIVER
-ST_WL_EOF
-echo "✓ Worklog skeleton appended (LLM: fill in [brackets] above)"
-# L1 pattern skeleton (bash guarantees template structure)
-echo "## [$(date -u '+%Y-%m-%d')] <domain>: <pattern-name>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "**Context**: <when applies>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "**Approach**: <what worked>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "**Gotcha**: <what to avoid>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "**Source**: <task>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
-echo "✓ L1 pattern skeleton appended (LLM: fill in <brackets>)"
-```
-
-### When to skip Pre-Push Local Verification
-
-- Documentation-only changes (CHANGELOG.md, README.md) → skip checks 2-6, run 1+7+8
-- Version bump commits (just `sed` + commit) → run checks 4+5+6+9
-- Changes to files that have no executable code (pure markdown prose) → skip checks 2-3
-
-**Never skip**: checks 1 (bash syntax), 8 (markdown fences), 9 (post-push plan)
-
-### Cost-benefit
-
-- **Cost**: 60-90 seconds of local testing (up from 30-60s in v9.2.0)
-- **Benefit**: catches 5 bug classes that slipped through v9.2.0's 4 checks
-- **Bug classes caught by v9.7.0 additions**:
-  - python3 -c execution errors (would have caught v9.0.1 IndentationError)
-  - grep pattern failures (would have caught v9.1.0 unescaped `**`)
-  - banner version drift (would have caught v9.2.1 hardcoded v9.1.0)
-  - tag collision (would have caught duplicate tag pushes)
-  - moderation hide (would have caught v9.6.0 publish-not-registering)
-  - post-push registry verification (would have caught v9.6.0 silent publish failure)
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "bash -n passed, ship it" — bash -n is necessary but NOT sufficient. Run all 9 checks.
-- ❌ "Skip check 6, registry was fine last time" — moderation state can change between pushes. Always check.
-- ❌ "Skip check 9, CI will tell us" — CI success ≠ registry update. v9.6.0 proved this. Always poll registry post-push.
-- ❌ "Check 2 takes too long" — 5 seconds per python3 -c block. Worth it to avoid CI cycle.
-
----
+Before pushing: Read `procedure/pre-push-checks.md` and run all 14 checks.
+Never skip: Check 1 (bash syntax), Check 8 (fences), Check 9 (post-push plan).
+Tiered: version-bump → checks 1+8+9; doc-change → +4+5+6; code-change → all 14.
 
 ## Proximate Cause Triage (v9.5.0 — detail in `knowledge/proximate-cause.md`)
 
@@ -1264,188 +872,12 @@ Standard/Complex tier: PLAN → IMPLEMENT gate produces a Scope (see Deliveries)
 
 ---
 
-## Inline Templates (NEW in v9.0.0 — formerly in procedure/templates/)
+## Inline Templates
 
-Four templates are now embedded inline. Standard/Complex tasks must use the exact headers below. Free-form = correctness bug.
+Templates moved to `procedure/templates.md` in v9.16.0 (Refactor A — slim down).
 
-### Problem Specification (SPECIFY output, Standard/Complex)
-
-<template name="problem-spec">
-# Problem Specification
-
-| Field | Value |
-|-------|-------|
-| Request | [Exact user request — quoted verbatim] |
-| Source Research | [SADC summary — existing solutions, docs consulted, patterns. If none found, state explicitly.] |
-| Functional Requirement | [What the code must accomplish — "must" language] |
-| Technical Constraints | [Platform limits, sandbox rules, framework requirements] |
-| Identified Edge Cases | [List each with handling strategy] |
-| Affected Files | [See table below] |
-| Risk Level | [LOW / MEDIUM / HIGH with justification] |
-| Dependencies | [External packages, services, config changes] |
-| Source State | [Branch + HEAD SHA + verification status, or "No git repository involved"] |
-| Scope OUT | [Explicitly excluded — prevents scope creep] |
-
-## Affected Files
-
-| File Path | Action | Purpose |
-|-----------|--------|---------|
-| path/to/file | Create / Modify | Why this file changes |
-
-## Edge Cases
-
-| # | Edge Case | Handling Strategy |
-|---|-----------|-------------------|
-| 1 | [Condition] | [How handled] |
-</template>
-
-### Implementation Plan (PLAN output, Standard/Complex)
-
-<template name="implementation-plan">
-# Implementation Plan: [Task Name]
-
-## Approach
-[2-3 sentences — design decision + why chosen]
-
-## Alternatives Considered
-- Alt 1: [Approach] — [Why rejected]
-- Alt 2: [Approach] — [Why rejected]
-
-## Pre-Deploy Verification
-[Local verification step before target deployment, or "N/A"]
-
-## Fallback Approach
-[Alternative if primary fails. "No viable fallback — would require user input." if none.]
-
-## Scope Boundary
-
-| | Items |
-|--|-------|
-| **IN** | [What's included] |
-| **OUT** | [What's excluded] |
-
-## Implementation Steps
-
-| Step | Action | Target File | Traceability ID |
-|------|--------|-------------|-----------------|
-| 1 | [Specific action] | [File path] | IMPL-001 |
-| 2 | [Specific action] | [File path] | IMPL-002 |
-
-## Requirements Mapping
-
-| Traceability ID | Maps to Requirement | Notes |
-|-----------------|--------------------|----|
-| IMPL-001 | [Functional requirement] | [Context] |
-
-## Verification Strategy
-
-| What to Verify | Method | Expected Outcome | Traceability ID |
-|----------------|--------|------------------|-----------------|
-| [Behavior] | [How to check] | [Correct result] | IMPL-001 |
-</template>
-
-### Verification Report (VERIFY output, Standard/Complex)
-
-<template name="verification-report">
-# Verification Report: [Task Name]
-
-## Automated Checks
-
-| Check | Tool/Command | Expected | Actual | Status |
-|-------|-------------|----------|--------|--------|
-| Lint | [cmd] | No errors | [output] | PASS/FAIL |
-| Type Check | [cmd] | No type errors | [output] | PASS/FAIL |
-| Tests | [cmd] | All pass | [output] | PASS/FAIL |
-
-## Pre-Deploy Verification
-
-| Check | Method | Expected | Actual | Status |
-|-------|--------|----------|--------|--------|
-| [Pre-Deploy step or N/A] | [method] | [outcome] | [actual] | PASS/FAIL/N/A |
-
-## Traceability Verification
-
-| Traceability ID | Implementation Verified | Method | Status |
-|-----------------|------------------------|--------|--------|
-| IMPL-001 | [What was verified] | [How checked] | PASS/FAIL |
-
-## Edge Case Verification
-
-| Edge Case | Test Input | Expected | Actual | Status |
-|-----------|-----------|----------|--------|--------|
-| [Case] | [Input] | [Behavior] | [Actual] | PASS/FAIL |
-
-## Summary
-
-| Metric | Value |
-|--------|-------|
-| Automated checks passed | [n]/[total] |
-| Traceability items passed | [n]/[total] |
-| Edge cases passed | [n]/[total] |
-| Defects found / fixed | [n] / [n] |
-| Overall result | PASS / FAIL |
-
-## Outcome Statement
-[1-2 sentences — does code satisfy all requirements?]
-
-## Failures (if any)
-[Description + root cause + fix, or "None"]
-</template>
-
-### Incident Report (Recovery output, on error)
-
-<template name="incident-report">
-# Incident Report
-
-## Error Capture
-
-| Field | Value |
-|-------|-------|
-| Phase When Error Occurred | SPECIFY / PLAN / IMPLEMENT / VERIFY |
-| Error Message | [Exact text — paste verbatim] |
-| Error Classification | Compilation / Runtime / Network / Type / Database / Git / Wrong Approach / Other |
-| Stack Trace | [If available] |
-| Context | [What agent was doing] |
-
-## Root Cause Analysis
-
-| Question | Answer |
-|----------|--------|
-| What failed? | [Precise description] |
-| Why did it fail? | [Chain of causation — 2+ levels deep] |
-| Symptom or root cause? | [Symptom → identify root / Root cause] |
-| Could recur elsewhere? | [Yes/No — if Yes, list locations] |
-
-## Pivot Assessment
-
-| Field | Value |
-|-------|-------|
-| Is Wrong Approach? | YES / NO |
-| Pivot Signal | [50%+ rewrite / same error after 2 attempts / missing library feature / data model change / N/A] |
-| Fallback Available? | YES / NO |
-| New Approach | [Alternative — fallback or new] |
-| User Approval Required? | YES / NO |
-
-## Proposed Fix
-
-| Field | Value |
-|-------|-------|
-| Fix Description | [What change resolves root cause] |
-| Files Modified | [List + changes] |
-| Has Side Effects? | YES / NO |
-| Side Effect Details | [If YES: describe each] |
-| User Approval Required? | YES / NO |
-
-## Resolution
-
-| Field | Value |
-|-------|-------|
-| Fix Applied | [What was done] |
-| Return Phase | VERIFY / IMPLEMENT / SPECIFY |
-| Re-verification Required? | YES |
-</template>
-
----
+Standard/Complex tasks: Read `procedure/templates.md` before writing problem-spec.
+Templates: problem-spec, implementation-plan, verification-report, incident-report.
 
 ## Deliveries
 
@@ -1547,7 +979,8 @@ Detail (extraction format, on-demand loading table, anti-patterns) in `knowledge
 - v9.0.0: ~26% CODE-enforced (5/19 vectors)
 - v9.15.0: ~58% CODE-enforced (11/19 vectors) — Proposals 1+2+4+6 + 2-Block Protocol
 - v9.15.2: ~63% CODE-enforced (12/19 vectors) — Proposal 7 E8 todolist proxy
-- v9.15.3: ~63% CODE-enforced + ~50% faster truncation recovery — Proposals 8+9+10 (session resilience, not enforcement)
+- v9.15.3: ~63% CODE-enforced + ~50% faster truncation recovery — Proposals 8+9+10
+- v9.16.0: ~63% CODE-enforced + SKILL.md 50% slimmer + SADC mandatory all tiers + CODE-ENFORCED phase trail — Refactors A+B+D
 - Maximum achievable: ~80% CODE-enforced (platform harness required for remaining 20%)
 
 Research (Lost in the Middle, arXiv 2307.03172): ~70-85% compliance ceiling via text. v9.0.0+ raises to ~90%. v9.15.0 raises CODE enforcement to ~58%. 98% needs harness-level verifier. 100% needs platform enforcement.
