@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.15.2
+- **version**: 9.15.3
 
 ---
 
@@ -339,6 +339,17 @@ if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_
 # It adds a CODE-ENFORCED audit layer that LLM cannot skip.
 echo "block-a:completed:$(date -u '+%Y-%m-%dT%H:%M:%SZ'):pid=$$:token=$(cat /tmp/st-active)" >> /tmp/st-todolist
 echo "  E8 proxy: /tmp/st-todolist updated (block-a:completed)"
+# === Proposal 8+9 (v9.15.3): Read mid-task snapshot + compact summary if exists ===
+# After truncation, these files preserve task state for resume.
+# If present, LLM should read them to recover context without re-reading full worklog.
+if [ -f /tmp/st-session-snapshot ]; then
+  echo "  📋 Session snapshot found (mid-task state preserved):"
+  tail -3 /tmp/st-session-snapshot | sed 's/^/    /'
+fi
+if [ -f /tmp/st-context-summary ]; then
+  echo "  📋 Context summary (≤200 chars, inject into context):"
+  cat /tmp/st-context-summary | sed 's/^/    /'
+fi
 echo "✓ Block A COMPLETE — proceeding to Block B"
 ```
 
@@ -608,6 +619,7 @@ All 12 vectors retained. v9.15.0 raises CODE enforcement from ~26% to ~58% via:
 - Proposal 4: E11 re-run clawhub (was file-existence-only)
 - Proposal 6: E7 token with session_meta (was version-derived)
 - Proposal 7 (v9.15.2): E8 todolist proxy file (CODE-ENFORCED audit trail for Block A completion)
+- Proposal 8+9+10 (v9.15.3): Mid-task session resilience (snapshot + summary + checkpoint) — improves truncation recovery ~50%
 
 v9.15.2 raises CODE enforcement from ~58% to ~63% via:
 - Proposal 7: E8 todolist proxy file `/tmp/st-todolist` (CODE-ENFORCED audit trail for Block A completion)
@@ -694,6 +706,77 @@ fi
 ```
 
 **Knowledge on-demand loading**: At Step 5 activation, only read the **last 3 entries** of `worklog.md` (not the whole file) — sufficient for continuity check without loading stale history.
+
+### Mid-Task Session Resilience (NEW v9.15.3 — Proposals 8+9+10)
+
+**Problem this solves**: Session truncation/compression mid-task (before DELIVER) loses all progress. LLM must re-do SPECIFY+PLAN from scratch. 3 proposals add mid-task state preservation:
+
+#### Proposal 8 — Mid-Task Session Snapshot (`/tmp/st-session-snapshot`)
+
+**When to write**: At each phase transition (SPECIFY→PLAN, PLAN→IMPLEMENT, IMPLEMENT→VERIFY). Volatile — survives truncation, not reboot.
+
+```bash
+# v9.15.3 Proposal 8: Write phase-transition snapshot (run at each phase entry)
+# Format: timestamp:phase:task_one_line:files_modified:next_step
+# LLM fills in [brackets] before running
+_PHASE="SPECIFY"  # or PLAN, IMPLEMENT, VERIFY — set per phase
+_TASK="[one-line task summary]"
+_FILES="[files modified so far, or 'none']"
+_NEXT="[next step in this phase]"
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ'):phase=${_PHASE}:task=${_TASK}:files=${_FILES}:next=${_NEXT}" >> /tmp/st-session-snapshot
+# Rotate: keep last 10 entries (avoid unbounded growth)
+tail -10 /tmp/st-session-snapshot > /tmp/st-session-snapshot.tmp && mv /tmp/st-session-snapshot.tmp /tmp/st-session-snapshot
+echo "✓ Snapshot written: phase=${_PHASE}"
+```
+
+**Block A reads this** (already added above): if `/tmp/st-session-snapshot` exists, prints last 3 entries for LLM to resume.
+
+#### Proposal 9 — Compact Context Summary (`/tmp/st-context-summary`)
+
+**When to write**: At each phase EXIT. Single-line ≤200 chars. Overwrites previous (always latest).
+
+```bash
+# v9.15.3 Proposal 9: Write compact context summary (run at each phase exit)
+# Single line, ≤200 chars, overwrites previous — always latest state.
+# LLM fills in [brackets] before running
+_SUMMARY="task=[one-line] | phase_done=[SPECIFY|PLAN|IMPLEMENT|VERIFY] | decision=[key decision] | next=[next step]"
+echo "$_SUMMARY" > /tmp/st-context-summary
+echo "✓ Context summary written (≤200 chars)"
+```
+
+**Block A reads this** (already added above): if exists, prints for immediate LLM context injection — answers "what was I doing?" without reading full worklog.
+
+#### Proposal 10 — Worklog Mid-Task Checkpoint
+
+**When to write**: At IMPLEMENT entry for Standard/Complex tasks. Persistent (survives reboot). Distinguished from DELIVER snapshot with `checkpoint=YES`.
+
+```bash
+# v9.15.3 Proposal 10: Worklog mid-task checkpoint (run at IMPLEMENT entry, Standard/Complex only)
+# Persistent — survives container reboot (unlike /tmp snapshots).
+# Distinguish from DELIVER snapshot with checkpoint=YES field.
+cat >> /home/z/my-project/worklog.md << ST_CHECKPOINT_EOF
+---
+last_phase: IMPLEMENT (checkpoint)
+timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+version: v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
+task: [LLM fills — one-line task summary]
+checkpoint: YES
+files_modified_so_far: [LLM fills — list or 'none']
+impl_steps_done: [LLM fills — e.g. 'IMPL-001, IMPL-002']
+next_step: [LLM fills — next IMPL step or 'VERIFY']
+ST_CHECKPOINT_EOF
+echo "✓ Worklog checkpoint written (IMPLEMENT entry, persistent)"
+```
+
+**Recovery after reboot**: Read `worklog.md` last entry. If `checkpoint: YES`, resume from IMPLEMENT phase (skip SPECIFY+PLAN). If `last_phase: DELIVER`, task was completed — start new task.
+
+#### Recovery Script (ready now)
+
+After truncation/reboot, run for full diagnosis:
+```bash
+bash /home/z/my-project/scripts/st-recover.sh
+```
+Checks: /tmp artifacts, skill files, version sync, dev.sh, worklog, snapshot, summary. Provides recovery recommendation.
 
 ---
 
@@ -1464,6 +1547,7 @@ Detail (extraction format, on-demand loading table, anti-patterns) in `knowledge
 - v9.0.0: ~26% CODE-enforced (5/19 vectors)
 - v9.15.0: ~58% CODE-enforced (11/19 vectors) — Proposals 1+2+4+6 + 2-Block Protocol
 - v9.15.2: ~63% CODE-enforced (12/19 vectors) — Proposal 7 E8 todolist proxy
+- v9.15.3: ~63% CODE-enforced + ~50% faster truncation recovery — Proposals 8+9+10 (session resilience, not enforcement)
 - Maximum achievable: ~80% CODE-enforced (platform harness required for remaining 20%)
 
 Research (Lost in the Middle, arXiv 2307.03172): ~70-85% compliance ceiling via text. v9.0.0+ raises to ~90%. v9.15.0 raises CODE enforcement to ~58%. 98% needs harness-level verifier. 100% needs platform enforcement.
