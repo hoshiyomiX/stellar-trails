@@ -2,12 +2,26 @@
 
 Moved from SKILL.md in v9.14.0. Reference-only — LLM can improvise without reading this.
 
-## Step 1: Fetch with curl
+## Step 1: Fetch with curl (v9.17.1: SSRF protection — no auto-redirect, block internal IPs)
 ```bash
 URL="<url>"
+
+# v9.17.1 Fix #4: Block internal/private IPs and metadata endpoints (SSRF protection)
+case "$URL" in
+  http://127.*|http://localhost*|http://169.254.*|http://10.*|http://192.168.*|http://172.16.*|https://127.*|https://localhost*)
+    echo "✗ Blocked: internal/private URL not allowed (SSRF protection)"; exit 1 ;;
+esac
+
+# Validate URL format
+if ! echo "$URL" | grep -qP '^https?://[a-zA-Z0-9]'; then
+  echo "✗ Invalid URL format"; exit 1
+fi
+
 OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
-curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE"
-HTTP_STATUS=$(curl -sSL -m 10 -o /dev/null -w "%{http_code}" "$URL")
+# Fetch WITHOUT -L (no auto-redirect following — SSRF protection)
+HTTP_STATUS=$(curl -sS -m 10 -o "$OUTFILE" -w "%{http_code}" \
+  -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" \
+  --max-redirs 0 "$URL")
 [ "$HTTP_STATUS" = "200" ] || { echo "✗ Retrieval failed: HTTP $HTTP_STATUS"; exit 1; }
 echo "✓ Fetched $(stat -c%s "$OUTFILE") bytes from $URL"
 ```

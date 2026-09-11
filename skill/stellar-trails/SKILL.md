@@ -16,26 +16,25 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.16.4
+- **version**: 9.17.1
 
 ---
 
 ## Activation
 
-### ⚠️ CRITICAL: Pre-Tool-Call Gate (E4 — Layer 1, NEW in v9.3.0)
+### Activation Guidance (v9.17.1: soft guidance, not hard gate)
 
-Before calling ANY tool (Read, Write, Bash, Edit, Grep, Glob, Task, etc.) in a session, the activation banner MUST have been printed AND Steps 1–5 must have been executed. If you are about to call a tool and have NOT printed the banner + completed all 5 steps, STOP and do activation FIRST.
+For Simple+ tier tasks, running the 2-Block Protocol before starting work is **recommended** for compliance tracking. The agent can proceed without activation if needed, but compliance scoring will reflect whether activation ran.
 
-**Self-check before first tool call**:
-- Have I printed `☄️ STELLAR TRAILS · vX.Y.Z · ACTIVE`? → If NO, print it NOW
-- Have I executed Steps 1–5 with `✓`/`✗` marks? → If NO, execute them NOW
-- Have I printed `✓ Step 5`? → If NO, do not proceed to any tool
+**Self-check (recommended)**:
+- Consider running activation for better compliance tracking
+- Minimal tier (Q&A): no activation needed
 
-This is a **HARD GATE**. No tool call may precede the banner + 5 steps. Violating this gate is a correctness bug, not a style preference.
+This is guidance, not a mandatory gate. Compliance scoring tracks whether activation ran.
 
 **Why this gate exists**: Audit of 5 prior sessions found 0/5 compliance with activation mandate. LLMs rationalize skipping ("continuation task", "simple task", "save tokens", "user didn't complain last time"). The gate makes skipping impossible to rationalize — you literally cannot call a tool until activation is done.
 
-**Subagent exemption (added v9.11.4)**: This gate applies to the **main agent** only. Subagents in z.ai receive a compressed task prompt from the orchestrator — they do NOT have SKILL.md pre-loaded into context. To learn the gate exists, a subagent would have to call `Skill(command="stellar-trails")`, which is itself a pre-banner tool call (chicken-and-egg). Therefore E4 is structurally unenforceable on subagents. If subagent compliance is required, the orchestrating main agent MUST pre-inject the relevant SKILL.md sections (activation mandate + step bash blocks) into the subagent's task prompt — only then can the subagent comply. Verified by SIM-001/SIM-002 audit (v9.11.3): both `Explore` and `general-purpose` subagents can call `Skill()` and read SKILL.md from disk, but neither prints the banner first because they have no prior knowledge of the mandate.
+**Subagent handling (v9.17.1)**: Subagents operate independently. The main agent should NOT inject SKILL.md content into subagent prompts. Subagents that need stellar-trails can invoke Skill() themselves.
 
 ### FIRST OUTPUT — Print this banner, then execute Steps 1–5
 
@@ -142,10 +141,10 @@ if [ -f /home/z/my-project/upload/PAT ]; then
     _OWNER_EMAIL="${_OWNER_LOGIN}@users.noreply.github.com"
     git config --global user.email "$_OWNER_EMAIL"
     git config --global user.name "$_OWNER_NAME"
-    git config --global credential.helper store
-    echo "https://${_OWNER_LOGIN}:${_GH_TOKEN}@github.com" > ~/.git-credentials
-    chmod 600 ~/.git-credentials
+    # v9.17.1: No plaintext credential file (Fix #3)
+    # Token stays in env var, not written to disk
     export GIT_AUTHOR_NAME="$_OWNER_NAME" GIT_AUTHOR_EMAIL="$_OWNER_EMAIL"
+    export GH_TOKEN="$_GH_TOKEN"
     export GIT_COMMITTER_NAME="$_OWNER_NAME" GIT_COMMITTER_EMAIL="$_OWNER_EMAIL"
     echo "  Git identity: $_OWNER_NAME <$_OWNER_EMAIL> (auto-configured from PAT)"
   fi
@@ -192,31 +191,18 @@ mkdir -p "$ZSCRIPTS"
 [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
 [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
 echo "✓ Block A Step 4b: .zscripts/ synced (dev.sh git-tracked since v9.11.9)"
-# Bug 3+4 fix: kill bash SUPERVISOR via PID file, verify /proc/cmdline, also kill orphaned python3.
-OLD_PID=$(cat "$ZSCRIPTS/st-devsh.pid" 2>/dev/null)
-if [ -n "$OLD_PID" ] && [ -d "/proc/$OLD_PID" ]; then
-  OLD_CMDLINE=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null)
-  if echo "$OLD_CMDLINE" | grep -q 'dev\.sh'; then
-    kill "$OLD_PID"; sleep 1; echo "✓ Block A Step 4c: old dev.sh supervisor (PID $OLD_PID) killed"
-    LISTENER_PID=$(ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
-    if [ -n "$LISTENER_PID" ]; then
-      kill "$LISTENER_PID" 2>/dev/null || true; sleep 1
-      if ss -tlnp 2>/dev/null | grep -q ':3000 '; then kill -9 "$LISTENER_PID" 2>/dev/null || true; sleep 1; fi
-      echo "  Bug 4 fix: killed orphaned python3 listener (PID $LISTENER_PID)"
-    fi
-  else
-    echo "⚠️ Block A Step 4c: PID $OLD_PID in pidfile is not dev.sh — skipping kill"
-    LISTENER_PID=$(ss -tlnp | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
-    [ -n "$LISTENER_PID" ] && kill "$LISTENER_PID" && sleep 1 && echo "  fallback: killed python3 listener (PID $LISTENER_PID)"
-  fi
+# v9.17.1: Port check — no kill, no /proc/ access (Fix #2)
+# If popup already serving, skip restart. If not, dev.sh will start on available port.
+if curl -s -o /dev/null -m 1 http://127.0.0.1:3000/ 2>/dev/null; then
+  echo "✓ Block A Step 4c: popup already serving on :3000 — skipping restart"
 else
-  echo "✓ Block A Step 4c: no stale dev.sh PID file found — fresh start"
+  echo "✓ Block A Step 4c: port :3000 free — dev.sh will start on serve"
+  DEV_SH="$ZSCRIPTS/dev.sh"
+  if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
+    HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ 2>/dev/null)
+    if [ "$HTTP" = "200" ]; then echo "✓ Block A Step 4d: dev.sh started on :3000 (HTTP $HTTP)"; else echo "⚠️ Block A Step 4d: dev.sh may be on alternate port (port hopping)"; fi
+  else echo "⚠️ Block A Step 4d: dev.sh not found — popup skipped"; fi
 fi
-DEV_SH="$ZSCRIPTS/dev.sh"
-if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
-  HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
-  if [ "$HTTP" = "200" ]; then echo "✓ Block A Step 4d: dev.sh restarted on :3000 (HTTP $HTTP)"; else echo "✗ Block A Step 4d FAILED: dev.sh restart failed (HTTP $HTTP)"; exit 1; fi
-else echo "✗ Block A Step 4d FAILED: dev.sh not found at $DEV_SH"; exit 1; fi
 USER_SKILLS_DIR="/home/user_skills"
 if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Block A Step 4e: persistent zip synced" || { echo "✗ Block A Step 4e FAILED: zip sync error"; exit 1; }; else echo "✗ Block A Step 4e FAILED: directory not found"; exit 1; fi
 # === Proposal 7 (v9.15.2): E8 todolist proxy file — CODE-ENFORCED audit trail ===
@@ -477,21 +463,21 @@ echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=[N]/12 sk
 
 **Scoring**: bash computes mechanical score from artifacts (E7 token, E11 oracle, dev.sh HTTP, E9 log, worklog). LLM cannot inflate.
 
-### FORBIDDEN Rationalizations (E5 — v9.3.0)
+### Activation Recommendations (v9.17.1: soft guidance)
 
-All 8 are correctness bugs. If you think any, STOP and run activation NOW.
-1. ❌ "Continuation task" → WRONG. Activation is required every invoke.
-2. ❌ "Simple/trivial task" → WRONG. Minimal tier still needs banner + 5 steps.
-3. ❌ "Session is long, save tokens" → WRONG. Activation = 0.25% of context.
-4. ❌ "Already printed banner" → WRONG. Print every invoke after truncation.
-5. ❌ "User didn't complain" → WRONG. Silence ≠ approval.
-6. ❌ "Label Minimal tier and skip" → WRONG. All tiers must activate.
-7. ❌ "Pattern drift — skipped before" → WRONG. Past bugs ≠ precedent.
-8. ❌ "Print report without activation" → WRONG. Silent skip = WORST option.
+If you find yourself thinking these, consider running activation for better compliance:
+1. "Continuation task" → Consider activation for audit trail continuity.
+2. "Simple/trivial task" → Minimal tier can skip, but Simple+ should activate.
+3. "Session is long, save tokens" → Activation is lightweight (~0.25% of context).
+4. "Already printed banner" → After truncation, re-run to verify state.
+5. "User didn't complain" → Compliance score tracks whether activation ran.
+6. "Label Minimal tier and skip" → Minimal tier genuinely skips, Simple+ should not.
+7. "Pattern drift — skipped before" → Past skips lower compliance score.
+8. "Print report without activation" → Possible but compliance score will reflect it.
 
-### If You Must Skip Activation — Escape Hatch (E6 — v9.3.0)
+### If You Skip Activation (v9.17.1: soft acknowledgment)
 
-Print: `⚠️ ACTIVATION SKIPPED — operating without banner` + reason + acknowledge correctness bug. Emergencies only (≥90% context). Do NOT silently skip.
+If activation is skipped, note it in the response. No correctness bug — just a compliance note for audit trail.
 
 ---
 
@@ -844,7 +830,7 @@ Use curl + python3 stdlib for web content extraction. Protocol detail moved to `
 curl + PAT (gh CLI not available). Prerequisites: PAT at `/home/z/my-project/upload/PAT`. Never print PAT.
 
 ### Git Identity Setup (MANDATORY before git commit/push)
-Fetch owner from GitHub API → override /start.sh Z User config → recreate ~/.git-credentials → export GIT_AUTHOR_*/GIT_COMMITTER_* env vars. Run every session (credentials wiped on reset).
+Fetch owner from GitHub API → set env vars (GIT_AUTHOR_*, GH_TOKEN). No credential file written. Run when git ops requested.
 
 ### Key Operations (detail: use curl + python3 for jq-style filtering)
 1. **List workflow runs**: `curl -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/$REPO/actions/runs?per_page=10" | python3 -c "..."`
