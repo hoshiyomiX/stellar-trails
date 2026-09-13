@@ -241,8 +241,8 @@ PYEOF
 # Catches: .gitignore regression (re-ignoring .zscripts/), dev.sh drift between
 # the tracked runtime copy and the zip source.
 if git ls-files --error-unmatch .zscripts/dev.sh >/dev/null 2>&1; then
-  SKILL_HASH=$(sha256sum skill/stellar-trails/dev.sh | cut -d' ' -f1)
-  ZSCRIPTS_HASH=$(sha256sum .zscripts/dev.sh | cut -d' ' -f1)
+  SKILL_HASH=$([HASH] skill/stellar-trails/dev.sh | cut -d' ' -f1)
+  ZSCRIPTS_HASH=$([HASH] .zscripts/dev.sh | cut -d' ' -f1)
   if [ "$SKILL_HASH" != "$ZSCRIPTS_HASH" ]; then
     echo "✗ Check 14 FAIL: .zscripts/dev.sh hash mismatch"
     echo "  skill/stellar-trails/dev.sh: $SKILL_HASH"

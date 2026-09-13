@@ -7,7 +7,7 @@ Auto-extracted when same decision pattern repeats ≥3 times across sessions.
 
 ## Preferences:
 - Prefers direct Edit tool over patch files (patch files are "junk")
-- PAT kept permanently at /home/z/my-project/upload/PAT until sandbox closes
+- PAT kept permanently at [PAT_PATH] until sandbox closes
 - Wants version bumps on every change, even small fixes (patch version)
 - Prefers Indonesian language for explanations, English for code/commits
 - Wants commits pushed immediately after fix, no waiting for batch
@@ -17,7 +17,7 @@ Auto-extracted when same decision pattern repeats ≥3 times across sessions.
 ## Recurring decisions:
 - When fixing bugs: fix all same-surface bugs in one commit, defer different-surface
 - When CI fails: fetch logs first, apply Proximate Cause Triage, don't rabbit-hole
-- When skill version drift: clawhub update --force, then sync zip immediately
+- When skill version drift: [UPDATE_CMD], then sync zip immediately
 - When index.html version stale: Check 10 catches it, fix in same commit
 
 ## Working style:

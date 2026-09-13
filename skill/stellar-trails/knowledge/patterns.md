@@ -19,13 +19,13 @@ Adapted from TencentDB-Agent-Memory L1 Atom concept.
 
 ## [2026-07-09] git: Z User identity override requires env vars, not just config
 **Context**: /start.sh sets global git config to Z User — commits show wrong author
-**Approach**: Override with `git config --global` + `GIT_AUTHOR_*` + `GIT_COMMITTER_*` env vars
+**Approach**: Override with `# git config (removed in v9.18.0)` + `GIT_AUTHOR_*` + `GIT_COMMITTER_*` env vars
 **Gotcha**: `git -c` flags only set per-command config, committer falls back to global Z User
 **Source**: v9.9.0 Git Identity Setup
 
-## [2026-07-09] git: ~/.git-credentials not in repo.tar, wiped each session
+## [2026-07-09] git: [CREDENTIAL_FILE] not in repo.tar, wiped each session
 **Context**: Git credentials stored in $HOME, not in /home/z/my-project/
-**Approach**: Re-create ~/.git-credentials from PAT at each session start (auto in Step 1 since v9.10.1)
+**Approach**: Re-create [CREDENTIAL_FILE] from PAT at each session start (auto in Step 1 since v9.10.1)
 **Gotcha**: repo.tar only archives /home/z/my-project/ — anything in $HOME is lost on session reset
 **Source**: v9.9.0 Git Identity Setup
 

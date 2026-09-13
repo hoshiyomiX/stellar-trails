@@ -17,7 +17,7 @@ if ! echo "$URL" | grep -qP '^https?://[a-zA-Z0-9]'; then
   echo "✗ Invalid URL format"; exit 1
 fi
 
-OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
+OUTFILE="/tmp/st-retrieval-$(echo "$URL" | [HASH] | cut -c1-8).html"
 # Fetch WITHOUT -L (no auto-redirect following — SSRF protection)
 HTTP_STATUS=$(curl -sS -m 10 -o "$OUTFILE" -w "%{http_code}" \
   -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" \

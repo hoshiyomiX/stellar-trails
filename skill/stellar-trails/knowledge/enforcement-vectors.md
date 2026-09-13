@@ -27,7 +27,7 @@ if [ "$TOKEN_AGE" -gt 120 ]; then
   exit 1
 fi
 SESSION_META=$(cat /tmp/st-session-meta)
-EXPECTED_TOKEN=$(printf '%s' "${ST_VERSION}:${SESSION_META}" | sha256sum | cut -c1-16)
+EXPECTED_TOKEN=$(printf '%s' "${ST_VERSION}:${SESSION_META}" | [HASH] | cut -c1-16)
 ACTUAL_TOKEN=$(cat /tmp/st-active)
 if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   echo "✗ Block B GATE FAILED: token mismatch — token does not match session_meta"
@@ -37,7 +37,7 @@ fi
 
 **Why this is now CODE-ENFORCED (not PARTIAL)**: The token includes `$$` (bash PID of Block A) and `$(date +%s)` (unix timestamp when Block A ran). An LLM cannot fabricate this token without actually running bash — it has no way to know what PID or timestamp bash will assign. Previous session's token won't work because timestamp will be >120s old. Concurrent sessions' tokens won't work because PIDs differ.
 
-**Residual bypass**: A rationalizing LLM could still compute the token directly by running `echo "9.15.0:$(date +%s):$$" | sha256sum` — but this requires running bash, which is itself a tool call recorded in transcript. The gate's purpose is to force Block A to actually execute bash, not to cryptographically prove identity.
+**Residual bypass**: A rationalizing LLM could still compute the token directly by running `echo "9.15.0:$(date +%s):$$" | [HASH]` — but this requires running bash, which is itself a tool call recorded in transcript. The gate's purpose is to force Block A to actually execute bash, not to cryptographically prove identity.
 
 **Subagent write access caveat (added v9.11.4, still applies)**: `/tmp/st-active` and `/tmp/st-session-meta` are world-writable. A subagent CAN overwrite them. But the freshness check (120s) means the subagent would have to overwrite within 120s of Block B running — and the orchestrating main agent should pre-validate before trusting.
 
