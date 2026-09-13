@@ -112,10 +112,10 @@ fi
 [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS_DIR/index.html"
 [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS_DIR/chibi.svg" 2>/dev/null || true
 
-# === PHASE 2: POPUP SERVER (infinite loop + # setsid (removed: Block A handles background)) ===
+# === PHASE 2: POPUP SERVER (infinite loop + ) ===
 # Instruction #1: Running di localhost:3000
 # Instruction #4: Infinite loop needed (auto-restart on crash)
-# Instruction #5: # setsid (removed: Block A handles background) needed (survive terminal close)
+# Instruction #5: SIGHUP trap handles terminal close
 
 log "Serving on 127.0.0.1:$PORT (v9.18.1 — restore + localhost + smart kill + loop)"
 log "PID: $$ | Phase 2: popup server (infinite loop)"

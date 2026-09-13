@@ -139,8 +139,8 @@ if [ -f /home/z/my-project/upload/PAT ]; then
   if [ -n "$_OWNER_LOGIN" ]; then
     _OWNER_NAME=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name') or d.get('login',''))")
     _OWNER_EMAIL="${_OWNER_LOGIN}@users.noreply.github.com"
-    git config --global user.email "$_OWNER_EMAIL"
-    git config --global user.name "$_OWNER_NAME"
+    # v9.18.2: Uses GIT_AUTHOR_EMAIL env var (no global config)
+    # v9.18.2: Uses GIT_AUTHOR_NAME env var (no global config)
     # v9.17.1: No plaintext credential file (Fix #3)
     # Token stays in env var, not written to disk
     export GIT_AUTHOR_NAME="$_OWNER_NAME" GIT_AUTHOR_EMAIL="$_OWNER_EMAIL"
@@ -166,15 +166,20 @@ if [ -z "$CURRENT" ]; then echo "✗ Block A Step 3 FAILED: could not read curre
 elif [ -z "$LATEST" ]; then echo "✗ Block A Step 3 FAILED: could not reach ClawHub registry"; exit 1
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Block A Step 3: up to date (v$CURRENT) — E11 oracle: $(stat -c%s /tmp/st-clawhub-oracle.json) bytes"
 else
-  echo "⚠️ Block A Step 3: DRIFT DETECTED — local v$CURRENT vs registry v$LATEST — FORCE UPDATING..."
-  clawhub --no-input update stellar-trails --force
-  UPDATE_EXIT=$?
-  if [ $UPDATE_EXIT -ne 0 ]; then echo "✗ Block A Step 3 FAILED: clawhub update exited $UPDATE_EXIT"; exit 1; fi
-  POST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$_SKILL_MD" | head -1)
-  if [ "$POST_VERSION" != "$LATEST" ]; then echo "✗ Block A Step 3 FAILED: update claimed success but local still v$POST_VERSION"; exit 1; fi
-  echo "✓ Block A Step 3: FORCE UPDATE CONFIRMED — local v$POST_VERSION = registry v$LATEST"
-  USER_SKILLS_DIR="/home/user_skills"
-  if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Block A Step 3: zip synced to v$LATEST"; fi
+  # v9.18.2: Conditional force update — check scan verdict before updating
+  REG_MOD=$(clawhub inspect stellar-trails --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('moderation',{}).get('verdict','unknown'))" 2>/dev/null || echo "unknown")
+  if [ "$REG_MOD" = "clean" ]; then
+    echo "⚠️ Block A Step 3: DRIFT — local v$CURRENT vs registry v$LATEST (moderation: clean) — updating..."
+    clawhub --no-input update stellar-trails --force
+    UPDATE_EXIT=$?
+    if [ $UPDATE_EXIT -ne 0 ]; then echo "✗ Block A Step 3 FAILED: clawhub update exited $UPDATE_EXIT"; exit 1; fi
+    POST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$_SKILL_MD" | head -1)
+    if [ "$POST_VERSION" != "$LATEST" ]; then echo "✗ Block A Step 3 FAILED: update claimed success but local still v$POST_VERSION"; exit 1; fi
+    echo "✓ Block A Step 3: updated to v$POST_VERSION (scan: clean)"
+  else
+    echo "⚠️ Block A Step 3: DRIFT — local v$CURRENT vs registry v$LATEST (moderation: $REG_MOD) — NOT updating (scan not clean)"
+    echo "  To update manually: clawhub install stellar-trails --force"
+  fi
 fi
 # === Step 4: File verify + .zscripts sync + dev.sh restart + zip sync ===
 # v9.14.1: Install-if-missing — if skill was wiped by container reboot, auto-install.
