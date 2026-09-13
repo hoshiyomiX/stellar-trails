@@ -31,11 +31,22 @@ log() {
 
 if [ ! -f "$SKILL_MD" ]; then
   log "SKILL.md missing — restoring stellar-trails via clawhub..."
+  # FIX v9.18.2: clawhub install uses CWD for skills/ dir.
+  # Must run from /home/z/my-project/ so it installs to skills/stellar-trails/
+  # NOT from .zscripts/ (which would create .zscripts/skills/stellar-trails/)
+  cd /home/z/my-project
   if clawhub install stellar-trails --force 2>/dev/null; then
-    log "✓ Skill restored: v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' "$SKILL_MD" 2>/dev/null | head -1 || echo 'unknown')"
+    RESTORED_VER=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' "$SKILL_MD" 2>/dev/null | head -1 || echo 'unknown')
+    if [ -f "$SKILL_MD" ]; then
+      log "✓ Skill restored: v${RESTORED_VER} at $SKILL_MD"
+    else
+      log "✗ Skill restore: clawhub exited 0 but SKILL.md not found at $SKILL_MD"
+      log "  Check if clawhub installed to wrong directory"
+    fi
   else
     log "✗ Skill restore FAILED (clawhub install failed — network or account issue)"
   fi
+  cd "$ZSCRIPTS_DIR"
 else
   LOCAL_VER=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' "$SKILL_MD" 2>/dev/null | head -1)
   log "✓ Skill present: v${LOCAL_VER:-unknown} — skip restore"
